@@ -137,21 +137,23 @@ class PostRepository(
             
             // Upload image if provided
             if (imageUri != null) {
-                storageDataSource.uploadImage(imageUri, Constants.STORAGE_POST_IMAGES)
-                    .collect { uploadResult ->
-                        when (uploadResult) {
-                            is Result.Success -> {
-                                imageUrl = uploadResult.data
-                            }
-                            is Result.Error -> {
-                                emit(uploadResult)
-                                return@flow
-                            }
-                            is Result.Loading -> {
-                                // Continue waiting
-                            }
-                        }
+                val uploadResult = storageDataSource.uploadImage(imageUri, Constants.STORAGE_POST_IMAGES)
+                    .first() // Get first emission instead of collecting
+                
+                when (uploadResult) {
+                    is Result.Success -> {
+                        imageUrl = uploadResult.data
                     }
+                    is Result.Error -> {
+                        emit(uploadResult)
+                        return@flow
+                    }
+                    is Result.Loading -> {
+                        // Should not happen with first(), but handle just in case
+                        emit(Result.Error(Exception("Unexpected loading state"), "Upload failed"))
+                        return@flow
+                    }
+                }
             }
             
             // Create post with image URL
@@ -193,21 +195,23 @@ class PostRepository(
                     storageDataSource.deleteImage(oldImageUrl)
                 }
                 
-                storageDataSource.uploadImage(imageUri, Constants.STORAGE_POST_IMAGES)
-                    .collect { uploadResult ->
-                        when (uploadResult) {
-                            is Result.Success -> {
-                                imageUrl = uploadResult.data
-                            }
-                            is Result.Error -> {
-                                emit(uploadResult)
-                                return@flow
-                            }
-                            is Result.Loading -> {
-                                // Continue waiting
-                            }
-                        }
+                val uploadResult = storageDataSource.uploadImage(imageUri, Constants.STORAGE_POST_IMAGES)
+                    .first() // Get first emission instead of collecting
+                
+                when (uploadResult) {
+                    is Result.Success -> {
+                        imageUrl = uploadResult.data
                     }
+                    is Result.Error -> {
+                        emit(uploadResult)
+                        return@flow
+                    }
+                    is Result.Loading -> {
+                        // Should not happen with first(), but handle just in case
+                        emit(Result.Error(Exception("Unexpected loading state"), "Upload failed"))
+                        return@flow
+                    }
+                }
             }
             
             // Update post with new image URL

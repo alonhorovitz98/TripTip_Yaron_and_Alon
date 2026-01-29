@@ -20,7 +20,7 @@ object ApiClient {
         .build()
     
     private val weatherRetrofit = Retrofit.Builder()
-        .baseUrl(Constants.OPENWEATHER_BASE_URL)
+        .baseUrl(Constants.OPEN_METEO_BASE_URL)
         .client(okHttpClient)
         .addConverterFactory(GsonConverterFactory.create())
         .build()

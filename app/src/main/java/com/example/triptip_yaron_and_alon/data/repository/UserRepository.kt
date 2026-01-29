@@ -12,6 +12,7 @@ import com.example.triptip_yaron_and_alon.util.Result
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -72,21 +73,23 @@ class UserRepository(
             
             // Upload image if provided
             if (imageUri != null) {
-                storageDataSource.uploadImage(imageUri, Constants.STORAGE_PROFILE_IMAGES)
-                    .collect { uploadResult ->
-                        when (uploadResult) {
-                            is Result.Success -> {
-                                imageUrl = uploadResult.data
-                            }
-                            is Result.Error -> {
-                                emit(uploadResult)
-                                return@flow
-                            }
-                            is Result.Loading -> {
-                                // Continue waiting
-                            }
-                        }
+                val uploadResult = storageDataSource.uploadImage(imageUri, Constants.STORAGE_PROFILE_IMAGES)
+                    .first() // Get first emission instead of collecting
+                
+                when (uploadResult) {
+                    is Result.Success -> {
+                        imageUrl = uploadResult.data
                     }
+                    is Result.Error -> {
+                        emit(uploadResult)
+                        return@flow
+                    }
+                    is Result.Loading -> {
+                        // Should not happen with first(), but handle just in case
+                        emit(Result.Error(Exception("Unexpected loading state"), "Upload failed"))
+                        return@flow
+                    }
+                }
             }
             
             // Update Firebase Auth profile

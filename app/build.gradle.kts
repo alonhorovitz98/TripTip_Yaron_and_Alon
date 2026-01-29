@@ -20,6 +20,10 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        
+        // API Keys - Read from local.properties or use empty string
+        // Note: Open-Meteo doesn't require an API key (free and open source)
+        buildConfigField("String", "OPENTRIPMAP_API_KEY", "\"${project.findProperty("OPENTRIPMAP_API_KEY") ?: ""}\"")
     }
 
     buildTypes {

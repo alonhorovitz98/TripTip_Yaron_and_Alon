@@ -738,7 +738,7 @@ Create API clients (Retrofit instances with base URLs, interceptors).
 
 ---
 
-- [ ] #### Step 12.2: API Repository (Alon - Day 9-10)
+- [x] #### Step 12.2: API Repository (Alon - Day 9-10)
 **Files:** `data/repository/PlaceInfoRepository.kt`
 
 Create repository:

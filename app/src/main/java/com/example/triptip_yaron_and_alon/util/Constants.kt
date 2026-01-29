@@ -14,13 +14,11 @@ object Constants {
     const val STORAGE_PROFILE_IMAGES = "profile_images"
     
     // API Keys (store in local.properties or BuildConfig)
-    // These will be set when APIs are configured in Step 12
-    // For now, use placeholder - will be replaced with BuildConfig values later
-    const val OPENWEATHER_API_KEY = "" // TODO: Add to BuildConfig in Step 12
+    // Open-Meteo doesn't require an API key (free and open source)
     const val OPENTRIPMAP_API_KEY = "" // TODO: Add to BuildConfig in Step 12
     
     // API Base URLs
-    const val OPENWEATHER_BASE_URL = "https://api.openweathermap.org/data/2.5/"
+    const val OPEN_METEO_BASE_URL = "https://api.open-meteo.com/v1/"
     const val OPENTRIPMAP_BASE_URL = "https://api.opentripmap.io/0.1/en/"
     
     // Default Values
