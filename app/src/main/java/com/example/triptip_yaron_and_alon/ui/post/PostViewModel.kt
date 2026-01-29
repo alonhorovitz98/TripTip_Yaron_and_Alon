@@ -51,6 +51,16 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
     private val _error = MutableLiveData<String?>()
     val error: LiveData<String?> = _error
     
+    // API Integration (Step 12.3) - Placeholder for Alon's API Repository
+    // TODO: Uncomment when Alon completes API Repository
+    /*
+    private val _weather = MutableLiveData<WeatherInfo?>()
+    val weather: LiveData<WeatherInfo?> = _weather
+    
+    private val _nearbyPlaces = MutableLiveData<List<PlaceInfo>>()
+    val nearbyPlaces: LiveData<List<PlaceInfo>> = _nearbyPlaces
+    */
+    
     // Current user ID (simplified - should come from auth)
     private var currentUserId: String? = null
     
@@ -150,4 +160,32 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
     fun clearError() {
         _error.value = null
     }
+    
+    // API Integration (Step 12.3) - Placeholder methods
+    // TODO: Uncomment and implement when Alon completes API Repository
+    /*
+    fun loadWeather(lat: Double, lon: Double) {
+        viewModelScope.launch {
+            // apiRepository.getWeather(lat, lon).collect { result ->
+            //     when (result) {
+            //         is Result.Success -> _weather.value = result.data
+            //         is Result.Error -> _error.value = result.message
+            //         else -> {}
+            //     }
+            // }
+        }
+    }
+    
+    fun loadNearbyPlaces(lat: Double, lon: Double) {
+        viewModelScope.launch {
+            // apiRepository.getNearbyPlaces(lat, lon).collect { result ->
+            //     when (result) {
+            //         is Result.Success -> _nearbyPlaces.value = result.data
+            //         is Result.Error -> _error.value = result.message
+            //         else -> {}
+            //     }
+            // }
+        }
+    }
+    */
 }
