@@ -722,7 +722,7 @@ Fragment:
 
 ### Phase 12: External API Integration
 
-- [ ] #### Step 12.1: API Services Setup (Alon - Day 9-10)
+- [x] #### Step 12.1: API Services Setup (Alon - Day 9-10)
 **Files:** `data/remote/api/WeatherApiService.kt`, `data/remote/api/OpenTripMapApiService.kt`, `data/remote/api/*ApiClient.kt`
 
 Create Retrofit interfaces:
