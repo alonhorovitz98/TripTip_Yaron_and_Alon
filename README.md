@@ -207,7 +207,7 @@ Create DAOs with `@Dao` annotation:
 
 ---
 
-- [ ] #### Step 3.3: Room Database
+- [x] #### Step 3.3: Room Database
 **Files:** `data/local/database/TripTipDatabase.kt`
 
 Create `@Database` class:
@@ -220,7 +220,7 @@ Create `@Database` class:
 
 ---
 
-- [ ] #### Step 3.4: Mappers
+- [x] #### Step 3.4: Mappers
 **Files:** `domain/mapper/*.kt`
 
 Create mappers:
