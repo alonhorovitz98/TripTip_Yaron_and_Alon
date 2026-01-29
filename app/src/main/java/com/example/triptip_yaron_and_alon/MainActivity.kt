@@ -2,20 +2,44 @@ package com.example.triptip_yaron_and_alon
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupActionBarWithNavController
+import com.example.triptip_yaron_and_alon.ui.auth.AuthViewModel
 import com.google.android.material.appbar.MaterialToolbar
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
+    
+    private lateinit var authViewModel: AuthViewModel
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         
+        authViewModel = ViewModelProvider(this)[AuthViewModel::class.java]
+        
         setupNavigation()
-        // TODO: Add auto-login check in Step 7.4
-        // For now, navigation will start at LoginFragment (start destination)
+        checkAutoLogin()
     }
+    
+    private fun checkAutoLogin() {
+        // Observe logged in state
+        authViewModel.isLoggedIn.observe(this) { isLoggedIn ->
+            if (isLoggedIn) {
+                val navHostFragment = supportFragmentManager
+                    .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
+                val navController = navHostFragment.navController
+                
+                // Only navigate if we're still on login screen
+                if (navController.currentDestination?.id == R.id.loginFragment) {
+                    navController.navigate(R.id.action_loginFragment_to_feedFragment)
+                }
+            }
+        }
+    }
+
     
     private fun setupNavigation() {
         val navHostFragment = supportFragmentManager

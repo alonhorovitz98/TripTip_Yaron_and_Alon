@@ -8,9 +8,8 @@ plugins {
 
 android {
     namespace = "com.example.triptip_yaron_and_alon"
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 36
+
 
     defaultConfig {
         applicationId = "com.example.triptip_yaron_and_alon"
