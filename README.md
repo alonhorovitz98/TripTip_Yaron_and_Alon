@@ -191,7 +191,7 @@ Create entities with `@Entity` annotation:
 
 ---
 
-- [ ] #### Step 3.2: Room DAOs
+- [x] #### Step 3.2: Room DAOs
 **Files:** `data/local/database/dao/*.kt`
 
 Create DAOs with `@Dao` annotation:
