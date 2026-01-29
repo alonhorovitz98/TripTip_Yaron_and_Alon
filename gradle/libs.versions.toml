@@ -28,7 +28,7 @@ swiperefreshlayout = "1.1.0"
 # Coroutines
 coroutines = "1.7.3"
 # Firebase
-firebaseBom = "33.0.0"
+firebaseBom = "34.8.0"
 # Optional: Hilt for DI
 hilt = "2.50"
 hiltNavigation = "1.2.0"
@@ -89,5 +89,5 @@ android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-kapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }
 navigation-safe-args = { id = "androidx.navigation.safeargs.kotlin", version.ref = "navigation" }
-google-services = { id = "com.google.gms.google-services", version = "4.4.2" }
+google-services = { id = "com.google.gms.google-services", version = "4.4.4" }
 

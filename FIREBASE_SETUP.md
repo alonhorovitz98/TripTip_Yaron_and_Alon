@@ -42,6 +42,15 @@
 3. Start in **test mode** (we'll add security rules later)
 4. Click "Done"
 
+**Option 2: Skip Storage (Use Alternative)**
+If you want to skip Firebase Storage, we can use one of these alternatives:
+- **Imgur API** (free, no account needed for anonymous uploads)
+- **Cloudinary** (free tier: 25GB storage, 25GB bandwidth/month)
+- **Store images as base64 in Firestore** (limited to 1MB per document - not recommended for large images)
+- **Local storage only** (images won't sync across devices)
+
+See **Image Storage Alternatives** section below for implementation details.
+
 ## Step 5: Add Security Rules (Later - Step 14)
 
 We'll add proper security rules in Step 14. For now, test mode is fine for development.

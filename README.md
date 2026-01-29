@@ -70,13 +70,18 @@ Data Sources
 
 **Estimated Time:** ~6-7 days
 
+### 📝 Notes
+- Firebase Storage: Using local file storage fallback for development (see `IMAGE_STORAGE_STRATEGY.md`)
+- Compose code removed, Fragment-based navigation ready
+- All dependencies configured and synced
+
 ---
 
 ## Detailed Implementation Steps
 
 ### Phase 1: Project Foundation (Alon - Day 1)
 
-#### Step 1.1: Update Dependencies
+- [x] #### Step 1.1: Update Dependencies
 **File:** `gradle/libs.versions.toml`, `app/build.gradle.kts`
 
 Add all required libraries:
@@ -92,7 +97,7 @@ Add all required libraries:
 
 ---
 
-#### Step 1.2: Create Package Structure
+- [x] #### Step 1.2: Create Package Structure
 **Files:** Create all package folders
 
 ```
@@ -114,8 +119,9 @@ com.example.triptip_yaron_and_alon/
 
 ---
 
-#### Step 1.3: Firebase Setup
+- [ ] #### Step 1.3: Firebase Setup ⏳
 **Files:** Firebase Console, `google-services.json`, `build.gradle.kts`
+**Status:** ✅ `google-services.json` file added. Verify package name matches and services are enabled.
 
 1. Create Firebase project
 2. Add `google-services.json` to `app/`
@@ -128,7 +134,7 @@ com.example.triptip_yaron_and_alon/
 
 ---
 
-#### Step 1.4: Git Initialization
+- [ ] #### Step 1.4: Git Initialization
 **Files:** `.gitignore`, Git branches
 
 1. Initialize Git repository
@@ -142,7 +148,7 @@ com.example.triptip_yaron_and_alon/
 
 ### Phase 2: Domain Models & Utilities (Alon - Day 1-2)
 
-#### Step 2.1: Domain Models
+- [x] #### Step 2.1: Domain Models
 **Files:** `domain/model/*.kt`
 
 Create all domain models:
@@ -158,12 +164,12 @@ Create all domain models:
 
 ---
 
-#### Step 2.2: Utilities
+- [x] #### Step 2.2: Utilities
 **Files:** `util/Result.kt`, `util/Constants.kt`, `util/Extensions.kt`
 
-- `Result.kt` - Sealed class (Success, Error, Loading)
-- `Constants.kt` - Collection names, storage paths, API keys
-- `Extensions.kt` - Helper functions for error handling, UI
+- `Result.kt` - Sealed class (Success, Error, Loading) ✅
+- `Constants.kt` - Collection names, storage paths, API keys ✅
+- `Extensions.kt` - Helper functions for error handling, UI ✅
 
 **Test:** Utilities compile and can be imported
 
@@ -171,7 +177,7 @@ Create all domain models:
 
 ### Phase 3: Room Database Setup (Alon - Day 2)
 
-#### Step 3.1: Room Entities
+- [ ] #### Step 3.1: Room Entities
 **Files:** `data/local/database/entities/*.kt`
 
 Create entities with `@Entity` annotation:
@@ -185,7 +191,7 @@ Create entities with `@Entity` annotation:
 
 ---
 
-#### Step 3.2: Room DAOs
+- [ ] #### Step 3.2: Room DAOs
 **Files:** `data/local/database/dao/*.kt`
 
 Create DAOs with `@Dao` annotation:
@@ -201,7 +207,7 @@ Create DAOs with `@Dao` annotation:
 
 ---
 
-#### Step 3.3: Room Database
+- [ ] #### Step 3.3: Room Database
 **Files:** `data/local/database/TripTipDatabase.kt`
 
 Create `@Database` class:
@@ -214,7 +220,7 @@ Create `@Database` class:
 
 ---
 
-#### Step 3.4: Mappers
+- [ ] #### Step 3.4: Mappers
 **Files:** `domain/mapper/*.kt`
 
 Create mappers:
@@ -228,7 +234,7 @@ Create mappers:
 
 ### Phase 4: Navigation Setup (Alon - Day 2)
 
-#### Step 4.1: Navigation Graph
+- [ ] #### Step 4.1: Navigation Graph
 **Files:** `app/src/main/res/navigation/nav_graph.xml`
 
 Create navigation graph with:
@@ -245,7 +251,7 @@ Create navigation graph with:
 
 ---
 
-#### Step 4.2: MainActivity Setup
+- [ ] #### Step 4.2: MainActivity Setup
 **Files:** `activity_main.xml`, `MainActivity.kt`
 
 1. Create `activity_main.xml` with NavHostFragment
@@ -258,7 +264,7 @@ Create navigation graph with:
 
 ---
 
-#### Step 4.3: Placeholder Fragments
+- [ ] #### Step 4.3: Placeholder Fragments
 **Files:** All fragment classes and layouts
 
 Create empty fragments:
@@ -275,7 +281,7 @@ Each fragment shows its name in a TextView.
 
 ### Phase 5: Firebase Remote Data Sources (Alon - Day 3)
 
-#### Step 5.1: Firebase Auth Data Source
+- [ ] #### Step 5.1: Firebase Auth Data Source
 **Files:** `data/remote/firebase/FirebaseAuthDataSource.kt`
 
 Create class with async methods:
@@ -291,7 +297,7 @@ All methods use coroutines, NO blocking calls.
 
 ---
 
-#### Step 5.2: Firestore Data Source
+- [ ] #### Step 5.2: Firestore Data Source
 **Files:** `data/remote/firebase/FirestoreDataSource.kt`
 
 Create class with async methods:
@@ -309,22 +315,30 @@ All methods use coroutines, NO blocking calls.
 
 ---
 
-#### Step 5.3: Firebase Storage Data Source
+- [ ] #### Step 5.3: Firebase Storage Data Source (Local Storage Fallback)
 **Files:** `data/remote/firebase/FirebaseStorageDataSource.kt`
 
+**Note:** Using local file storage for development/testing. See `IMAGE_STORAGE_STRATEGY.md` for details.
+
 Create class with async methods:
-- `uploadImage(uri, path): Flow<Result<String>>` (returns URL)
-- `deleteImage(imageUrl): suspend Result<Unit>`
+- `uploadImage(uri, path): Flow<Result<String>>` (returns local file path)
+- `deleteImage(imageUrl): suspend Result<Unit>` (deletes local file)
+
+Implementation:
+- Save images to app's external files directory
+- Return file paths (e.g., `/storage/.../Pictures/posts/user123/image.jpg`)
+- Store paths in Firestore as `imageUrl`
+- Coil/Picasso can load from file paths directly
 
 All methods use coroutines, NO blocking calls.
 
-**Test:** Can upload image, get URL back
+**Test:** Can upload image to local storage, get file path back, image loads in UI
 
 ---
 
 ### Phase 6: Repository Layer (Alon - Day 3-4)
 
-#### Step 6.1: Auth Repository
+- [ ] #### Step 6.1: Auth Repository
 **Files:** `data/repository/AuthRepository.kt`
 
 Create repository:
@@ -340,7 +354,7 @@ Create repository:
 
 ---
 
-#### Step 6.2: Post Repository
+- [ ] #### Step 6.2: Post Repository
 **Files:** `data/repository/PostRepository.kt`
 
 Create repository with cache-first strategy:
@@ -363,7 +377,7 @@ Create repository with cache-first strategy:
 
 ---
 
-#### Step 6.3: User Repository
+- [ ] #### Step 6.3: User Repository
 **Files:** `data/repository/UserRepository.kt`
 
 Create repository:
@@ -377,7 +391,7 @@ Create repository:
 
 ---
 
-#### Step 6.4: Trip Repository (Basic Structure)
+- [ ] #### Step 6.4: Trip Repository (Basic Structure)
 **Files:** `data/repository/TripRepository.kt`
 
 Create repository with basic structure:
@@ -398,7 +412,7 @@ All methods async, cache-first strategy.
 
 ### Phase 7: Authentication UI (Yaron - Day 4-5)
 
-#### Step 7.1: Auth ViewModel
+- [ ] #### Step 7.1: Auth ViewModel
 **Files:** `ui/auth/AuthViewModel.kt`
 
 Create ViewModel:
@@ -413,7 +427,7 @@ Create ViewModel:
 
 ---
 
-#### Step 7.2: Login Fragment
+- [ ] #### Step 7.2: Login Fragment
 **Files:** `fragment_login.xml`, `ui/auth/LoginFragment.kt`
 
 Create layout:
@@ -435,7 +449,7 @@ Fragment:
 
 ---
 
-#### Step 7.3: Register Fragment
+- [ ] #### Step 7.3: Register Fragment
 **Files:** `fragment_register.xml`, `ui/auth/RegisterFragment.kt`
 
 Create layout:
@@ -456,7 +470,7 @@ Fragment:
 
 ---
 
-#### Step 7.4: Auto-Login in MainActivity
+- [ ] #### Step 7.4: Auto-Login in MainActivity
 **Files:** `MainActivity.kt`
 
 Update MainActivity:
@@ -471,7 +485,7 @@ Update MainActivity:
 
 ### Phase 8: Feed UI (Yaron - Day 5-6)
 
-#### Step 8.1: Feed ViewModel
+- [ ] #### Step 8.1: Feed ViewModel
 **Files:** `ui/feed/FeedViewModel.kt`
 
 Create ViewModel:
@@ -485,7 +499,7 @@ Create ViewModel:
 
 ---
 
-#### Step 8.2: Feed Fragment
+- [ ] #### Step 8.2: Feed Fragment
 **Files:** `fragment_feed.xml`, `item_post.xml`, `ui/adapter/PostAdapter.kt`, `ui/feed/FeedFragment.kt`
 
 Layout:
@@ -517,7 +531,7 @@ Fragment:
 
 ### Phase 9: Post Details & Create Post (Yaron - Day 6-7)
 
-#### Step 9.1: Post ViewModel
+- [ ] #### Step 9.1: Post ViewModel
 **Files:** `ui/post/PostViewModel.kt`
 
 Create ViewModel:
@@ -533,7 +547,7 @@ Create ViewModel:
 
 ---
 
-#### Step 9.2: Post Details Fragment
+- [ ] #### Step 9.2: Post Details Fragment
 **Files:** `fragment_post_details.xml`, `ui/post/PostDetailsFragment.kt`
 
 Layout:
@@ -557,7 +571,7 @@ Fragment:
 
 ---
 
-#### Step 9.3: Create Post Fragment
+- [ ] #### Step 9.3: Create Post Fragment
 **Files:** `fragment_create_post.xml`, `ui/post/CreatePostFragment.kt`
 
 Layout:
@@ -583,7 +597,7 @@ Fragment:
 
 ### Phase 10: My Posts & Edit Post (Yaron - Day 7-8)
 
-#### Step 10.1: Update Post ViewModel
+- [ ] #### Step 10.1: Update Post ViewModel
 **Files:** `ui/post/PostViewModel.kt`
 
 Add methods:
@@ -596,7 +610,7 @@ Add methods:
 
 ---
 
-#### Step 10.2: My Posts Fragment
+- [ ] #### Step 10.2: My Posts Fragment
 **Files:** `fragment_my_posts.xml`, `ui/post/MyPostsFragment.kt`
 
 Layout:
@@ -617,7 +631,7 @@ Fragment:
 
 ---
 
-#### Step 10.3: Edit Post Fragment
+- [ ] #### Step 10.3: Edit Post Fragment
 **Files:** `fragment_edit_post.xml`, `ui/post/EditPostFragment.kt`
 
 Layout:
@@ -644,7 +658,7 @@ Fragment:
 
 ### Phase 11: Profile UI (Yaron - Day 8-9)
 
-#### Step 11.1: Profile ViewModel
+- [ ] #### Step 11.1: Profile ViewModel
 **Files:** `ui/profile/ProfileViewModel.kt`
 
 Create ViewModel:
@@ -659,7 +673,7 @@ Create ViewModel:
 
 ---
 
-#### Step 11.2: Profile Fragment
+- [ ] #### Step 11.2: Profile Fragment
 **Files:** `fragment_profile.xml`, `ui/profile/ProfileFragment.kt`
 
 Layout:
@@ -682,7 +696,7 @@ Fragment:
 
 ---
 
-#### Step 11.3: Edit Profile Fragment
+- [ ] #### Step 11.3: Edit Profile Fragment
 **Files:** `fragment_edit_profile.xml`, `ui/profile/EditProfileFragment.kt`
 
 Layout:
@@ -708,7 +722,7 @@ Fragment:
 
 ### Phase 12: External API Integration
 
-#### Step 12.1: API Services Setup (Alon - Day 9-10)
+- [ ] #### Step 12.1: API Services Setup (Alon - Day 9-10)
 **Files:** `data/remote/api/WeatherApiService.kt`, `data/remote/api/OpenTripMapApiService.kt`, `data/remote/api/*ApiClient.kt`
 
 Create Retrofit interfaces:
@@ -724,7 +738,7 @@ Create API clients (Retrofit instances with base URLs, interceptors).
 
 ---
 
-#### Step 12.2: API Repository (Alon - Day 9-10)
+- [ ] #### Step 12.2: API Repository (Alon - Day 9-10)
 **Files:** `data/repository/PlaceInfoRepository.kt`
 
 Create repository:
@@ -736,7 +750,7 @@ Create repository:
 
 ---
 
-#### Step 12.3: Update Post Details with API Data (Yaron - Day 10)
+- [ ] #### Step 12.3: Update Post Details with API Data (Yaron - Day 10)
 **Files:** `ui/post/PostDetailsFragment.kt`, `ui/post/PostViewModel.kt`
 
 Update PostViewModel:
@@ -759,7 +773,7 @@ Update PostDetailsFragment:
 
 ### Phase 13: Trip Builder (Yaron - Day 10-12)
 
-#### Step 13.1: Trip ViewModel
+- [ ] #### Step 13.1: Trip ViewModel
 **Files:** `ui/trip/TripViewModel.kt`
 
 Create ViewModel:
@@ -774,7 +788,7 @@ Create ViewModel:
 
 ---
 
-#### Step 13.2: Trip List Fragment
+- [ ] #### Step 13.2: Trip List Fragment
 **Files:** `fragment_trip_list.xml`, `item_trip.xml`, `ui/adapter/TripAdapter.kt`, `ui/trip/TripListFragment.kt`
 
 Create:
@@ -787,7 +801,7 @@ Create:
 
 ---
 
-#### Step 13.3: Trip Builder Fragment
+- [ ] #### Step 13.3: Trip Builder Fragment
 **Files:** `fragment_trip_builder.xml`, `ui/trip/TripBuilderFragment.kt`
 
 Create:
@@ -803,7 +817,7 @@ Create:
 
 ---
 
-#### Step 13.4: Trip Day Editor Fragment
+- [ ] #### Step 13.4: Trip Day Editor Fragment
 **Files:** `fragment_trip_day_editor.xml`, `ui/trip/TripDayEditorFragment.kt`
 
 Create:
@@ -820,7 +834,7 @@ Create:
 
 ### Phase 14: Final Polish & Requirements Verification (Alon - Day 12-13)
 
-#### Step 14.1: Requirements Checklist
+- [ ] #### Step 14.1: Requirements Checklist
 **Files:** Code review across entire project
 
 Verify:
@@ -845,7 +859,7 @@ Verify:
 
 ---
 
-#### Step 14.2: Error Handling
+- [ ] #### Step 14.2: Error Handling
 **Files:** All ViewModels
 
 Add:
@@ -858,7 +872,7 @@ Add:
 
 ---
 
-#### Step 14.3: Performance Testing
+- [ ] #### Step 14.3: Performance Testing
 **Files:** Test entire app
 
 Test:
