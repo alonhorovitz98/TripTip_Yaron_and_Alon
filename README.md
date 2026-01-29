@@ -234,7 +234,7 @@ Create mappers:
 
 ### Phase 4: Navigation Setup (Alon - Day 2)
 
-- [ ] #### Step 4.1: Navigation Graph
+- [x] #### Step 4.1: Navigation Graph
 **Files:** `app/src/main/res/navigation/nav_graph.xml`
 
 Create navigation graph with:
@@ -251,7 +251,7 @@ Create navigation graph with:
 
 ---
 
-- [ ] #### Step 4.2: MainActivity Setup
+- [x] #### Step 4.2: MainActivity Setup
 **Files:** `activity_main.xml`, `MainActivity.kt`
 
 1. Create `activity_main.xml` with NavHostFragment
@@ -264,7 +264,7 @@ Create navigation graph with:
 
 ---
 
-- [ ] #### Step 4.3: Placeholder Fragments
+- [x] #### Step 4.3: Placeholder Fragments
 **Files:** All fragment classes and layouts
 
 Create empty fragments:

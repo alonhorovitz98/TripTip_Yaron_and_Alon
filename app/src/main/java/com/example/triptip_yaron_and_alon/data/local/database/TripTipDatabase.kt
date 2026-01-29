@@ -1,4 +1,4 @@
-3package com.example.triptip_yaron_and_alon.data.local.database
+package com.example.triptip_yaron_and_alon.data.local.database
 
 import android.content.Context
 import androidx.room.Database
