@@ -177,7 +177,7 @@ Create all domain models:
 
 ### Phase 3: Room Database Setup (Alon - Day 2)
 
-- [ ] #### Step 3.1: Room Entities
+- [x] #### Step 3.1: Room Entities
 **Files:** `data/local/database/entities/*.kt`
 
 Create entities with `@Entity` annotation:
