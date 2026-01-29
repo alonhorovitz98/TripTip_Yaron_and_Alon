@@ -150,7 +150,7 @@
         <argument
             android:name="postId"
             app:argType="string"
-            android:nullable="true" />
+            app:nullable="true" />
         <action
             android:id="@+id/action_tripBuilderFragment_to_tripDayEditorFragment"
             app:destination="@id/tripDayEditorFragment">

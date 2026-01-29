@@ -281,7 +281,7 @@ Each fragment shows its name in a TextView.
 
 ### Phase 5: Firebase Remote Data Sources (Alon - Day 3)
 
-- [ ] #### Step 5.1: Firebase Auth Data Source
+- [x] #### Step 5.1: Firebase Auth Data Source
 **Files:** `data/remote/firebase/FirebaseAuthDataSource.kt`
 
 Create class with async methods:
@@ -297,7 +297,7 @@ All methods use coroutines, NO blocking calls.
 
 ---
 
-- [ ] #### Step 5.2: Firestore Data Source
+- [x] #### Step 5.2: Firestore Data Source
 **Files:** `data/remote/firebase/FirestoreDataSource.kt`
 
 Create class with async methods:
@@ -315,7 +315,7 @@ All methods use coroutines, NO blocking calls.
 
 ---
 
-- [ ] #### Step 5.3: Firebase Storage Data Source (Local Storage Fallback)
+- [x] #### Step 5.3: Firebase Storage Data Source (Local Storage Fallback)
 **Files:** `data/remote/firebase/FirebaseStorageDataSource.kt`
 
 **Note:** Using local file storage for development/testing. See `IMAGE_STORAGE_STRATEGY.md` for details.
