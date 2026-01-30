@@ -35,19 +35,19 @@ Data Sources
 - **Phase 1-6**: Foundation & Data Layer (Alon) - 100% Complete
 - **Phase 7**: Authentication UI (Yaron) - 100% Complete
 - **Phase 8**: Feed UI (Yaron) - 100% Complete
+- **Phase 9**: Post Details & Create Post (Yaron) - 100% Complete
 - **Phase 11**: Profile UI (Yaron) - 80% Complete (EditProfileFragment pending)
 - **Phase 12.1-12.2**: API Services & Repository (Alon) - 100% Complete
 - **Phase 13**: Trip Builder (Yaron) - 75% Complete (TripDayEditorFragment pending)
 
 ### 🚧 In Progress / Pending
-- **Phase 9**: Post Details & Create Post (Yaron) - ViewModels complete, Fragments need UI implementation
 - **Phase 10**: My Posts & Edit Post (Yaron) - ViewModels complete, Fragments need UI implementation
 - **Phase 12.3**: API Integration in UI (Yaron) - Not started
 - **Phase 14**: Final Polish (Alon) - Not started
 
 ### 📊 Overall Status
 - **Data Layer**: 100% Complete ✅
-- **UI Layer**: ~60% Complete 🚧
+- **UI Layer**: ~70% Complete 🚧
 - **API Integration**: 66% Complete (Services done, UI integration pending)
 
 ---
@@ -515,69 +515,36 @@ Fragment:
 
 ---
 
-### Phase 9: Post Details & Create Post (Yaron - Day 6-7)
+### Phase 9: Post Details & Create Post (Yaron - Day 6-7) ✅ COMPLETE
 
 - [x] #### Step 9.1: Post ViewModel
 **Files:** `ui/post/PostViewModel.kt`
 
-Create ViewModel:
-- `post: LiveData<Post?>`
-- `isLoading: LiveData<Boolean>`
-- `error: LiveData<String?>`
-- `loadPost(postId: String)`
-- `createPost(text, imageUri, location?)`
-- `updatePost(postId, text, imageUri?)`
-- `deletePost(postId: String)`
-
-**Test:** ViewModel methods work correctly
+✅ **Complete** - ViewModel created with all required methods.
 
 ---
 
-- [ ] #### Step 9.2: Post Details Fragment (Placeholder - needs UI implementation)
+- [x] #### Step 9.2: Post Details Fragment
 **Files:** `fragment_post_details.xml`, `ui/post/PostDetailsFragment.kt`
 
-Layout:
-- Post image ImageView (Coil)
-- Post text TextView
-- User info section
-- Location TextView
-- ProgressBar
-- "Add to Trip" Button
-- Weather section (if coordinates available) - **Will be enhanced in Step 12.3**
-- Nearby places section (if coordinates available) - **Will be enhanced in Step 12.3**
-
-Fragment:
-- Get postId from Safe Args
-- Show loading spinner while loading
-- Load post (cache-first)
-- Display post with images (Coil)
-- Navigate to TripBuilderFragment with Safe Args
-
-**Test:** Post details display correctly, loading spinner works, navigation works
+✅ **Complete** - Full UI implementation with:
+- Post image, text, user info, location display
+- Loading states and error handling
+- Navigation to TripBuilderFragment
+- Weather and places sections prepared for Step 12.3
 
 ---
 
-- [ ] #### Step 9.3: Create Post Fragment (Placeholder - needs UI implementation)
+- [x] #### Step 9.3: Create Post Fragment
 **Files:** `fragment_create_post.xml`, `ui/post/CreatePostFragment.kt`
 
-Layout:
-- Text EditText
-- Image ImageView (preview)
-- Image picker Button
-- Location EditText (optional)
-- Latitude/Longitude (optional, hidden)
-- Create Button
-- ProgressBar
-- Error TextView
-
-Fragment:
-- Image picker (camera/gallery)
-- Show loading spinner during upload
-- Create post (async: upload image → save to Firestore → cache in Room)
-- Navigate back to FeedFragment on success
-- Handle errors
-
-**Test:** Can create post with image, loading spinner works, navigation works
+✅ **Complete** - Full UI implementation with:
+- Image picker using ActivityResultLauncher
+- Image preview with Coil
+- Post text and location input
+- Loading states during upload
+- Navigation back to FeedFragment on success
+- Error handling
 
 ---
 
