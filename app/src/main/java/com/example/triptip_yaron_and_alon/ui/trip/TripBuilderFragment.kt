@@ -57,11 +57,12 @@ class TripBuilderFragment : Fragment() {
             }
             
             if (isNewTrip) {
+                // TODO: Get current user ID from AuthRepository
+                // For now, using placeholder - this should be fixed when implementing auth flow
                 viewModel.createTrip(
                     title = title,
                     description = description.ifEmpty { null },
-                    startDate = null,
-                    endDate = null
+                    userId = "currentUserId" // TODO: Replace with actual user ID
                 )
             } else {
                 viewModel.updateTrip(

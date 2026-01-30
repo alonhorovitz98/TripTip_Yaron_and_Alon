@@ -23,10 +23,10 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     private val storageDataSource = FirebaseStorageDataSource()
     private val database = TripTipDatabase.getDatabase(application)
     private val userRepository = UserRepository(
+        database.userDao(),
         authDataSource,
         firestoreDataSource,
-        storageDataSource,
-        database.userDao()
+        storageDataSource
     )
     private val authRepository = AuthRepository(
         authDataSource,

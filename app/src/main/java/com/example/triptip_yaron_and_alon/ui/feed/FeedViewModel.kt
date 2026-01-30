@@ -6,7 +6,6 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.example.triptip_yaron_and_alon.data.local.database.TripTipDatabase
-import com.example.triptip_yaron_and_alon.data.remote.firebase.FirebaseAuthDataSource
 import com.example.triptip_yaron_and_alon.data.remote.firebase.FirebaseStorageDataSource
 import com.example.triptip_yaron_and_alon.data.remote.firebase.FirestoreDataSource
 import com.example.triptip_yaron_and_alon.data.repository.PostRepository
@@ -21,12 +20,11 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
     
     private val firestoreDataSource = FirestoreDataSource()
     private val storageDataSource = FirebaseStorageDataSource()
-    private val authDataSource = FirebaseAuthDataSource()
     private val database = TripTipDatabase.getDatabase(application)
     private val postRepository = PostRepository(
+        database.postDao(),
         firestoreDataSource,
-        storageDataSource,
-        database.postDao()
+        storageDataSource
     )
     
     // LiveData for posts
@@ -84,26 +82,14 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
             _isLoading.value = true
             currentPage++
             
-            postRepository.getPostsPaginated(currentPage, pageSize).collect { result ->
-                when (result) {
-                    is Result.Success -> {
-                        val newPosts = result.data
-                        if (newPosts.isEmpty()) {
-                            isLastPage = true
-                        } else {
-                            val currentPosts = _posts.value ?: emptyList()
-                            _posts.value = currentPosts + newPosts
-                        }
-                        _isLoading.value = false
-                    }
-                    is Result.Error -> {
-                        _error.value = result.message
-                        _isLoading.value = false
-                    }
-                    is Result.Loading -> {
-                        _isLoading.value = true
-                    }
+            postRepository.getPostsPaginated(currentPage, pageSize).collect { newPosts ->
+                if (newPosts.isEmpty()) {
+                    isLastPage = true
+                } else {
+                    val currentPosts = _posts.value ?: emptyList()
+                    _posts.value = currentPosts + newPosts
                 }
+                _isLoading.value = false
             }
         }
     }
