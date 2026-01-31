@@ -8,9 +8,11 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
+import androidx.recyclerview.widget.LinearLayoutManager
 import coil.load
 import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.FragmentPostDetailsBinding
+import com.example.triptip_yaron_and_alon.ui.adapter.NearbyPlacesAdapter
 import com.example.triptip_yaron_and_alon.util.Result
 import com.google.android.material.snackbar.Snackbar
 import java.text.SimpleDateFormat
@@ -24,6 +26,7 @@ class PostDetailsFragment : Fragment() {
     
     private lateinit var viewModel: PostViewModel
     private val args: PostDetailsFragmentArgs by navArgs()
+    private lateinit var placesAdapter: NearbyPlacesAdapter
     
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -39,11 +42,24 @@ class PostDetailsFragment : Fragment() {
         
         viewModel = ViewModelProvider(this)[PostViewModel::class.java]
         
+        setupRecyclerView()
         setupListeners()
         observeViewModel()
         
         // Load post
         viewModel.loadPost(args.postId)
+    }
+    
+    private fun setupRecyclerView() {
+        placesAdapter = NearbyPlacesAdapter { place ->
+            // Handle place click - could navigate to place details or show info
+            Snackbar.make(binding.root, "Place: ${place.name}", Snackbar.LENGTH_SHORT).show()
+        }
+        
+        binding.rvNearbyPlaces.apply {
+            adapter = placesAdapter
+            layoutManager = LinearLayoutManager(context)
+        }
     }
     
     private fun setupListeners() {
@@ -62,9 +78,55 @@ class PostDetailsFragment : Fragment() {
         viewModel.post.observe(viewLifecycleOwner) { post ->
             if (post != null) {
                 displayPost(post)
+                
+                // Load weather and places if coordinates are available
+                if (post.latitude != null && post.longitude != null) {
+                    viewModel.loadWeather(post.latitude, post.longitude)
+                    viewModel.loadNearbyPlaces(post.latitude, post.longitude)
+                }
             } else {
                 binding.tvError.text = "Post not found"
                 binding.tvError.visibility = View.VISIBLE
+            }
+        }
+        
+        // Observe weather
+        viewModel.weather.observe(viewLifecycleOwner) { weather ->
+            if (weather != null) {
+                displayWeather(weather)
+            }
+        }
+        
+        viewModel.weatherLoading.observe(viewLifecycleOwner) { isLoading ->
+            // Weather loading is handled in displayWeather
+        }
+        
+        viewModel.weatherError.observe(viewLifecycleOwner) { error ->
+            if (error != null) {
+                // Don't show error for weather - just keep it hidden
+                binding.cardWeather.visibility = View.GONE
+            }
+        }
+        
+        // Observe nearby places
+        viewModel.nearbyPlaces.observe(viewLifecycleOwner) { places ->
+            if (places.isNotEmpty()) {
+                displayPlaces(places)
+            } else {
+                binding.tvNearbyPlacesTitle.visibility = View.GONE
+                binding.rvNearbyPlaces.visibility = View.GONE
+            }
+        }
+        
+        viewModel.placesLoading.observe(viewLifecycleOwner) { isLoading ->
+            // Places loading is handled in displayPlaces
+        }
+        
+        viewModel.placesError.observe(viewLifecycleOwner) { error ->
+            if (error != null) {
+                // Don't show error for places - just keep them hidden
+                binding.tvNearbyPlacesTitle.visibility = View.GONE
+                binding.rvNearbyPlaces.visibility = View.GONE
             }
         }
         
@@ -121,11 +183,37 @@ class PostDetailsFragment : Fragment() {
             binding.tvLocation.visibility = View.GONE
         }
         
-        // Weather and Places will be added in Step 12.3
-        // For now, keep them hidden
-        binding.cardWeather.visibility = View.GONE
-        binding.tvNearbyPlacesTitle.visibility = View.GONE
-        binding.rvNearbyPlaces.visibility = View.GONE
+        // Weather and Places will be loaded if coordinates are available
+        // They are observed separately in observeViewModel()
+    }
+    
+    private fun displayWeather(weather: com.example.triptip_yaron_and_alon.domain.model.WeatherInfo) {
+        binding.apply {
+            cardWeather.visibility = View.VISIBLE
+            
+            // Weather description
+            tvWeatherDescription.text = weather.description
+            
+            // Weather details
+            val details = buildString {
+                append("${weather.temperature}°C")
+                append(" • ${weather.humidity}% humidity")
+                append(" • ${weather.windSpeed} km/h wind")
+            }
+            tvWeatherDetails.text = details
+            
+            // Weather icon (using emoji or placeholder)
+            // Note: Weather icon URL would need to be loaded with Coil if available
+            ivWeatherIcon.setImageResource(R.drawable.ic_launcher_foreground)
+        }
+    }
+    
+    private fun displayPlaces(places: List<com.example.triptip_yaron_and_alon.domain.model.PlaceInfo>) {
+        binding.apply {
+            tvNearbyPlacesTitle.visibility = View.VISIBLE
+            rvNearbyPlaces.visibility = View.VISIBLE
+            placesAdapter.submitList(places)
+        }
     }
     
     private fun formatTimestamp(timestamp: Long): String {
