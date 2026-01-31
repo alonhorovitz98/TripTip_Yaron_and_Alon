@@ -57,12 +57,10 @@ class TripBuilderFragment : Fragment() {
             }
             
             if (isNewTrip) {
-                // TODO: Get current user ID from AuthRepository
-                // For now, using placeholder - this should be fixed when implementing auth flow
+                // ViewModel will automatically get the current user ID from Firebase Auth
                 viewModel.createTrip(
                     title = title,
-                    description = description.ifEmpty { null },
-                    userId = "currentUserId" // TODO: Replace with actual user ID
+                    description = description.ifEmpty { null }
                 )
             } else {
                 viewModel.updateTrip(
@@ -109,7 +107,8 @@ class TripBuilderFragment : Fragment() {
                     }
                 }
                 is Result.Error -> {
-                    Snackbar.make(binding.root, result.message, Snackbar.LENGTH_LONG).show()
+                    val errorMessage = result.message ?: "An error occurred"
+                    Snackbar.make(binding.root, errorMessage, Snackbar.LENGTH_LONG).show()
                 }
                 else -> {}
             }

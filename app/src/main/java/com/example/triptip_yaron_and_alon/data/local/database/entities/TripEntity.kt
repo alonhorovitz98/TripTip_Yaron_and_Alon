@@ -11,6 +11,8 @@ data class TripEntity(
     val title: String,
     val description: String?,
     val createdAt: Long,
+    val startDate: Long? = null,
+    val endDate: Long? = null,
     val cachedAt: Long = System.currentTimeMillis()
 )
 

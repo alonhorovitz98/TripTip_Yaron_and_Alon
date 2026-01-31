@@ -112,7 +112,8 @@ class CreatePostFragment : Fragment() {
                     findNavController().navigate(R.id.action_createPostFragment_to_feedFragment)
                 }
                 is Result.Error -> {
-                    Snackbar.make(binding.root, result.message, Snackbar.LENGTH_LONG).show()
+                    val errorMessage = result.message ?: "An error occurred"
+                    Snackbar.make(binding.root, errorMessage, Snackbar.LENGTH_LONG).show()
                 }
                 else -> {}
             }

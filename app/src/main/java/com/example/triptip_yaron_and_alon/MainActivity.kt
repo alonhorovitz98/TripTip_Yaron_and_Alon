@@ -5,6 +5,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.NavHostFragment
+import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.setupActionBarWithNavController
 import com.example.triptip_yaron_and_alon.ui.auth.AuthViewModel
 import com.google.android.material.appbar.MaterialToolbar
@@ -46,12 +47,16 @@ class MainActivity : AppCompatActivity() {
             .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
         val navController = navHostFragment.navController
         
-        // Setup toolbar as action bar
+        // Setup toolbar as action bar - must be done before setupActionBarWithNavController
         val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
+        requireNotNull(toolbar) { "Toolbar with id 'toolbar' not found in activity_main.xml" }
         setSupportActionBar(toolbar)
         
-        // Setup action bar with navigation
-        setupActionBarWithNavController(navController)
+        // Create AppBarConfiguration with top-level destinations
+        val appBarConfiguration = AppBarConfiguration(navController.graph)
+        
+        // Setup action bar with navigation - this requires action bar to be set first
+        setupActionBarWithNavController(navController, appBarConfiguration)
     }
     
     override fun onSupportNavigateUp(): Boolean {

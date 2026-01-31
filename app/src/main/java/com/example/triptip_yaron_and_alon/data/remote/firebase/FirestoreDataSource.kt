@@ -352,6 +352,8 @@ class FirestoreDataSource(
                 title = getString("title") ?: return null,
                 description = getString("description"),
                 createdAt = getLong("createdAt") ?: System.currentTimeMillis(),
+                startDate = getLong("startDate"),
+                endDate = getLong("endDate"),
                 days = emptyList() // Nested data loaded separately
             )
         } catch (e: Exception) {
@@ -369,6 +371,8 @@ class FirestoreDataSource(
             val title = getString("title") ?: return null
             val description = getString("description")
             val createdAt = getLong("createdAt") ?: System.currentTimeMillis()
+            val startDate = getLong("startDate")
+            val endDate = getLong("endDate")
             
             // Load days
             val daysSnapshot = reference.collection("days").get().await()
@@ -382,6 +386,8 @@ class FirestoreDataSource(
                 title = title,
                 description = description,
                 createdAt = createdAt,
+                startDate = startDate,
+                endDate = endDate,
                 days = days.sortedBy { it.dayNumber }
             )
         } catch (e: Exception) {
@@ -542,7 +548,9 @@ class FirestoreDataSource(
             "userId" to userId,
             "title" to title,
             "description" to description,
-            "createdAt" to createdAt
+            "createdAt" to createdAt,
+            "startDate" to startDate,
+            "endDate" to endDate
         )
     }
     

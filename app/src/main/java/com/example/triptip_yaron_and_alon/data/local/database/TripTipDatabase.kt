@@ -14,6 +14,8 @@ import com.example.triptip_yaron_and_alon.data.local.database.entities.TripDayEn
 import com.example.triptip_yaron_and_alon.data.local.database.entities.TripEntity
 import com.example.triptip_yaron_and_alon.data.local.database.entities.TripItemEntity
 import com.example.triptip_yaron_and_alon.data.local.database.entities.UserEntity
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asExecutor
 
 @Database(
     entities = [
@@ -23,7 +25,7 @@ import com.example.triptip_yaron_and_alon.data.local.database.entities.UserEntit
         TripDayEntity::class,
         TripItemEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class TripTipDatabase : RoomDatabase() {
@@ -46,6 +48,7 @@ abstract class TripTipDatabase : RoomDatabase() {
                     "triptip_database"
                 )
                     .fallbackToDestructiveMigration()
+                    .setQueryExecutor(Dispatchers.IO.asExecutor())
                     .build()
                 INSTANCE = instance
                 instance

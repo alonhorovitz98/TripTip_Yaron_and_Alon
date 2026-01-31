@@ -3,6 +3,7 @@ package com.example.triptip_yaron_and_alon.data.remote.firebase
 import com.example.triptip_yaron_and_alon.domain.model.User
 import com.example.triptip_yaron_and_alon.util.Result
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -31,7 +32,8 @@ class FirebaseAuthDataSource(
                 ?: throw IllegalStateException("User creation succeeded but user is null")
             emit(Result.Success(user))
         } catch (e: Exception) {
-            emit(Result.Error(e, e.message))
+            val errorMessage = getErrorMessage(e)
+            emit(Result.Error(e, errorMessage))
         }
     }
     
@@ -47,7 +49,8 @@ class FirebaseAuthDataSource(
                 ?: throw IllegalStateException("Sign in succeeded but user is null")
             emit(Result.Success(user))
         } catch (e: Exception) {
-            emit(Result.Error(e, e.message))
+            val errorMessage = getErrorMessage(e)
+            emit(Result.Error(e, errorMessage))
         }
     }
     
@@ -133,6 +136,70 @@ class FirebaseAuthDataSource(
         
         awaitClose {
             firebaseAuth.removeAuthStateListener(authStateListener)
+        }
+    }
+    
+    /**
+     * Get user-friendly error message from exception.
+     */
+    private fun getErrorMessage(e: Exception): String {
+        return when (e) {
+            is FirebaseAuthException -> {
+                when (e.errorCode) {
+                    "ERROR_NETWORK_REQUEST_FAILED",
+                    "ERROR_INTERNAL_ERROR" -> {
+                        "Network error. Please check your internet connection. If using an emulator, try a real device."
+                    }
+                    "ERROR_WEAK_PASSWORD" -> {
+                        "Password is too weak. Please use a stronger password (at least 6 characters)."
+                    }
+                    "ERROR_EMAIL_ALREADY_IN_USE" -> {
+                        "This email is already registered. Please login instead."
+                    }
+                    "ERROR_INVALID_EMAIL" -> {
+                        "Invalid email format. Please enter a valid email address."
+                    }
+                    "ERROR_USER_NOT_FOUND" -> {
+                        "No account found with this email. Please register first."
+                    }
+                    "ERROR_WRONG_PASSWORD" -> {
+                        "Incorrect password. Please try again."
+                    }
+                    "ERROR_TOO_MANY_REQUESTS" -> {
+                        "Too many failed attempts. Please try again later."
+                    }
+                    "ERROR_USER_DISABLED" -> {
+                        "This account has been disabled. Please contact support."
+                    }
+                    else -> {
+                        // Check for reCAPTCHA or network-related errors in message
+                        val message = e.message ?: ""
+                        when {
+                            message.contains("network", ignoreCase = true) ||
+                            message.contains("recaptcha", ignoreCase = true) ||
+                            message.contains("timeout", ignoreCase = true) ||
+                            message.contains("unreachable", ignoreCase = true) -> {
+                                "Network error. Please check your internet connection. If using an emulator, try a real device."
+                            }
+                            else -> message.ifEmpty { "Authentication failed. Please try again." }
+                        }
+                    }
+                }
+            }
+            else -> {
+                // For non-Firebase exceptions, check message for common patterns
+                val message = e.message ?: ""
+                when {
+                    message.contains("network", ignoreCase = true) ||
+                    message.contains("recaptcha", ignoreCase = true) ||
+                    message.contains("timeout", ignoreCase = true) ||
+                    message.contains("unreachable", ignoreCase = true) ||
+                    message.contains("interrupted connection", ignoreCase = true) -> {
+                        "Network error. Please check your internet connection. If using an emulator, try a real device."
+                    }
+                    else -> message.ifEmpty { "An error occurred. Please try again." }
+                }
+            }
         }
     }
     

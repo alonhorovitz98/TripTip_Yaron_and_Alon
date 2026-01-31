@@ -19,7 +19,7 @@ import kotlinx.coroutines.launch
 class PostViewModel(application: Application) : AndroidViewModel(application) {
     
     private val firestoreDataSource = FirestoreDataSource()
-    private val storageDataSource = FirebaseStorageDataSource()
+    private val storageDataSource = FirebaseStorageDataSource(application)
     private val authDataSource = FirebaseAuthDataSource()
     private val database = TripTipDatabase.getDatabase(application)
     private val postRepository = PostRepository(

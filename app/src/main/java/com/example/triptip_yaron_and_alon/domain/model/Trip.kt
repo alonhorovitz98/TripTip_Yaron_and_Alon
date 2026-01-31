@@ -6,6 +6,8 @@ data class Trip(
     val title: String,
     val description: String?,
     val createdAt: Long,
+    val startDate: Long? = null,
+    val endDate: Long? = null,
     val days: List<TripDay> = emptyList()
 )
 

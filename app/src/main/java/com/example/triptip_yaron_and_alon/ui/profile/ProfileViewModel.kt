@@ -20,7 +20,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     
     private val authDataSource = FirebaseAuthDataSource()
     private val firestoreDataSource = FirestoreDataSource()
-    private val storageDataSource = FirebaseStorageDataSource()
+    private val storageDataSource = FirebaseStorageDataSource(application)
     private val database = TripTipDatabase.getDatabase(application)
     private val userRepository = UserRepository(
         database.userDao(),

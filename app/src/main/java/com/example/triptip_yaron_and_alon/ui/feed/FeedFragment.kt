@@ -39,6 +39,9 @@ class FeedFragment : Fragment() {
         setupRecyclerView()
         setupListeners()
         observeViewModel()
+        
+        // Explicitly load posts after view is ready
+        viewModel.loadPosts()
     }
     
     private fun setupRecyclerView() {

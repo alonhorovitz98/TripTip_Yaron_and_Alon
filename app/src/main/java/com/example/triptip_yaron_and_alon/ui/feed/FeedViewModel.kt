@@ -18,14 +18,17 @@ import kotlinx.coroutines.launch
  */
 class FeedViewModel(application: Application) : AndroidViewModel(application) {
     
-    private val firestoreDataSource = FirestoreDataSource()
-    private val storageDataSource = FirebaseStorageDataSource()
-    private val database = TripTipDatabase.getDatabase(application)
-    private val postRepository = PostRepository(
-        database.postDao(),
-        firestoreDataSource,
-        storageDataSource
-    )
+    // Use lazy initialization to defer heavy object creation
+    private val database by lazy { TripTipDatabase.getDatabase(application) }
+    private val firestoreDataSource by lazy { FirestoreDataSource() }
+    private val storageDataSource by lazy { FirebaseStorageDataSource(application) }
+    private val postRepository by lazy {
+        PostRepository(
+            database.postDao(),
+            firestoreDataSource,
+            storageDataSource
+        )
+    }
     
     // LiveData for posts
     private val _posts = MutableLiveData<List<Post>>()
@@ -44,9 +47,7 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
     private val pageSize = 20
     private var isLastPage = false
     
-    init {
-        loadPosts()
-    }
+    // Removed init block - loadPosts() should be called explicitly from Fragment
     
     /**
      * Load posts (cache-first strategy)
