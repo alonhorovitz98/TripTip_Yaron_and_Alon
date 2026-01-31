@@ -1,19 +1,143 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout 
+<ScrollView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:fillViewport="true">
 
-    <TextView
-        android:layout_width="wrap_content"
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="EditPostFragment"
-        android:textSize="24sp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:padding="16dp">
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+        <!-- Post Text Input -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/tilPostText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:hint="Share your travel experience..."
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
 
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etPostText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minLines="5"
+                android:gravity="top"
+                android:inputType="textMultiLine|textCapSentences" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Image Preview -->
+        <ImageView
+            android:id="@+id/ivImagePreview"
+            android:layout_width="0dp"
+            android:layout_height="200dp"
+            android:layout_marginTop="16dp"
+            android:scaleType="centerCrop"
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@id/tilPostText"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- Change Image Button -->
+        <Button
+            android:id="@+id/btnChangeImage"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Change Image"
+            android:layout_marginTop="16dp"
+            android:visibility="gone"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            app:layout_constraintTop_toBottomOf="@id/ivImagePreview"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <!-- Remove Image Button -->
+        <Button
+            android:id="@+id/btnRemoveImage"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Remove Image"
+            android:layout_marginTop="16dp"
+            android:layout_marginStart="8dp"
+            android:visibility="gone"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            app:layout_constraintTop_toBottomOf="@id/ivImagePreview"
+            app:layout_constraintStart_toEndOf="@id/btnChangeImage" />
+
+        <!-- Location (Read-only) -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/tilLocation"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:hint="Location"
+            android:layout_marginTop="16dp"
+            android:enabled="false"
+            app:layout_constraintTop_toBottomOf="@id/btnChangeImage"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etLocation"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="text"
+                android:enabled="false" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Save Button -->
+        <Button
+            android:id="@+id/btnSavePost"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="Save Changes"
+            android:layout_marginTop="24dp"
+            app:layout_constraintTop_toBottomOf="@id/tilLocation"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- Delete Button -->
+        <Button
+            android:id="@+id/btnDeletePost"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="Delete Post"
+            android:layout_marginTop="16dp"
+            android:backgroundTint="@android:color/holo_red_dark"
+            app:layout_constraintTop_toBottomOf="@id/btnSavePost"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- Loading Indicator -->
+        <ProgressBar
+            android:id="@+id/progressBar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- Error Text -->
+        <TextView
+            android:id="@+id/tvError"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:textColor="@android:color/holo_red_dark"
+            android:visibility="gone"
+            android:layout_marginTop="8dp"
+            android:padding="8dp"
+            android:textSize="14sp"
+            android:gravity="center"
+            app:layout_constraintTop_toBottomOf="@id/btnDeletePost"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</ScrollView>
