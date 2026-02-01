@@ -40,15 +40,15 @@ class TripListFragment : Fragment() {
         setupListeners()
         observeViewModel()
         
-        // Load trips for current user (simplified - should get from auth)
-        viewModel.loadUserTrips("currentUserId")
+        // ViewModel will automatically get the current user ID from Firebase Auth
+        viewModel.loadUserTrips()
     }
     
     private fun setupRecyclerView() {
         tripAdapter = TripAdapter(
             onTripClick = { trip ->
                 val action = TripListFragmentDirections
-                    .actionTripListFragmentToTripBuilderFragment(trip.id, null)
+                    .actionTripListFragmentToTripBuilderFragment(trip.id)
                 findNavController().navigate(action)
             },
             onTripLongClick = { trip ->
@@ -65,7 +65,7 @@ class TripListFragment : Fragment() {
     private fun setupListeners() {
         binding.fabCreateTrip.setOnClickListener {
             val action = TripListFragmentDirections
-                .actionTripListFragmentToTripBuilderFragment("new", null)
+                .actionTripListFragmentToTripBuilderFragment("new")
             findNavController().navigate(action)
         }
     }

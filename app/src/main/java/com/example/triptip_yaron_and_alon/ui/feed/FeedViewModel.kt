@@ -6,7 +6,6 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.example.triptip_yaron_and_alon.data.local.database.TripTipDatabase
-import com.example.triptip_yaron_and_alon.data.remote.firebase.FirebaseAuthDataSource
 import com.example.triptip_yaron_and_alon.data.remote.firebase.FirebaseStorageDataSource
 import com.example.triptip_yaron_and_alon.data.remote.firebase.FirestoreDataSource
 import com.example.triptip_yaron_and_alon.data.repository.PostRepository
@@ -19,15 +18,17 @@ import kotlinx.coroutines.launch
  */
 class FeedViewModel(application: Application) : AndroidViewModel(application) {
     
-    private val firestoreDataSource = FirestoreDataSource()
-    private val storageDataSource = FirebaseStorageDataSource()
-    private val authDataSource = FirebaseAuthDataSource()
-    private val database = TripTipDatabase.getDatabase(application)
-    private val postRepository = PostRepository(
-        firestoreDataSource,
-        storageDataSource,
-        database.postDao()
-    )
+    // Use lazy initialization to defer heavy object creation
+    private val database by lazy { TripTipDatabase.getDatabase(application) }
+    private val firestoreDataSource by lazy { FirestoreDataSource() }
+    private val storageDataSource by lazy { FirebaseStorageDataSource(application) }
+    private val postRepository by lazy {
+        PostRepository(
+            database.postDao(),
+            firestoreDataSource,
+            storageDataSource
+        )
+    }
     
     // LiveData for posts
     private val _posts = MutableLiveData<List<Post>>()
@@ -46,9 +47,7 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
     private val pageSize = 20
     private var isLastPage = false
     
-    init {
-        loadPosts()
-    }
+    // Removed init block - loadPosts() should be called explicitly from Fragment
     
     /**
      * Load posts (cache-first strategy)
@@ -84,26 +83,14 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
             _isLoading.value = true
             currentPage++
             
-            postRepository.getPostsPaginated(currentPage, pageSize).collect { result ->
-                when (result) {
-                    is Result.Success -> {
-                        val newPosts = result.data
-                        if (newPosts.isEmpty()) {
-                            isLastPage = true
-                        } else {
-                            val currentPosts = _posts.value ?: emptyList()
-                            _posts.value = currentPosts + newPosts
-                        }
-                        _isLoading.value = false
-                    }
-                    is Result.Error -> {
-                        _error.value = result.message
-                        _isLoading.value = false
-                    }
-                    is Result.Loading -> {
-                        _isLoading.value = true
-                    }
+            postRepository.getPostsPaginated(currentPage, pageSize).collect { newPosts ->
+                if (newPosts.isEmpty()) {
+                    isLastPage = true
+                } else {
+                    val currentPosts = _posts.value ?: emptyList()
+                    _posts.value = currentPosts + newPosts
                 }
+                _isLoading.value = false
             }
         }
     }

@@ -9,10 +9,12 @@ import com.example.triptip_yaron_and_alon.domain.model.Post
 import com.example.triptip_yaron_and_alon.util.Constants
 import com.example.triptip_yaron_and_alon.util.Result
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -22,6 +24,7 @@ import kotlinx.coroutines.withContext
  * Repository for post operations.
  * Implements cache-first strategy: Room first, then Firestore.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class PostRepository(
     private val postDao: PostDao,
     private val firestoreDataSource: FirestoreDataSource,
@@ -32,24 +35,33 @@ class PostRepository(
      * Get all posts with cache-first strategy.
      * Emits cached posts immediately, then fetches from Firestore and updates cache.
      */
-    fun getPosts(): Flow<List<Post>> = flow {
-        // Emit cached posts immediately
-        postDao.getAllPosts()
-            .map { entities -> PostMapper.toDomainList(entities) }
-            .catch { emit(emptyList()) }
-            .collect { cachedPosts ->
+    fun getPosts(): Flow<List<Post>> = postDao.getAllPosts()
+        .map { entities -> PostMapper.toDomainList(entities) }
+        .catch { emit(emptyList()) }
+        .flowOn(Dispatchers.IO)
+        .flatMapLatest { cachedPosts ->
+            // Emit cached posts immediately
+            flow {
                 emit(cachedPosts)
-            }
-        
-        // Fetch from Firestore in background and update cache
-        firestoreDataSource.getPosts()
-            .catch { /* Ignore errors, use cache */ }
-            .collect { remotePosts ->
-                withContext(Dispatchers.IO) {
-                    postDao.insertAll(PostMapper.toEntityList(remotePosts))
+                
+                // Then fetch from Firestore in background and update cache
+                try {
+                    firestoreDataSource.getPosts()
+                        .catch { /* Ignore errors, keep using cache */ }
+                        .collect { remotePosts ->
+                            // Update cache in background
+                            withContext(Dispatchers.IO) {
+                                postDao.insertAll(PostMapper.toEntityList(remotePosts))
+                            }
+                            // Emit updated list from Firestore (already domain models)
+                            emit(remotePosts)
+                        }
+                } catch (e: Exception) {
+                    // If Firestore fails, keep emitting cached data
+                    emit(cachedPosts)
                 }
             }
-    }.flowOn(Dispatchers.IO)
+        }
     
     /**
      * Get posts with pagination (lazy loading).
@@ -69,7 +81,8 @@ class PostRepository(
         try {
             firestoreDataSource.getPosts()
                 .catch { /* Ignore errors, use cache */ }
-                .collect { remotePosts ->
+                .first() // Get first emission to update cache, don't collect forever
+                .let { remotePosts ->
                     withContext(Dispatchers.IO) {
                         postDao.insertAll(PostMapper.toEntityList(remotePosts))
                     }
@@ -82,48 +95,69 @@ class PostRepository(
     /**
      * Get a single post by ID with cache-first strategy.
      */
-    fun getPostById(postId: String): Flow<Post?> = flow {
-        // Emit cached post immediately
-        postDao.getPostById(postId)
-            .map { entity -> entity?.let { PostMapper.toDomain(it) } }
-            .catch { emit(null) }
-            .collect { cachedPost ->
+    fun getPostById(postId: String): Flow<Post?> = postDao.getPostById(postId)
+        .map { entity -> entity?.let { PostMapper.toDomain(it) } }
+        .catch { emit(null) }
+        .flowOn(Dispatchers.IO)
+        .flatMapLatest { cachedPost ->
+            // Emit cached post immediately
+            flow {
                 emit(cachedPost)
-            }
-        
-        // Fetch from Firestore and update cache
-        firestoreDataSource.getPostById(postId)
-            .catch { /* Ignore errors, use cache */ }
-            .collect { remotePost ->
-                remotePost?.let {
-                    withContext(Dispatchers.IO) {
-                        postDao.insert(PostMapper.toEntity(it))
-                    }
+                
+                // Then fetch from Firestore and update cache
+                try {
+                    firestoreDataSource.getPostById(postId)
+                        .catch { /* Ignore errors, keep using cache */ }
+                        .collect { remotePost ->
+                            remotePost?.let {
+                                // Update cache in background
+                                withContext(Dispatchers.IO) {
+                                    postDao.insert(PostMapper.toEntity(it))
+                                }
+                                // Emit updated post from Firestore (already domain model)
+                                emit(it)
+                            } ?: run {
+                                // If Firestore returns null, keep cached post
+                                emit(cachedPost)
+                            }
+                        }
+                } catch (e: Exception) {
+                    // If Firestore fails, keep emitting cached data
+                    emit(cachedPost)
                 }
             }
-    }.flowOn(Dispatchers.IO)
+        }
     
     /**
      * Get posts by a specific user ID.
      */
-    fun getUserPosts(userId: String): Flow<List<Post>> = flow {
-        // Emit cached posts immediately
-        postDao.getPostsByUser(userId)
-            .map { entities -> PostMapper.toDomainList(entities) }
-            .catch { emit(emptyList()) }
-            .collect { cachedPosts ->
+    fun getUserPosts(userId: String): Flow<List<Post>> = postDao.getPostsByUser(userId)
+        .map { entities -> PostMapper.toDomainList(entities) }
+        .catch { emit(emptyList()) }
+        .flowOn(Dispatchers.IO)
+        .flatMapLatest { cachedPosts ->
+            // Emit cached posts immediately
+            flow {
                 emit(cachedPosts)
-            }
-        
-        // Fetch from Firestore and update cache
-        firestoreDataSource.getUserPosts(userId)
-            .catch { /* Ignore errors, use cache */ }
-            .collect { remotePosts ->
-                withContext(Dispatchers.IO) {
-                    postDao.insertAll(PostMapper.toEntityList(remotePosts))
+                
+                // Then fetch from Firestore and update cache
+                try {
+                    firestoreDataSource.getUserPosts(userId)
+                        .catch { /* Ignore errors, keep using cache */ }
+                        .collect { remotePosts ->
+                            // Update cache in background
+                            withContext(Dispatchers.IO) {
+                                postDao.insertAll(PostMapper.toEntityList(remotePosts))
+                            }
+                            // Emit updated list from Firestore (already domain models)
+                            emit(remotePosts)
+                        }
+                } catch (e: Exception) {
+                    // If Firestore fails, keep emitting cached data
+                    emit(cachedPosts)
                 }
             }
-    }.flowOn(Dispatchers.IO)
+        }
     
     /**
      * Create a new post.

@@ -22,7 +22,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     // Initialize data sources and repository
     private val authDataSource = FirebaseAuthDataSource()
     private val firestoreDataSource = FirestoreDataSource()
-    private val storageDataSource = FirebaseStorageDataSource()
+    private val storageDataSource = FirebaseStorageDataSource(application)
     private val database = TripTipDatabase.getDatabase(application)
     private val authRepository = AuthRepository(
         authDataSource,

@@ -46,6 +46,7 @@ abstract class TripTipDatabase : RoomDatabase() {
                     "triptip_database"
                 )
                     .fallbackToDestructiveMigration()
+                    .setQueryExecutor(Dispatchers.IO.asExecutor())
                     .build()
                 INSTANCE = instance
                 instance

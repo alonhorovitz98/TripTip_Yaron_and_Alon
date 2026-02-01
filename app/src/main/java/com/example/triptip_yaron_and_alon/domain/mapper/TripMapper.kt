@@ -15,6 +15,8 @@ object TripMapper {
             title = entity.title,
             description = entity.description,
             createdAt = entity.createdAt,
+            startDate = entity.startDate,
+            endDate = entity.endDate,
             days = days
         )
     }
@@ -30,6 +32,8 @@ object TripMapper {
             title = domain.title,
             description = domain.description,
             createdAt = domain.createdAt,
+            startDate = domain.startDate,
+            endDate = domain.endDate,
             cachedAt = System.currentTimeMillis()
         )
     }
