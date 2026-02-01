@@ -136,6 +136,44 @@
                 app:argType="string"
                 android:defaultValue="new" />
         </action>
+        <action
+            android:id="@+id/action_tripListFragment_to_tripDetailsFragment"
+            app:destination="@id/tripDetailsFragment">
+            <argument
+                android:name="tripId"
+                app:argType="string" />
+        </action>
+    </fragment>
+
+    <fragment
+        android:id="@+id/tripDetailsFragment"
+        android:name="com.example.triptip_yaron_and_alon.ui.trip.TripDetailsFragment"
+        android:label="Trip Details"
+        tools:layout="@layout/fragment_trip_details">
+        <argument
+            android:name="tripId"
+            app:argType="string" />
+        <action
+            android:id="@+id/action_tripDetailsFragment_to_tripDayEditorFragment"
+            app:destination="@id/tripDayEditorFragment">
+            <argument
+                android:name="tripId"
+                app:argType="string" />
+            <argument
+                android:name="dayId"
+                app:argType="string" />
+        </action>
+        <action
+            android:id="@+id/action_tripDetailsFragment_to_tripBuilderFragment"
+            app:destination="@id/tripBuilderFragment">
+            <argument
+                android:name="tripId"
+                app:argType="string" />
+            <argument
+                android:name="postId"
+                app:argType="string"
+                app:nullable="true" />
+        </action>
     </fragment>
 
     <fragment

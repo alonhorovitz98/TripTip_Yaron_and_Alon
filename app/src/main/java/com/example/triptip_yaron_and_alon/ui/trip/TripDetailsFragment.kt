@@ -94,13 +94,8 @@ class TripDetailsFragment : Fragment() {
 
     private fun setupRecyclerView() {
         tripDayAdapter = TripDayAdapter { tripDay ->
-            // Navigate to day editor
-            val action = TripDetails FragmentDirections
-                .actionTripDetailsFragmentToTripDayEditorFragment(
-                    tripId = args.tripId,
-                    dayId = tripDay.id
-                )
-            findNavController().navigate(action)
+            // TODO: Navigate to day editor when navigation action is added
+            Toast.makeText(requireContext(), "Edit day: ${tripDay.description}", Toast.LENGTH_SHORT).show()
         }
 
         rvTripDays.apply {
@@ -123,13 +118,8 @@ class TripDetailsFragment : Fragment() {
         }
 
         btnEditTrip.setOnClickListener {
-            // Navigate to trip builder/editor
-            val action = TripDetailsFragmentDirections
-                .actionTripDetailsFragmentToTripBuilderFragment(
-                    tripId = args.tripId,
-                    postId = null
-                )
-            findNavController().navigate(action)
+            // TODO: Navigate to trip builder when navigation action is added
+            Toast.makeText(requireContext(), "Edit trip: ${viewModel.currentTrip.value?.title}", Toast.LENGTH_SHORT).show()
         }
 
         fabAddDay.setOnClickListener {
