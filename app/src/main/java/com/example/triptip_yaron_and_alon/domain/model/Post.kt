@@ -11,6 +11,11 @@ data class Post(
     val location: String? = null,
     val latitude: Double? = null,
     val longitude: Double? = null,
-    val placeXid: String? = null // OpenTripMap xid if post is about a specific place
+    val placeXid: String? = null, // OpenTripMap xid if post is about a specific place
+    // Social features
+    val likes: Int = 0,
+    val likedByCurrentUser: Boolean = false,
+    val commentCount: Int = 0
 )
+
 

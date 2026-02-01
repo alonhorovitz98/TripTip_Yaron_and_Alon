@@ -4,16 +4,8 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import com.example.triptip_yaron_and_alon.data.local.database.dao.PostDao
-import com.example.triptip_yaron_and_alon.data.local.database.dao.TripDao
-import com.example.triptip_yaron_and_alon.data.local.database.dao.TripDayDao
-import com.example.triptip_yaron_and_alon.data.local.database.dao.TripItemDao
-import com.example.triptip_yaron_and_alon.data.local.database.dao.UserDao
-import com.example.triptip_yaron_and_alon.data.local.database.entities.PostEntity
-import com.example.triptip_yaron_and_alon.data.local.database.entities.TripDayEntity
-import com.example.triptip_yaron_and_alon.data.local.database.entities.TripEntity
-import com.example.triptip_yaron_and_alon.data.local.database.entities.TripItemEntity
-import com.example.triptip_yaron_and_alon.data.local.database.entities.UserEntity
+import com.example.triptip_yaron_and_alon.data.local.database.dao.*
+import com.example.triptip_yaron_and_alon.data.local.database.entities.*
 
 @Database(
     entities = [
@@ -21,9 +13,13 @@ import com.example.triptip_yaron_and_alon.data.local.database.entities.UserEntit
         UserEntity::class,
         TripEntity::class,
         TripDayEntity::class,
-        TripItemEntity::class
+        TripItemEntity::class,
+        // New entities for social features
+        CommentEntity::class,
+        NotificationEntity::class,
+        SearchHistoryEntity::class
     ],
-    version = 1,
+    version = 2, // Incremented for new entities
     exportSchema = false
 )
 abstract class TripTipDatabase : RoomDatabase() {
@@ -33,6 +29,10 @@ abstract class TripTipDatabase : RoomDatabase() {
     abstract fun tripDao(): TripDao
     abstract fun tripDayDao(): TripDayDao
     abstract fun tripItemDao(): TripItemDao
+    // New DAOs for social features
+    abstract fun commentDao(): CommentDao
+    abstract fun notificationDao(): NotificationDao
+    abstract fun searchHistoryDao(): SearchHistoryDao
     
     companion object {
         @Volatile

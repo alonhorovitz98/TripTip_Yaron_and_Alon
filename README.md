@@ -1074,3 +1074,147 @@ If you encounter:
 
 **Good luck with the implementation!** 🚀
 
+
+---
+
+## 📱 New Features Added (2026)
+
+### ✅ Implemented Features
+
+#### 1. **Enhanced Database Layer (Room v2)**
+- **CommentEntity**: Threaded comments with likes tracking
+- **NotificationEntity**: Multi-type notifications (LIKE, COMMENT, FOLLOW, TRIP_UPDATE)
+- **SearchHistoryEntity**: Recent search queries
+- **Updated PostEntity**: Added social features (likes, commentCount, likedByCurrentUser)
+
+#### 2. **Trip Details Screen**
+- Full trip overview with header image
+- Display trip title, dates, and description
+- RecyclerView showing all trip days with thumbnails
+- Share trip functionality via system share sheet
+- Delete trip with confirmation dialog
+- Add new days via FAB
+- Navigate to day editor and trip builder
+- **UI Design**: Created with Stitch MCP (Material Design 3)
+
+#### 3. **Comments System (In Progress)**
+- Firebase CommentsDataSource for real-time updates
+- CommentsRepository with cache-first strategy
+- Comment domain model and mapper
+- Support for threaded replies via parentCommentId
+- Like/unlike comments functionality
+
+### 🎨 UI Designs Available
+
+All screen designs created with **Stitch MCP** (Project ID: 9503084079534774489):
+
+✨ **Completed Designs:**
+1. **Trip Details** - Vibrant header, day cards, action buttons
+2. **Comments** - Threaded comments with avatars and likes
+3. **Search & Filter** - Filter chips and results cards
+4. **Settings** - Grouped preferences with toggles
+5. **Notifications** - Categorized activity feed
+6. **Map View** - Google Maps with markers and bottom sheet
+
+### 🚀 Upcoming Features
+
+#### Comments & Social Features
+- [ ] CommentsFragment with RecyclerView
+- [ ] CommentAdapter with nested replies
+- [ ] CommentViewModel
+- [ ] Like button integration in PostAdapter
+- [ ] Comment count display on posts
+
+#### Search & Discovery
+- [ ] SearchFragment with filter chips
+- [ ] SearchViewModel with debounced search
+- [ ] SearchRepository with Firestore queries
+- [ ] Recent searches display
+- [ ] Filter by location, date, tags
+
+#### Settings & Preferences
+- [ ] SettingsFragment with PreferenceFragmentCompat
+- [ ] Theme switching (Light/Dark/Auto)
+- [ ] Notification preferences
+- [ ] Privacy settings
+- [ ] Cache management
+
+#### Notifications System
+- [ ] NotificationsFragment with grouped display
+- [ ] Firebase Cloud Messaging integration
+- [ ] Push notification handling
+- [ ] Mark as read functionality
+- [ ] Notification types: likes, comments, follows
+
+#### Map Integration
+- [ ] MapFragment with Google Maps SDK
+- [ ] Post markers with clustering
+- [ ] Bottom sheet post previews
+- [ ] Location search and current location
+- [ ] Map/List view toggle
+
+### 📦 Dependencies Added
+
+No new dependencies required yet. Upcoming features will need:
+- Google Maps SDK (`com.google.android.gms:play-services-maps`)
+- Maps Utils for clustering (`com.google.maps.android:android-maps-utils`)
+- Firebase Cloud Messaging (already in BOM)
+
+### 🔧 Technical Improvements
+
+- **Database Migration**: Room v1 → v2 (destructive migration enabled)
+- **Architecture**: Consistent MVVM with Repository pattern
+- **Caching**: Cache-first strategy for offline support
+- **Real-time Updates**: Firebase snapshot listeners with Flow
+- **Image Loading**: Coil with placeholders and caching
+- **Navigation**: Safe Args for type-safe navigation
+- **Material Design 3**: Modern UI with rounded corners and elevation
+
+### 📚 Documentation
+
+- **Implementation Plan**: Detailed technical specs for all features
+- **Walkthrough**: Phase 1 & 2 completion documentation
+- **Task Tracking**: Organized checklist for all phases
+- **Stitch Designs**: Professional UI mockups for all screens
+
+### 🎯 Current Status
+
+| Feature | Status |
+|---------|--------|
+| Database Layer | ✅ Complete |
+| Trip Details Screen | ✅ Complete |
+| Comments System (Backend) | ✅ Complete |
+| Comments UI | 🚧 In Progress |
+| Likes Feature | 🚧 In Progress |
+| Search & Filter | ⏳ Planned |
+| Settings | ⏳ Planned |
+| Notifications | ⏳ Planned |
+| Map View | ⏳ Planned |
+
+---
+
+## 🎉 Getting Started with New Features
+
+### Viewing Trip Details
+1. Navigate to any trip from TripListFragment
+2. See complete trip overview with days
+3. Share trip or edit details
+4. Add new days using the FAB
+
+### Using Comments (Coming Soon)
+1. Tap comment icon on any post
+2. View all comments with threaded replies
+3. Add your own comments
+4. Like comments you appreciate
+
+### Searching Content (Coming Soon)
+1. Tap search icon in app bar
+2. Enter search query
+3. Apply filters (location, date, etc.)
+4. View results in card layout
+
+---
+
+## 📄 License
+
+This project is part of a university assignment for cellular development coursework.
