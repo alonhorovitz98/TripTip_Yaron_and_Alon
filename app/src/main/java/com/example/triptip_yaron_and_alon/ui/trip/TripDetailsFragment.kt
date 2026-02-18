@@ -95,7 +95,7 @@ class TripDetailsFragment : Fragment() {
     private fun setupRecyclerView() {
         tripDayAdapter = TripDayAdapter { tripDay ->
             // TODO: Navigate to day editor when navigation action is added
-            Toast.makeText(requireContext(), "Edit day: ${tripDay.description}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), "Edit day: ${tripDay.dayNumber}", Toast.LENGTH_SHORT).show()
         }
 
         rvTripDays.apply {
@@ -183,7 +183,7 @@ class TripDetailsFragment : Fragment() {
         tvTripDescription.visibility = if (trip.description.isNullOrEmpty()) View.GONE else View.VISIBLE
 
         // Load header image (use first day's first item image, or placeholder)
-        val headerImage = trip.days.firstOrNull()?.items?.firstOrNull()?.imageUrl
+        val headerImage = trip.days.firstOrNull()?.items?.firstOrNull()?.post?.imageUrl
         ivTripHeaderImage.load(headerImage) {
             crossfade(true)
             placeholder(R.drawable.ic_placeholder_image)
@@ -204,7 +204,8 @@ class TripDetailsFragment : Fragment() {
             }
             append("Days:\n")
             trip.days.sortedBy { it.dayNumber }.forEach { day ->
-                append("Day ${day.dayNumber}: ${day.description} (${day.items.size} activities)\n")
+                val location = day.items.firstOrNull()?.post?.location ?: "No location"
+                append("Day ${day.dayNumber}: $location (${day.items.size} activities)\n")
             }
         }
 

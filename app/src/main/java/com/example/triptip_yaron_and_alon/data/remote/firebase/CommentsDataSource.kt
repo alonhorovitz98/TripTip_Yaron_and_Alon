@@ -31,7 +31,7 @@ class CommentsDataSource {
             .orderBy("createdAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    close(Exception(error))
                     return@addSnapshotListener
                 }
                 
@@ -69,7 +69,7 @@ class CommentsDataSource {
     ): Result<Comment> {
         return try {
             val currentUser = auth.currentUser
-                ?: return Result.Error("User not authenticated")
+                ?: return Result.Error(Exception("User not authenticated"), "User not authenticated")
             
             val commentId = UUID.randomUUID().toString()
             val comment = Comment(
@@ -105,7 +105,7 @@ class CommentsDataSource {
             
             Result.Success(comment)
         } catch (e: Exception) {
-            Result.Error("Failed to add comment: ${e.message}")
+            Result.Error(e, "Failed to add comment: ${e.message}")
         }
     }
     
@@ -115,12 +115,12 @@ class CommentsDataSource {
     suspend fun deleteComment(commentId: String, postId: String): Result<Unit> {
         return try {
             val currentUser = auth.currentUser
-                ?: return Result.Error("User not authenticated")
+                ?: return Result.Error(Exception("User not authenticated"), "User not authenticated")
             
             // Verify ownership
             val doc = commentsCollection.document(commentId).get().await()
             if (doc.getString("userId") != currentUser.uid) {
-                return Result.Error("Not authorized to delete this comment")
+                return Result.Error(Exception("Not authorized"), "Not authorized to delete this comment")
             }
             
             commentsCollection.document(commentId).delete().await()
@@ -133,7 +133,7 @@ class CommentsDataSource {
             
             Result.Success(Unit)
         } catch (e: Exception) {
-            Result.Error("Failed to delete comment: ${e.message}")
+            Result.Error(e, "Failed to delete comment: ${e.message}")
         }
     }
     
@@ -143,7 +143,7 @@ class CommentsDataSource {
     suspend fun likeComment(commentId: String): Result<Unit> {
         return try {
             val currentUser = auth.currentUser
-                ?: return Result.Error("User not authenticated")
+                ?: return Result.Error(Exception("User not authenticated"), "User not authenticated")
             
             commentsCollection.document(commentId)
                 .update("likes", com.google.firebase.firestore.FieldValue.increment(1))
@@ -151,7 +151,7 @@ class CommentsDataSource {
             
             Result.Success(Unit)
         } catch (e: Exception) {
-            Result.Error("Failed to like comment: ${e.message}")
+            Result.Error(e, "Failed to like comment: ${e.message}")
         }
     }
     
@@ -161,7 +161,7 @@ class CommentsDataSource {
     suspend fun unlikeComment(commentId: String): Result<Unit> {
         return try {
             val currentUser = auth.currentUser
-                ?: return Result.Error("User not authenticated")
+                ?: return Result.Error(Exception("User not authenticated"), "User not authenticated")
             
             commentsCollection.document(commentId)
                 .update("likes", com.google.firebase.firestore.FieldValue.increment(-1))
@@ -169,7 +169,7 @@ class CommentsDataSource {
             
             Result.Success(Unit)
         } catch (e: Exception) {
-            Result.Error("Failed to unlike comment: ${e.message}")
+            Result.Error(e, "Failed to unlike comment: ${e.message}")
         }
     }
 }

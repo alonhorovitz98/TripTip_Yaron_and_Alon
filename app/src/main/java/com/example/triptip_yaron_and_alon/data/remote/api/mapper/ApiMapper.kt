@@ -1,8 +1,10 @@
 package com.example.triptip_yaron_and_alon.data.remote.api.mapper
 
+import com.example.triptip_yaron_and_alon.data.remote.api.dto.GeocodingResponseDto
 import com.example.triptip_yaron_and_alon.data.remote.api.dto.NearbyPlacesResponseDto
 import com.example.triptip_yaron_and_alon.data.remote.api.dto.PlaceDetailsDto
 import com.example.triptip_yaron_and_alon.data.remote.api.dto.WeatherResponseDto
+import com.example.triptip_yaron_and_alon.domain.model.LocationSuggestion
 import com.example.triptip_yaron_and_alon.domain.model.PlaceInfo
 import com.example.triptip_yaron_and_alon.domain.model.WeatherInfo
 
@@ -123,6 +125,27 @@ object ApiMapper {
             description = details.wikipediaExtracts?.text ?: placeInfo.description,
             imageUrl = details.preview?.source ?: placeInfo.imageUrl
         )
+    }
+    
+    /**
+     * Convert GeocodingResponseDto to LocationSuggestion domain model.
+     */
+    fun toLocationSuggestion(dto: GeocodingResponseDto): LocationSuggestion {
+        return LocationSuggestion(
+            displayName = dto.displayName,
+            latitude = dto.latitude.toDoubleOrNull() ?: 0.0,
+            longitude = dto.longitude.toDoubleOrNull() ?: 0.0,
+            placeId = dto.placeId,
+            city = dto.address?.city ?: dto.address?.town ?: dto.address?.village,
+            country = dto.address?.country
+        )
+    }
+    
+    /**
+     * Convert list of GeocodingResponseDto to List<LocationSuggestion>.
+     */
+    fun toLocationSuggestionList(dtos: List<GeocodingResponseDto>): List<LocationSuggestion> {
+        return dtos.map { toLocationSuggestion(it) }
     }
 }
 

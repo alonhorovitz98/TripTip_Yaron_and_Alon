@@ -44,8 +44,9 @@ class TripDayAdapter(
             // Set day number
             tvDayNumber.text = "Day ${tripDay.dayNumber}"
             
-            // Set city/description
-            tvCityName.text = tripDay.description.ifEmpty { "Untitled Day" }
+            // Set city name (use first item's location or default)
+            val cityName = tripDay.items.firstOrNull()?.post?.location ?: "Untitled Day"
+            tvCityName.text = cityName
             
             // Set activity count
             val count = tripDay.items.size
@@ -55,7 +56,7 @@ class TripDayAdapter(
             )
             
             // Load thumbnail (first item's image or placeholder)
-            val firstItemImage = tripDay.items.firstOrNull()?.imageUrl
+            val firstItemImage = tripDay.items.firstOrNull()?.post?.imageUrl
             ivDayThumbnail.load(firstItemImage) {
                 crossfade(true)
                 placeholder(R.drawable.ic_placeholder_image)

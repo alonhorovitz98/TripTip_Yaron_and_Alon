@@ -82,8 +82,13 @@ class PostDetailsFragment : Fragment() {
                 
                 // Load weather and places if coordinates are available
                 if (post.latitude != null && post.longitude != null) {
+                    // Use coordinates directly
                     viewModel.loadWeather(post.latitude, post.longitude)
                     viewModel.loadNearbyPlaces(post.latitude, post.longitude)
+                } else if (post.location != null && post.location.isNotBlank()) {
+                    // Geocode location name to get coordinates, then load weather/places
+                    viewModel.loadWeatherForLocation(post.location)
+                    viewModel.loadNearbyPlacesForLocation(post.location)
                 }
             } else {
                 binding.tvError.text = "Post not found"

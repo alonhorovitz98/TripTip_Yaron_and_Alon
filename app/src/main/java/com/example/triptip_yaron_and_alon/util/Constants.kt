@@ -20,6 +20,7 @@ object Constants {
     // API Base URLs
     const val OPEN_METEO_BASE_URL = "https://api.open-meteo.com/v1/"
     const val OPENTRIPMAP_BASE_URL = "https://api.opentripmap.io/0.1/en/"
+    const val NOMINATIM_BASE_URL = "https://nominatim.openstreetmap.org/" // Free geocoding API
     
     // Default Values
     const val NEARBY_PLACES_RADIUS = 5000 // meters

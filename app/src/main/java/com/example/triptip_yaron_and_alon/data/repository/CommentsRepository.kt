@@ -76,8 +76,7 @@ class CommentsRepository(
                     // Remove from Room cache
                     commentDao.getCommentById(commentId).collect { comment ->
                         comment?.let {
-                            val entity = CommentMapper.toEntity(it)
-                            commentDao.delete(entity)
+                            commentDao.delete(it)
                         }
                     }
                     emit(Result.Success(Unit))

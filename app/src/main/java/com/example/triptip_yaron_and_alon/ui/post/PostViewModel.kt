@@ -12,6 +12,7 @@ import com.example.triptip_yaron_and_alon.data.remote.firebase.FirebaseStorageDa
 import com.example.triptip_yaron_and_alon.data.remote.firebase.FirestoreDataSource
 import com.example.triptip_yaron_and_alon.data.repository.PlaceInfoRepository
 import com.example.triptip_yaron_and_alon.data.repository.PostRepository
+import com.example.triptip_yaron_and_alon.domain.model.LocationSuggestion
 import com.example.triptip_yaron_and_alon.domain.model.PlaceInfo
 import com.example.triptip_yaron_and_alon.domain.model.Post
 import com.example.triptip_yaron_and_alon.domain.model.WeatherInfo
@@ -79,6 +80,13 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
     private val _placesError = MutableLiveData<String?>()
     val placesError: LiveData<String?> = _placesError
     
+    // Location suggestions for autocomplete
+    private val _locationSuggestions = MutableLiveData<List<LocationSuggestion>>()
+    val locationSuggestions: LiveData<List<LocationSuggestion>> = _locationSuggestions
+    
+    private val _locationSuggestionsLoading = MutableLiveData<Boolean>()
+    val locationSuggestionsLoading: LiveData<Boolean> = _locationSuggestionsLoading
+    
     // Current user ID (simplified - should come from auth)
     private var currentUserId: String? = null
     
@@ -112,6 +120,29 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
     
+    /**
+     * Search for location suggestions (for autocomplete).
+     */
+    fun searchLocationSuggestions(query: String) {
+        if (query.length < 2) {
+            _locationSuggestions.value = emptyList()
+            return
+        }
+        
+        viewModelScope.launch {
+            _locationSuggestionsLoading.value = true
+            placeInfoRepository.searchLocationSuggestions(query)
+                .catch { e ->
+                    _locationSuggestionsLoading.value = false
+                    _error.value = "Failed to search locations: ${e.message}"
+                }
+                .collect { suggestions ->
+                    _locationSuggestions.value = suggestions
+                    _locationSuggestionsLoading.value = false
+                }
+        }
+    }
+    
     fun createPost(text: String, imageUri: Uri?, location: String?, latitude: Double?, longitude: Double?) {
         if (text.isBlank()) {
             _error.value = "Post text cannot be empty"
@@ -119,12 +150,38 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
         }
         
         viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            
             // Get current user ID
             val userId = authDataSource.getCurrentUser().firstOrNull()?.id
                 ?: run {
+                    _isLoading.value = false
                     _error.value = "User not authenticated"
                     return@launch
                 }
+            
+            // Geocode location if name provided but no coordinates
+            var finalLatitude = latitude
+            var finalLongitude = longitude
+            
+            if (location != null && location.isNotBlank() && (latitude == null || longitude == null)) {
+                try {
+                    val coordinates = placeInfoRepository.geocodeLocation(location)
+                        .firstOrNull()
+                    
+                    if (coordinates != null) {
+                        finalLatitude = coordinates.first
+                        finalLongitude = coordinates.second
+                    } else {
+                        // Location not found, but continue with location name only
+                        _error.value = "Location not found, but post will be created with location name"
+                    }
+                } catch (e: Exception) {
+                    // Geocoding failed, but continue with location name only
+                    _error.value = "Could not get coordinates for location, but post will be created"
+                }
+            }
             
             // Create Post object
             val post = Post(
@@ -136,8 +193,8 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
                 imageUrl = null, // Will be set after image upload
                 createdAt = System.currentTimeMillis(),
                 location = location,
-                latitude = latitude,
-                longitude = longitude,
+                latitude = finalLatitude,
+                longitude = finalLongitude,
                 placeXid = null
             )
             
@@ -248,6 +305,56 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
                     _nearbyPlaces.value = places
                     _placesLoading.value = false
                 }
+        }
+    }
+    
+    /**
+     * Load weather for a location name (geocodes first, then loads weather).
+     */
+    fun loadWeatherForLocation(locationName: String) {
+        viewModelScope.launch {
+            _weatherLoading.value = true
+            _weatherError.value = null
+            
+            try {
+                val coordinates = placeInfoRepository.geocodeLocation(locationName)
+                    .firstOrNull()
+                
+                if (coordinates != null) {
+                    loadWeather(coordinates.first, coordinates.second)
+                } else {
+                    _weatherLoading.value = false
+                    _weatherError.value = "Location not found"
+                }
+            } catch (e: Exception) {
+                _weatherLoading.value = false
+                _weatherError.value = "Failed to geocode location: ${e.message}"
+            }
+        }
+    }
+    
+    /**
+     * Load nearby places for a location name (geocodes first, then loads places).
+     */
+    fun loadNearbyPlacesForLocation(locationName: String) {
+        viewModelScope.launch {
+            _placesLoading.value = true
+            _placesError.value = null
+            
+            try {
+                val coordinates = placeInfoRepository.geocodeLocation(locationName)
+                    .firstOrNull()
+                
+                if (coordinates != null) {
+                    loadNearbyPlaces(coordinates.first, coordinates.second)
+                } else {
+                    _placesLoading.value = false
+                    _placesError.value = "Location not found"
+                }
+            } catch (e: Exception) {
+                _placesLoading.value = false
+                _placesError.value = "Failed to geocode location: ${e.message}"
+            }
         }
     }
 }

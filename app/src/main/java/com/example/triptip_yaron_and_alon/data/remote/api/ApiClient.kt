@@ -31,7 +31,28 @@ object ApiClient {
         .addConverterFactory(GsonConverterFactory.create())
         .build()
     
+    // Geocoding API client with custom User-Agent (required by Nominatim)
+    private val geocodingOkHttpClient = OkHttpClient.Builder()
+        .addInterceptor { chain ->
+            val request = chain.request().newBuilder()
+                .addHeader("User-Agent", "TripTip/1.0") // Required by Nominatim
+                .build()
+            chain.proceed(request)
+        }
+        .addInterceptor(loggingInterceptor)
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
+        .build()
+    
+    private val geocodingRetrofit = Retrofit.Builder()
+        .baseUrl(Constants.NOMINATIM_BASE_URL)
+        .client(geocodingOkHttpClient)
+        .addConverterFactory(GsonConverterFactory.create())
+        .build()
+    
     val weatherApiService: WeatherApiService = weatherRetrofit.create(WeatherApiService::class.java)
     val openTripMapApiService: OpenTripMapApiService = openTripMapRetrofit.create(OpenTripMapApiService::class.java)
+    val geocodingApiService: GeocodingApiService = geocodingRetrofit.create(GeocodingApiService::class.java)
 }
 

@@ -42,8 +42,9 @@ class TripDaysAdapter(
                 val count = day.items.size
                 tvActivityCount.text = "${count} ${if (count == 1) "item" else "items"}"
                 
-                // Set city name (from day description)
-                tvCityName.text = day.description.ifEmpty { "Untitled Day" }
+                // Set city name (use first item's location or default)
+                val cityName = day.items.firstOrNull()?.post?.location ?: "Untitled Day"
+                tvCityName.text = cityName
                 
                 // Load thumbnail (first item's image)
                 val firstItemImage = day.items.firstOrNull()?.post?.imageUrl

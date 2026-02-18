@@ -54,22 +54,26 @@
             app:layout_constraintTop_toBottomOf="@id/ivImagePreview"
             app:layout_constraintStart_toStartOf="parent" />
 
-        <!-- Location Input -->
+        <!-- Location Input with Autocomplete -->
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/tilLocation"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:hint="Location (optional)"
+            android:hint="Location (e.g., London, Madrid, Camden Market)"
             android:layout_marginTop="16dp"
             app:layout_constraintTop_toBottomOf="@id/btnAddImage"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent">
+            app:layout_constraintEnd_toEndOf="parent"
+            app:endIconMode="clear_text"
+            app:helperText="Start typing to see suggestions">
 
-            <com.google.android.material.textfield.TextInputEditText
+            <AutoCompleteTextView
                 android:id="@+id/etLocation"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:inputType="text" />
+                android:inputType="text"
+                android:completionThreshold="2"
+                android:dropDownHeight="200dp" />
 
         </com.google.android.material.textfield.TextInputLayout>
 

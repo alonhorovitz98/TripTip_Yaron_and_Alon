@@ -1,6 +1,8 @@
 package com.example.triptip_yaron_and_alon
 
 import android.os.Bundle
+import android.view.Menu
+import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -63,5 +65,30 @@ class MainActivity : AppCompatActivity() {
         val navHostFragment = supportFragmentManager
             .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
         return navHostFragment.navController.navigateUp() || super.onSupportNavigateUp()
+    }
+    
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.main_menu, menu)
+        return true
+    }
+    
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        val navHostFragment = supportFragmentManager
+            .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
+        val navController = navHostFragment.navController
+        
+        return when (item.itemId) {
+            R.id.action_my_trips -> {
+                // Navigate to TripListFragment
+                navController.navigate(R.id.tripListFragment)
+                true
+            }
+            R.id.action_profile -> {
+                // Navigate to ProfileFragment
+                navController.navigate(R.id.profileFragment)
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
     }
 }

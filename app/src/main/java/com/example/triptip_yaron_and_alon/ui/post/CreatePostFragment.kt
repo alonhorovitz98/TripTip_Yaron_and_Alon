@@ -5,9 +5,12 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ArrayAdapter
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
@@ -15,6 +18,7 @@ import androidx.navigation.fragment.findNavController
 import coil.load
 import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.FragmentCreatePostBinding
+import com.example.triptip_yaron_and_alon.domain.model.LocationSuggestion
 import com.example.triptip_yaron_and_alon.util.Result
 import com.google.android.material.snackbar.Snackbar
 
@@ -25,6 +29,7 @@ class CreatePostFragment : Fragment() {
     
     private lateinit var viewModel: PostViewModel
     private var selectedImageUri: Uri? = null
+    private lateinit var locationAdapter: ArrayAdapter<LocationSuggestion>
     
     // Image picker launcher
     private val imagePickerLauncher = registerForActivityResult(
@@ -52,8 +57,64 @@ class CreatePostFragment : Fragment() {
         
         viewModel = ViewModelProvider(this)[PostViewModel::class.java]
         
+        setupLocationAutocomplete()
         setupListeners()
         observeViewModel()
+    }
+    
+    private fun setupLocationAutocomplete() {
+        // Create adapter for location suggestions with custom display
+        locationAdapter = object : ArrayAdapter<LocationSuggestion>(
+            requireContext(),
+            android.R.layout.simple_dropdown_item_1line,
+            mutableListOf<LocationSuggestion>()
+        ) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val view = super.getView(position, convertView, parent)
+                val suggestion = getItem(position)
+                if (suggestion != null) {
+                    // Display the full location name
+                    (view as? android.widget.TextView)?.text = suggestion.displayName
+                }
+                return view
+            }
+        }
+        binding.etLocation.setAdapter(locationAdapter)
+        
+        // Handle text changes to trigger search
+        binding.etLocation.addTextChangedListener(object : TextWatcher {
+            private var searchRunnable: Runnable? = null
+            
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                // Cancel previous search
+                binding.etLocation.removeCallbacks(searchRunnable)
+                
+                // Debounce search (wait 500ms after user stops typing)
+                searchRunnable = Runnable {
+                    val query = s?.toString()?.trim()
+                    if (!query.isNullOrBlank() && query.length >= 2) {
+                        viewModel.searchLocationSuggestions(query)
+                    } else {
+                        locationAdapter.clear()
+                        locationAdapter.notifyDataSetChanged()
+                    }
+                }
+                binding.etLocation.postDelayed(searchRunnable, 500)
+            }
+            
+            override fun afterTextChanged(s: Editable?) {}
+        })
+        
+        // Handle item selection
+        binding.etLocation.setOnItemClickListener { _, _, position, _ ->
+            val selected = locationAdapter.getItem(position)
+            selected?.let {
+                // Set the full display name
+                binding.etLocation.setText(it.displayName, false)
+            }
+        }
     }
     
     private fun setupListeners() {
@@ -126,6 +187,17 @@ class CreatePostFragment : Fragment() {
             } else {
                 binding.tvError.visibility = View.GONE
             }
+        }
+        
+        // Observe location suggestions
+        viewModel.locationSuggestions.observe(viewLifecycleOwner) { suggestions ->
+            locationAdapter.clear()
+            locationAdapter.addAll(suggestions)
+            locationAdapter.notifyDataSetChanged()
+        }
+        
+        viewModel.locationSuggestionsLoading.observe(viewLifecycleOwner) { isLoading ->
+            // Could show a loading indicator here if needed
         }
     }
     

@@ -2,13 +2,16 @@ package com.example.triptip_yaron_and_alon.data.repository
 
 import com.example.triptip_yaron_and_alon.BuildConfig
 import com.example.triptip_yaron_and_alon.data.remote.api.ApiClient
+import com.example.triptip_yaron_and_alon.data.remote.api.GeocodingApiService
 import com.example.triptip_yaron_and_alon.data.remote.api.OpenTripMapApiService
 import com.example.triptip_yaron_and_alon.data.remote.api.WeatherApiService
 import com.example.triptip_yaron_and_alon.data.remote.api.mapper.ApiMapper
+import com.example.triptip_yaron_and_alon.domain.model.LocationSuggestion
 import com.example.triptip_yaron_and_alon.domain.model.PlaceInfo
 import com.example.triptip_yaron_and_alon.domain.model.WeatherInfo
 import com.example.triptip_yaron_and_alon.util.Constants
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
@@ -20,7 +23,8 @@ import kotlinx.coroutines.flow.flowOn
  */
 class PlaceInfoRepository(
     private val weatherApiService: WeatherApiService = ApiClient.weatherApiService,
-    private val openTripMapApiService: OpenTripMapApiService = ApiClient.openTripMapApiService
+    private val openTripMapApiService: OpenTripMapApiService = ApiClient.openTripMapApiService,
+    private val geocodingApiService: GeocodingApiService = ApiClient.geocodingApiService
 ) {
     
     /**
@@ -90,6 +94,70 @@ class PlaceInfoRepository(
     }.catch { e ->
         // Re-throw with more context
         throw Exception("Failed to fetch place details: ${e.message}", e)
+    }.flowOn(Dispatchers.IO)
+    
+    /**
+     * Search for location suggestions (autocomplete).
+     * Returns Flow<List<LocationSuggestion>> that emits location suggestions.
+     * Uses OpenStreetMap Nominatim API (free, no API key required).
+     * Rate limit: 1 request per second - we add a small delay to respect this.
+     */
+    fun searchLocationSuggestions(query: String): Flow<List<LocationSuggestion>> = flow {
+        if (query.length < 2) {
+            emit(emptyList())
+            return@flow
+        }
+        
+        // Respect Nominatim rate limit (1 request per second)
+        delay(1100) // Slightly more than 1 second to be safe
+        
+        val response = geocodingApiService.searchLocations(
+            query = query,
+            limit = 10
+        )
+        
+        val suggestions = ApiMapper.toLocationSuggestionList(response)
+        emit(suggestions)
+    }.catch { e ->
+        // Re-throw with more context
+        throw Exception("Failed to search locations: ${e.message}", e)
+    }.flowOn(Dispatchers.IO)
+    
+    /**
+     * Geocode a location name to get coordinates.
+     * Returns Flow<Pair<Double, Double>?> that emits (latitude, longitude) or null if not found.
+     * Uses OpenStreetMap Nominatim API (free, no API key required).
+     */
+    fun geocodeLocation(locationName: String): Flow<Pair<Double, Double>?> = flow {
+        if (locationName.isBlank()) {
+            emit(null)
+            return@flow
+        }
+        
+        // Respect Nominatim rate limit (1 request per second)
+        delay(1100)
+        
+        val response = geocodingApiService.geocodeLocation(
+            locationName = locationName,
+            limit = 1
+        )
+        
+        if (response.isEmpty()) {
+            emit(null)
+        } else {
+            val result = response.first()
+            val lat = result.latitude.toDoubleOrNull()
+            val lon = result.longitude.toDoubleOrNull()
+            
+            if (lat != null && lon != null) {
+                emit(Pair(lat, lon))
+            } else {
+                emit(null)
+            }
+        }
+    }.catch { e ->
+        // Re-throw with more context
+        throw Exception("Failed to geocode location: ${e.message}", e)
     }.flowOn(Dispatchers.IO)
     
     /**
