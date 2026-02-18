@@ -2,6 +2,52 @@
 <resources>
     <!-- Base application theme using Material Design 3 -->
     <style name="Theme.TripTip_Yaron_and_Alon" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your theme here -->
+        <!-- Primary Colors -->
+        <item name="colorPrimary">@color/orange_primary</item>
+        <item name="colorPrimaryVariant">@color/orange_dark</item>
+        <item name="colorOnPrimary">@color/text_white</item>
+        
+        <!-- Secondary Colors -->
+        <item name="colorSecondary">@color/turquoise</item>
+        <item name="colorSecondaryVariant">@color/turquoise_dark</item>
+        <item name="colorOnSecondary">@color/text_white</item>
+        
+        <!-- Background Colors -->
+        <item name="android:colorBackground">@color/background_beige</item>
+        <item name="colorSurface">@color/background_white</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+        <item name="colorOnBackground">@color/text_primary</item>
+        
+        <!-- Error Colors -->
+        <item name="colorError">@color/error</item>
+        <item name="colorOnError">@color/text_white</item>
+        
+        <!-- Status Bar -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        
+        <!-- Navigation Bar -->
+        <item name="android:navigationBarColor">@color/background_white</item>
+    </style>
+    
+    <!-- Button Styles -->
+    <style name="Widget.TripTip.Button.Primary" parent="Widget.Material3.Button">
+        <item name="backgroundTint">@color/orange_primary</item>
+        <item name="android:textColor">@color/text_white</item>
+        <item name="cornerRadius">12dp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+    
+    <style name="Widget.TripTip.Button.Outlined" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="strokeColor">@color/orange_primary</item>
+        <item name="android:textColor">@color/orange_primary</item>
+        <item name="cornerRadius">12dp</item>
+    </style>
+    
+    <!-- Card Style - Use MaterialCardView style -->
+    <style name="Widget.TripTip.Card" parent="Widget.MaterialComponents.CardView">
+        <item name="cardCornerRadius">@dimen/corner_radius_medium</item>
+        <item name="cardElevation">@dimen/card_elevation_medium</item>
+        <item name="cardBackgroundColor">@color/card_background</item>
     </style>
 </resources>

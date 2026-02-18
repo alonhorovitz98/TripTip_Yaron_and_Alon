@@ -1,5 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Stitch Design System Colors -->
+    
+    <!-- Primary Colors -->
+    <color name="orange_primary">#FF6B35</color>
+    <color name="orange_light">#FFF4E6</color>
+    <color name="orange_dark">#E55A2B</color>
+    
+    <!-- Accent Colors -->
+    <color name="turquoise">#40E0D0</color>
+    <color name="turquoise_dark">#2EB8A6</color>
+    
+    <!-- Text Colors -->
+    <color name="text_primary">#000000</color>
+    <color name="text_secondary">#666666</color>
+    <color name="text_hint">#999999</color>
+    <color name="text_white">#FFFFFF</color>
+    
+    <!-- Background Colors -->
+    <color name="background_light">#F5F5F5</color>
+    <color name="background_beige">#FAF9F6</color>
+    <color name="background_white">#FFFFFF</color>
+    
+    <!-- Input Field Colors -->
+    <color name="input_background">#F5F5F5</color>
+    <color name="input_border">#E0E0E0</color>
+    
+    <!-- Card Colors -->
+    <color name="card_background">#FFFFFF</color>
+    <color name="card_shadow">#1A000000</color>
+    
+    <!-- Status Colors -->
+    <color name="success">#4CAF50</color>
+    <color name="error">#F44336</color>
+    <color name="warning">#FF9800</color>
+    
+    <!-- Legacy Colors (keeping for compatibility) -->
     <color name="purple_200">#FFBB86FC</color>
     <color name="purple_500">#FF6200EE</color>
     <color name="purple_700">#FF3700B3</color>
