@@ -22,16 +22,19 @@ import kotlinx.coroutines.launch
 
 class PostViewModel(application: Application) : AndroidViewModel(application) {
     
-    private val firestoreDataSource = FirestoreDataSource()
-    private val storageDataSource = FirebaseStorageDataSource(application)
-    private val authDataSource = FirebaseAuthDataSource()
-    private val database = TripTipDatabase.getDatabase(application)
-    private val postRepository = PostRepository(
-        database.postDao(),
-        firestoreDataSource,
-        storageDataSource
-    )
-    private val placeInfoRepository = PlaceInfoRepository()
+    // Use lazy initialization to defer heavy object creation
+    private val firestoreDataSource by lazy { FirestoreDataSource() }
+    private val storageDataSource by lazy { FirebaseStorageDataSource(application) }
+    private val authDataSource by lazy { FirebaseAuthDataSource() }
+    private val database by lazy { TripTipDatabase.getDatabase(application) }
+    private val postRepository by lazy {
+        PostRepository(
+            database.postDao(),
+            firestoreDataSource,
+            storageDataSource
+        )
+    }
+    private val placeInfoRepository by lazy { PlaceInfoRepository() }
     
     // Current post
     private val _post = MutableLiveData<Post?>()
@@ -82,9 +85,14 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
     fun loadPost(postId: String) {
         viewModelScope.launch {
             _isLoading.value = true
+            _error.value = null
+            var isFirstEmission = true
             postRepository.getPostById(postId).collect { post ->
                 _post.value = post
-                _isLoading.value = false
+                if (isFirstEmission) {
+                    _isLoading.value = false
+                    isFirstEmission = false
+                }
             }
         }
     }
@@ -92,9 +100,14 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
     fun loadUserPosts(userId: String) {
         viewModelScope.launch {
             _isLoading.value = true
+            _error.value = null
+            var isFirstEmission = true
             postRepository.getUserPosts(userId).collect { posts ->
                 _userPosts.value = posts
-                _isLoading.value = false
+                if (isFirstEmission) {
+                    _isLoading.value = false
+                    isFirstEmission = false
+                }
             }
         }
     }

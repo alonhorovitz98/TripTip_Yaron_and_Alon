@@ -15,6 +15,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import coil.load
+import java.io.File
 import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.data.remote.firebase.FirebaseAuthDataSource
 import com.example.triptip_yaron_and_alon.databinding.FragmentEditPostBinding
@@ -194,15 +195,22 @@ class EditPostFragment : Fragment() {
                     binding.tilLocation.visibility = View.GONE
                 }
                 
-                // Image preview
+                // Image preview - Coil handles file errors gracefully
                 originalImageUrl = post.imageUrl
                 if (post.imageUrl != null && !shouldRemoveImage && selectedImageUri == null) {
                     binding.ivImagePreview.visibility = View.VISIBLE
                     binding.btnChangeImage.visibility = View.VISIBLE
                     binding.btnRemoveImage.visibility = View.VISIBLE
-                    binding.ivImagePreview.load(post.imageUrl) {
-                        placeholder(R.drawable.ic_launcher_background)
-                        error(R.drawable.ic_launcher_background)
+                    try {
+                        val imageFile = java.io.File(post.imageUrl)
+                        binding.ivImagePreview.load(imageFile) {
+                            placeholder(R.drawable.ic_launcher_background)
+                            error(R.drawable.ic_launcher_background)
+                            // Coil will handle missing files automatically
+                        }
+                    } catch (e: Exception) {
+                        // If file path is invalid, hide image view
+                        binding.ivImagePreview.visibility = View.GONE
                     }
                 }
             }

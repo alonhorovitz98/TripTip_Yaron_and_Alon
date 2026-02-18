@@ -8,7 +8,9 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.triptip_yaron_and_alon.databinding.FragmentTripBuilderBinding
+import com.example.triptip_yaron_and_alon.ui.adapter.TripDaysAdapter
 import com.example.triptip_yaron_and_alon.util.Result
 import com.google.android.material.snackbar.Snackbar
 
@@ -21,6 +23,7 @@ class TripBuilderFragment : Fragment() {
     private val args: TripBuilderFragmentArgs by navArgs()
     
     private var isNewTrip = false
+    private lateinit var daysAdapter: TripDaysAdapter
     
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -38,12 +41,30 @@ class TripBuilderFragment : Fragment() {
         
         isNewTrip = args.tripId == "new"
         
+        setupRecyclerView()
+        setupListeners()
+        observeViewModel()
+        
         if (!isNewTrip) {
             viewModel.loadTrip(args.tripId)
         }
+    }
+    
+    private fun setupRecyclerView() {
+        daysAdapter = TripDaysAdapter { day ->
+            // Navigate to TripDayEditorFragment
+            val action = TripBuilderFragmentDirections
+                .actionTripBuilderFragmentToTripDayEditorFragment(
+                    tripId = args.tripId,
+                    dayId = day.id
+                )
+            findNavController().navigate(action)
+        }
         
-        setupListeners()
-        observeViewModel()
+        binding.rvDays.apply {
+            adapter = daysAdapter
+            layoutManager = LinearLayoutManager(context)
+        }
     }
     
     private fun setupListeners() {
@@ -85,10 +106,15 @@ class TripBuilderFragment : Fragment() {
     
     private fun observeViewModel() {
         viewModel.currentTrip.observe(viewLifecycleOwner) { trip ->
-            if (trip != null && !isNewTrip) {
-                binding.etTripTitle.setText(trip.title)
-                binding.etTripDescription.setText(trip.description)
-                // TODO: Display days in RecyclerView
+            if (trip != null) {
+                if (!isNewTrip) {
+                    binding.etTripTitle.setText(trip.title)
+                    binding.etTripDescription.setText(trip.description)
+                }
+                // Display days in RecyclerView
+                daysAdapter.submitList(trip.days.sortedBy { it.dayNumber })
+            } else {
+                daysAdapter.submitList(emptyList())
             }
         }
         

@@ -18,22 +18,27 @@ import kotlinx.coroutines.launch
 
 class ProfileViewModel(application: Application) : AndroidViewModel(application) {
     
-    private val authDataSource = FirebaseAuthDataSource()
-    private val firestoreDataSource = FirestoreDataSource()
-    private val storageDataSource = FirebaseStorageDataSource(application)
-    private val database = TripTipDatabase.getDatabase(application)
-    private val userRepository = UserRepository(
-        database.userDao(),
-        authDataSource,
-        firestoreDataSource,
-        storageDataSource
-    )
-    private val authRepository = AuthRepository(
-        authDataSource,
-        firestoreDataSource,
-        storageDataSource,
-        database.userDao()
-    )
+    // Use lazy initialization to defer heavy object creation
+    private val authDataSource by lazy { FirebaseAuthDataSource() }
+    private val firestoreDataSource by lazy { FirestoreDataSource() }
+    private val storageDataSource by lazy { FirebaseStorageDataSource(application) }
+    private val database by lazy { TripTipDatabase.getDatabase(application) }
+    private val userRepository by lazy {
+        UserRepository(
+            database.userDao(),
+            authDataSource,
+            firestoreDataSource,
+            storageDataSource
+        )
+    }
+    private val authRepository by lazy {
+        AuthRepository(
+            authDataSource,
+            firestoreDataSource,
+            storageDataSource,
+            database.userDao()
+        )
+    }
     
     // User
     private val _user = MutableLiveData<User?>()
@@ -55,16 +60,19 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     private val _error = MutableLiveData<String?>()
     val error: LiveData<String?> = _error
     
-    init {
-        loadProfile()
-    }
+    // Removed init block - loadProfile() should be called explicitly from Fragment
     
     fun loadProfile() {
         viewModelScope.launch {
             _isLoading.value = true
+            _error.value = null
+            var isFirstEmission = true
             userRepository.getCurrentUser().collect { user ->
                 _user.value = user
-                _isLoading.value = false
+                if (isFirstEmission) {
+                    _isLoading.value = false
+                    isFirstEmission = false
+                }
             }
         }
     }

@@ -10,6 +10,7 @@ import coil.load
 import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.ItemPostBinding
 import com.example.triptip_yaron_and_alon.domain.model.Post
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -47,12 +48,19 @@ class PostAdapter(
                 // Timestamp
                 tvTimestamp.text = formatTimestamp(post.createdAt)
                 
-                // Post image
+                // Post image - Coil handles file errors gracefully
                 if (post.imageUrl != null) {
                     ivPostImage.visibility = View.VISIBLE
-                    ivPostImage.load(post.imageUrl) {
-                        placeholder(R.drawable.ic_launcher_background)
-                        error(R.drawable.ic_launcher_background)
+                    try {
+                        val imageFile = File(post.imageUrl)
+                        ivPostImage.load(imageFile) {
+                            placeholder(R.drawable.ic_launcher_background)
+                            error(R.drawable.ic_launcher_background)
+                            // Coil will handle missing files automatically
+                        }
+                    } catch (e: Exception) {
+                        // If file path is invalid, hide image view
+                        ivPostImage.visibility = View.GONE
                     }
                 } else {
                     ivPostImage.visibility = View.GONE

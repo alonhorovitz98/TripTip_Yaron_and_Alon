@@ -21,21 +21,26 @@ import kotlinx.coroutines.launch
 
 class TripViewModel(application: Application) : AndroidViewModel(application) {
     
-    private val authDataSource = FirebaseAuthDataSource()
-    private val firestoreDataSource = FirestoreDataSource()
-    private val storageDataSource = FirebaseStorageDataSource(application)
-    private val database = TripTipDatabase.getDatabase(application)
-    private val tripRepository = TripRepository(
-        database.tripDao(),
-        database.tripDayDao(),
-        database.tripItemDao(),
-        firestoreDataSource
-    )
-    private val postRepository = PostRepository(
-        database.postDao(),
-        firestoreDataSource,
-        storageDataSource
-    )
+    // Use lazy initialization to defer heavy object creation
+    private val authDataSource by lazy { FirebaseAuthDataSource() }
+    private val firestoreDataSource by lazy { FirestoreDataSource() }
+    private val storageDataSource by lazy { FirebaseStorageDataSource(application) }
+    private val database by lazy { TripTipDatabase.getDatabase(application) }
+    private val tripRepository by lazy {
+        TripRepository(
+            database.tripDao(),
+            database.tripDayDao(),
+            database.tripItemDao(),
+            firestoreDataSource
+        )
+    }
+    private val postRepository by lazy {
+        PostRepository(
+            database.postDao(),
+            firestoreDataSource,
+            storageDataSource
+        )
+    }
     
     // User trips
     private val _userTrips = MutableLiveData<List<Trip>>()
@@ -86,9 +91,14 @@ class TripViewModel(application: Application) : AndroidViewModel(application) {
             }
             
             _isLoading.value = true
+            _error.value = null
+            var isFirstEmission = true
             tripRepository.getTrips(actualUserId).collect { trips ->
                 _userTrips.value = trips
-                _isLoading.value = false
+                if (isFirstEmission) {
+                    _isLoading.value = false
+                    isFirstEmission = false
+                }
             }
         }
     }
@@ -96,9 +106,14 @@ class TripViewModel(application: Application) : AndroidViewModel(application) {
     fun loadTrip(tripId: String) {
         viewModelScope.launch {
             _isLoading.value = true
+            _error.value = null
+            var isFirstEmission = true
             tripRepository.getTripById(tripId).collect { trip ->
                 _currentTrip.value = trip
-                _isLoading.value = false
+                if (isFirstEmission) {
+                    _isLoading.value = false
+                    isFirstEmission = false
+                }
             }
         }
     }
@@ -336,6 +351,8 @@ class TripViewModel(application: Application) : AndroidViewModel(application) {
     fun loadDay(tripId: String, dayId: String) {
         viewModelScope.launch {
             _isLoading.value = true
+            _error.value = null
+            var isFirstEmission = true
             tripRepository.getTripById(tripId).collect { trip ->
                 if (trip != null) {
                     val day = trip.days.find { it.id == dayId }
@@ -352,7 +369,10 @@ class TripViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     _currentTrip.value = trip
                 }
-                _isLoading.value = false
+                if (isFirstEmission) {
+                    _isLoading.value = false
+                    isFirstEmission = false
+                }
             }
         }
     }
@@ -360,9 +380,14 @@ class TripViewModel(application: Application) : AndroidViewModel(application) {
     fun loadAvailablePosts() {
         viewModelScope.launch {
             _isLoading.value = true
+            _error.value = null
+            var isFirstEmission = true
             postRepository.getPosts().collect { posts ->
                 _availablePosts.value = posts
-                _isLoading.value = false
+                if (isFirstEmission) {
+                    _isLoading.value = false
+                    isFirstEmission = false
+                }
             }
         }
     }

@@ -15,6 +15,7 @@ import com.example.triptip_yaron_and_alon.databinding.FragmentPostDetailsBinding
 import com.example.triptip_yaron_and_alon.ui.adapter.NearbyPlacesAdapter
 import com.example.triptip_yaron_and_alon.util.Result
 import com.google.android.material.snackbar.Snackbar
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -164,12 +165,19 @@ class PostDetailsFragment : Fragment() {
         // Post text
         binding.tvPostText.text = post.text
         
-        // Post image
+        // Post image - Coil handles file errors gracefully
         if (post.imageUrl != null) {
             binding.ivPostImage.visibility = View.VISIBLE
-            binding.ivPostImage.load(post.imageUrl) {
-                placeholder(R.drawable.ic_launcher_background)
-                error(R.drawable.ic_launcher_background)
+            try {
+                val imageFile = java.io.File(post.imageUrl)
+                binding.ivPostImage.load(imageFile) {
+                    placeholder(R.drawable.ic_launcher_background)
+                    error(R.drawable.ic_launcher_background)
+                    // Coil will handle missing files automatically
+                }
+            } catch (e: Exception) {
+                // If file path is invalid, hide image view
+                binding.ivPostImage.visibility = View.GONE
             }
         } else {
             binding.ivPostImage.visibility = View.GONE

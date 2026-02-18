@@ -11,6 +11,7 @@ import com.example.triptip_yaron_and_alon.data.remote.firebase.FirestoreDataSour
 import com.example.triptip_yaron_and_alon.data.repository.PostRepository
 import com.example.triptip_yaron_and_alon.domain.model.Post
 import com.example.triptip_yaron_and_alon.util.Result
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -57,9 +58,13 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
             _isLoading.value = true
             _error.value = null
             
+            var isFirstEmission = true
             postRepository.getPosts().collect { postsList ->
                 _posts.value = postsList
-                _isLoading.value = false
+                if (isFirstEmission) {
+                    _isLoading.value = false
+                    isFirstEmission = false
+                }
             }
         }
     }
@@ -81,15 +86,22 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
         
         viewModelScope.launch {
             _isLoading.value = true
+            _error.value = null
             currentPage++
             
-            postRepository.getPostsPaginated(currentPage, pageSize).collect { newPosts ->
+            try {
+                // Use first() instead of collect() for pagination - we only want one emission
+                val newPosts = postRepository.getPostsPaginated(currentPage, pageSize).first()
                 if (newPosts.isEmpty()) {
                     isLastPage = true
                 } else {
                     val currentPosts = _posts.value ?: emptyList()
                     _posts.value = currentPosts + newPosts
                 }
+            } catch (e: Exception) {
+                _error.value = "Failed to load more posts: ${e.message}"
+                currentPage-- // Rollback page increment on error
+            } finally {
                 _isLoading.value = false
             }
         }

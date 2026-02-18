@@ -36,6 +36,9 @@ class LoginFragment : Fragment() {
         
         setupListeners()
         observeViewModel()
+        
+        // Explicitly check login status after view is ready
+        viewModel.checkLoginStatus()
     }
     
     private fun setupListeners() {

@@ -10,6 +10,7 @@ import coil.load
 import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.ItemTripItemBinding
 import com.example.triptip_yaron_and_alon.domain.model.TripItem
+import java.io.File
 
 class TripItemsAdapter(
     private val onNotesChanged: (TripItem, String?) -> Unit,
@@ -44,12 +45,20 @@ class TripItemsAdapter(
                 // Post text
                 tvPostText.text = item.post?.text ?: "Loading post..."
                 
-                // Post image
-                if (item.post?.imageUrl != null) {
+                // Post image - Coil handles file errors gracefully
+                val imageUrl = item.post?.imageUrl
+                if (imageUrl != null) {
                     ivPostImage.visibility = View.VISIBLE
-                    ivPostImage.load(item.post.imageUrl) {
-                        placeholder(R.drawable.ic_launcher_background)
-                        error(R.drawable.ic_launcher_background)
+                    try {
+                        val imageFile = File(imageUrl)
+                        ivPostImage.load(imageFile) {
+                            placeholder(R.drawable.ic_launcher_background)
+                            error(R.drawable.ic_launcher_background)
+                            // Coil will handle missing files automatically
+                        }
+                    } catch (e: Exception) {
+                        // If file path is invalid, hide image view
+                        ivPostImage.visibility = View.GONE
                     }
                 } else {
                     ivPostImage.visibility = View.GONE

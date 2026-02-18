@@ -19,17 +19,19 @@ import kotlinx.coroutines.launch
  */
 class AuthViewModel(application: Application) : AndroidViewModel(application) {
     
-    // Initialize data sources and repository
-    private val authDataSource = FirebaseAuthDataSource()
-    private val firestoreDataSource = FirestoreDataSource()
-    private val storageDataSource = FirebaseStorageDataSource(application)
-    private val database = TripTipDatabase.getDatabase(application)
-    private val authRepository = AuthRepository(
-        authDataSource,
-        firestoreDataSource,
-        storageDataSource,
-        database.userDao()
-    )
+    // Use lazy initialization to defer heavy object creation
+    private val authDataSource by lazy { FirebaseAuthDataSource() }
+    private val firestoreDataSource by lazy { FirestoreDataSource() }
+    private val storageDataSource by lazy { FirebaseStorageDataSource(application) }
+    private val database by lazy { TripTipDatabase.getDatabase(application) }
+    private val authRepository by lazy {
+        AuthRepository(
+            authDataSource,
+            firestoreDataSource,
+            storageDataSource,
+            database.userDao()
+        )
+    }
     
     // LiveData for login result
     private val _loginResult = MutableLiveData<Result<User>>()
@@ -55,15 +57,12 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private val _isLoggedIn = MutableLiveData<Boolean>()
     val isLoggedIn: LiveData<Boolean> = _isLoggedIn
     
-    init {
-        // Check if user is already logged in
-        checkLoginStatus()
-    }
+    // Removed init block - checkLoginStatus() should be called explicitly from Fragment
     
     /**
      * Check if user is currently logged in
      */
-    private fun checkLoginStatus() {
+    fun checkLoginStatus() {
         viewModelScope.launch {
             authRepository.isUserLoggedIn().collect { loggedIn ->
                 _isLoggedIn.value = loggedIn

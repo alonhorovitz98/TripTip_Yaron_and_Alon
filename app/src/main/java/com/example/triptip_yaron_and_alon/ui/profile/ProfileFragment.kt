@@ -12,6 +12,7 @@ import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.FragmentProfileBinding
 import com.example.triptip_yaron_and_alon.util.Result
 import com.google.android.material.snackbar.Snackbar
+import java.io.File
 
 class ProfileFragment : Fragment() {
     
@@ -36,6 +37,9 @@ class ProfileFragment : Fragment() {
         
         setupListeners()
         observeViewModel()
+        
+        // Explicitly load profile after view is ready
+        viewModel.loadProfile()
     }
     
     private fun setupListeners() {
@@ -58,10 +62,17 @@ class ProfileFragment : Fragment() {
                 binding.tvUsername.text = user.name
                 binding.tvEmail.text = user.email
                 
+                // Profile image - Coil handles file errors gracefully
                 if (user.profileImageUrl != null) {
-                    binding.ivProfileImage.load(user.profileImageUrl) {
-                        placeholder(R.drawable.ic_launcher_foreground)
-                        error(R.drawable.ic_launcher_foreground)
+                    try {
+                        val imageFile = java.io.File(user.profileImageUrl)
+                        binding.ivProfileImage.load(imageFile) {
+                            placeholder(R.drawable.ic_launcher_foreground)
+                            error(R.drawable.ic_launcher_foreground)
+                            // Coil will handle missing files automatically
+                        }
+                    } catch (e: Exception) {
+                        // If file path is invalid, Coil will show error placeholder
                     }
                 }
             }

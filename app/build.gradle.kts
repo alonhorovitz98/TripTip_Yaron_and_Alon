@@ -91,10 +91,24 @@ dependencies {
     implementation(libs.kotlinx.coroutines.play.services)
     
     // Firebase - Use BOM for version management
-    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
-    implementation("com.google.firebase:firebase-auth-ktx")
-    implementation("com.google.firebase:firebase-firestore-ktx")
-    implementation("com.google.firebase:firebase-storage-ktx")
+    implementation(platform(libs.firebase.bom))
+    // Firebase libraries - versions managed by BOM
+    // Note: Version constraints help Gradle resolve dependencies correctly with BOM
+    implementation("com.google.firebase:firebase-auth-ktx") {
+        version {
+            strictly("[0,999]") // Allow any version from BOM
+        }
+    }
+    implementation("com.google.firebase:firebase-firestore-ktx") {
+        version {
+            strictly("[0,999]") // Allow any version from BOM
+        }
+    }
+    implementation("com.google.firebase:firebase-storage-ktx") {
+        version {
+            strictly("[0,999]") // Allow any version from BOM
+        }
+    }
     
     // Testing
     testImplementation(libs.junit)
