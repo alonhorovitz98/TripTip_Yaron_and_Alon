@@ -29,4 +29,17 @@
     <string name="select_photo_source">Select Photo Source</string>
     <string name="take_photo">Take Photo</string>
     <string name="choose_from_gallery">Choose from Gallery</string>
+    
+    <!-- Profile -->
+    <string name="profile_picture">Profile picture</string>
+    
+    <!-- Terms -->
+    <string name="terms_agreement">By creating an account, you agree to our Terms of Service and Privacy Policy</string>
+    
+    <!-- Feed -->
+    <string name="notifications">Notifications</string>
+    <string name="messages">Messages</string>
+    <string name="like">Like</string>
+    <string name="share">Share</string>
+    <string name="bookmark">Bookmark</string>
 </resources>

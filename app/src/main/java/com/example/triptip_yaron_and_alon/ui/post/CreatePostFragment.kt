@@ -154,12 +154,24 @@ class CreatePostFragment : Fragment() {
     }
     
     private fun setupListeners() {
-        binding.btnAddImage.setOnClickListener {
+        // Cancel button
+        binding.btnCancel.setOnClickListener {
+            requireActivity().onBackPressedDispatcher.onBackPressed()
+        }
+        
+        // Publish button
+        binding.btnPublish.setOnClickListener {
+            createPost()
+        }
+        
+        // Photo upload card
+        binding.photoUploadCard.setOnClickListener {
             showImageSourceDialog()
         }
         
-        binding.btnCreatePost.setOnClickListener {
-            createPost()
+        // Upload placeholder (also clickable)
+        binding.uploadPlaceholder.setOnClickListener {
+            showImageSourceDialog()
         }
     }
     
@@ -243,6 +255,7 @@ class CreatePostFragment : Fragment() {
     
     private fun displayImagePreview(uri: Uri) {
         binding.ivImagePreview.visibility = View.VISIBLE
+        binding.uploadPlaceholder.visibility = View.GONE
         binding.ivImagePreview.load(uri) {
             placeholder(R.drawable.ic_launcher_background)
             error(R.drawable.ic_launcher_background)

@@ -42,6 +42,11 @@ class LoginFragment : Fragment() {
     }
     
     private fun setupListeners() {
+        // Back button
+        binding.btnBack.setOnClickListener {
+            requireActivity().onBackPressedDispatcher.onBackPressed()
+        }
+        
         // Clear error when user types
         binding.etEmail.addTextChangedListener {
             viewModel.clearError()
@@ -61,6 +66,23 @@ class LoginFragment : Fragment() {
         // Register button
         binding.btnRegister.setOnClickListener {
             findNavController().navigate(R.id.action_loginFragment_to_registerFragment)
+        }
+        
+        // Forgot password (placeholder - can be implemented later)
+        binding.tvForgotPassword.setOnClickListener {
+            // TODO: Implement forgot password flow
+            Snackbar.make(binding.root, "Forgot password feature coming soon", Snackbar.LENGTH_SHORT).show()
+        }
+        
+        // Social login buttons (placeholder)
+        binding.btnGoogle.setOnClickListener {
+            // TODO: Implement Google sign-in
+            Snackbar.make(binding.root, "Google sign-in coming soon", Snackbar.LENGTH_SHORT).show()
+        }
+        
+        binding.btnApple.setOnClickListener {
+            // TODO: Implement Apple sign-in
+            Snackbar.make(binding.root, "Apple sign-in coming soon", Snackbar.LENGTH_SHORT).show()
         }
     }
     

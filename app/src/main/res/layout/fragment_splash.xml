@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/orange_primary">
+
+    <!-- Logo Container -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/logoContainer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/tvAppName"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="120dp">
+
+        <!-- White Rounded Square -->
+        <View
+            android:id="@+id/whiteSquare"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:background="@drawable/white_rounded_square"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- Orange Paper Airplane Icon (inside square) -->
+        <ImageView
+            android:id="@+id/ivAirplane"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_paper_airplane"
+            android:tint="@color/orange_primary"
+            app:layout_constraintTop_toTopOf="@id/whiteSquare"
+            app:layout_constraintBottom_toBottomOf="@id/whiteSquare"
+            app:layout_constraintStart_toStartOf="@id/whiteSquare"
+            app:layout_constraintEnd_toEndOf="@id/whiteSquare" />
+
+        <!-- Orange Circle with Heart (overlapping bottom-right) -->
+        <View
+            android:id="@+id/heartCircle"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:background="@drawable/orange_circle"
+            app:layout_constraintTop_toBottomOf="@id/whiteSquare"
+            app:layout_constraintTop_toTopOf="@id/whiteSquare"
+            app:layout_constraintStart_toEndOf="@id/whiteSquare"
+            app:layout_constraintEnd_toEndOf="@id/whiteSquare"
+            android:layout_marginTop="56dp"
+            android:layout_marginStart="-12dp" />
+
+        <ImageView
+            android:id="@+id/ivHeart"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:src="@drawable/ic_heart"
+            android:tint="@color/text_white"
+            app:layout_constraintTop_toTopOf="@id/heartCircle"
+            app:layout_constraintBottom_toBottomOf="@id/heartCircle"
+            app:layout_constraintStart_toStartOf="@id/heartCircle"
+            app:layout_constraintEnd_toEndOf="@id/heartCircle" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- App Name -->
+    <TextView
+        android:id="@+id/tvAppName"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="TripTip"
+        android:textSize="32sp"
+        android:textStyle="bold"
+        android:textColor="@color/text_white"
+        android:fontFamily="sans-serif-medium"
+        app:layout_constraintTop_toBottomOf="@id/logoContainer"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="24dp" />
+
+    <!-- Tagline -->
+    <TextView
+        android:id="@+id/tvTagline"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="PLAN • SHARE • EXPLORE"
+        android:textSize="14sp"
+        android:textColor="@color/text_white"
+        android:letterSpacing="0.1"
+        app:layout_constraintTop_toBottomOf="@id/tvAppName"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="8dp" />
+
+    <!-- Navigation Dots -->
+    <LinearLayout
+        android:id="@+id/dotsContainer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginBottom="48dp">
+
+        <!-- Dot 1 (selected - solid white) -->
+        <View
+            android:layout_width="8dp"
+            android:layout_height="8dp"
+            android:background="@drawable/dot_selected"
+            android:layout_marginEnd="8dp" />
+
+        <!-- Dot 2 (unselected - hollow) -->
+        <View
+            android:layout_width="8dp"
+            android:layout_height="8dp"
+            android:background="@drawable/dot_unselected"
+            android:layout_marginEnd="8dp" />
+
+        <!-- Dot 3 (unselected - hollow) -->
+        <View
+            android:layout_width="8dp"
+            android:layout_height="8dp"
+            android:background="@drawable/dot_unselected" />
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

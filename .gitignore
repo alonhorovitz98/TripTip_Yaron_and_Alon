@@ -95,3 +95,6 @@ Thumbs.db
 
 # API Keys (if stored in local.properties)
 # Keep local.properties in .gitignore but document required keys
+
+# Markdown files
+*.md

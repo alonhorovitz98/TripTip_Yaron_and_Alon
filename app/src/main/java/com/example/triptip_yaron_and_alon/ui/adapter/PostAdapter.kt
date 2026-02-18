@@ -66,18 +66,43 @@ class PostAdapter(
                     ivPostImage.visibility = View.GONE
                 }
                 
-                // Location
-                if (post.location != null) {
-                    tvLocation.visibility = View.VISIBLE
+                // Location tag overlay (on image)
+                if (post.location != null && post.imageUrl != null) {
+                    locationTag.visibility = View.VISIBLE
                     tvLocation.text = post.location
                 } else {
-                    tvLocation.visibility = View.GONE
+                    locationTag.visibility = View.GONE
                 }
                 
                 // User profile image (placeholder for now)
-                ivUserProfile.load(R.drawable.ic_launcher_foreground)
+                ivUserProfile.load(R.drawable.ic_launcher_foreground) {
+                    placeholder(R.drawable.ic_profile_frame)
+                    error(R.drawable.ic_profile_frame)
+                }
                 
-                // Click listener
+                // Engagement buttons (placeholder - can be implemented later)
+                btnLike.setOnClickListener {
+                    // TODO: Implement like functionality
+                }
+                
+                btnComment.setOnClickListener {
+                    // Navigate to post details (which has comments)
+                    onPostClick(post)
+                }
+                
+                btnShare.setOnClickListener {
+                    // TODO: Implement share functionality
+                }
+                
+                btnBookmark.setOnClickListener {
+                    // TODO: Implement bookmark functionality
+                }
+                
+                btnMenu.setOnClickListener {
+                    // TODO: Show post menu (edit/delete if owner)
+                }
+                
+                // Click listener on card
                 root.setOnClickListener {
                     onPostClick(post)
                 }

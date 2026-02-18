@@ -87,6 +87,81 @@ class FeedFragment : Fragment() {
         binding.fabCreatePost.setOnClickListener {
             findNavController().navigate(R.id.action_feedFragment_to_createPostFragment)
         }
+        
+        // Filter buttons
+        binding.btnTrending.setOnClickListener {
+            // TODO: Implement filter logic
+            setFilterSelected(binding.btnTrending)
+        }
+        
+        binding.btnFollowing.setOnClickListener {
+            // TODO: Implement filter logic
+            setFilterSelected(binding.btnFollowing)
+        }
+        
+        binding.btnNearby.setOnClickListener {
+            // TODO: Implement filter logic
+            setFilterSelected(binding.btnNearby)
+        }
+        
+        binding.btnSoloTravel.setOnClickListener {
+            // TODO: Implement filter logic
+            setFilterSelected(binding.btnSoloTravel)
+        }
+        
+        // Notifications and Messages (placeholder)
+        binding.btnNotifications.setOnClickListener {
+            // TODO: Navigate to notifications
+            Snackbar.make(binding.root, "Notifications coming soon", Snackbar.LENGTH_SHORT).show()
+        }
+        
+        binding.btnMessages.setOnClickListener {
+            // TODO: Navigate to messages
+            Snackbar.make(binding.root, "Messages coming soon", Snackbar.LENGTH_SHORT).show()
+        }
+    }
+    
+    private fun setFilterSelected(selectedButton: com.google.android.material.button.MaterialButton) {
+        // Reset all buttons
+        binding.btnTrending.apply {
+            backgroundTint = android.content.res.ColorStateList.valueOf(
+                if (this == selectedButton) resources.getColor(R.color.orange_primary, null)
+                else android.graphics.Color.TRANSPARENT
+            )
+            setTextColor(if (this == selectedButton) resources.getColor(R.color.text_white, null)
+                else resources.getColor(R.color.orange_primary, null))
+            strokeWidth = if (this == selectedButton) 0 else 1
+        }
+        
+        binding.btnFollowing.apply {
+            backgroundTint = android.content.res.ColorStateList.valueOf(
+                if (this == selectedButton) resources.getColor(R.color.orange_primary, null)
+                else android.graphics.Color.TRANSPARENT
+            )
+            setTextColor(if (this == selectedButton) resources.getColor(R.color.text_white, null)
+                else resources.getColor(R.color.orange_primary, null))
+            strokeWidth = if (this == selectedButton) 0 else 1
+        }
+        
+        binding.btnNearby.apply {
+            backgroundTint = android.content.res.ColorStateList.valueOf(
+                if (this == selectedButton) resources.getColor(R.color.orange_primary, null)
+                else android.graphics.Color.TRANSPARENT
+            )
+            setTextColor(if (this == selectedButton) resources.getColor(R.color.text_white, null)
+                else resources.getColor(R.color.orange_primary, null))
+            strokeWidth = if (this == selectedButton) 0 else 1
+        }
+        
+        binding.btnSoloTravel.apply {
+            backgroundTint = android.content.res.ColorStateList.valueOf(
+                if (this == selectedButton) resources.getColor(R.color.orange_primary, null)
+                else android.graphics.Color.TRANSPARENT
+            )
+            setTextColor(if (this == selectedButton) resources.getColor(R.color.text_white, null)
+                else resources.getColor(R.color.orange_primary, null))
+            strokeWidth = if (this == selectedButton) 0 else 1
+        }
     }
     
     private fun observeViewModel() {

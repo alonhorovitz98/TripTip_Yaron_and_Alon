@@ -39,6 +39,22 @@ class RegisterFragment : Fragment() {
     }
     
     private fun setupListeners() {
+        // Back button
+        binding.btnBack.setOnClickListener {
+            requireActivity().onBackPressedDispatcher.onBackPressed()
+        }
+        
+        // Profile picture upload
+        binding.profilePictureContainer.setOnClickListener {
+            // TODO: Implement profile picture upload
+            Snackbar.make(binding.root, "Profile picture upload coming soon", Snackbar.LENGTH_SHORT).show()
+        }
+        
+        binding.tvUploadPhoto.setOnClickListener {
+            // TODO: Implement profile picture upload
+            Snackbar.make(binding.root, "Profile picture upload coming soon", Snackbar.LENGTH_SHORT).show()
+        }
+        
         // Clear error when user types
         binding.etName.addTextChangedListener {
             viewModel.clearError()
@@ -63,6 +79,14 @@ class RegisterFragment : Fragment() {
             val password = binding.etPassword.text.toString().trim()
             val confirmPassword = binding.etConfirmPassword.text.toString().trim()
             
+            // Validate terms checkbox
+            if (!binding.cbTerms.isChecked) {
+                binding.tvError.text = "Please agree to the Terms of Service and Privacy Policy"
+                binding.tvError.visibility = View.VISIBLE
+                Snackbar.make(binding.root, "Please agree to the Terms of Service and Privacy Policy", Snackbar.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
+            
             // Validate password confirmation
             if (password != confirmPassword) {
                 binding.tvError.text = "Passwords do not match"
@@ -78,6 +102,17 @@ class RegisterFragment : Fragment() {
         binding.btnLogin.setOnClickListener {
             findNavController().navigateUp()
         }
+        
+        // Social login buttons (placeholder)
+        binding.btnGoogle.setOnClickListener {
+            // TODO: Implement Google sign-in
+            Snackbar.make(binding.root, "Google sign-in coming soon", Snackbar.LENGTH_SHORT).show()
+        }
+        
+        binding.btnApple.setOnClickListener {
+            // TODO: Implement Apple sign-in
+            Snackbar.make(binding.root, "Apple sign-in coming soon", Snackbar.LENGTH_SHORT).show()
+        }
     }
     
     private fun observeViewModel() {
@@ -90,7 +125,7 @@ class RegisterFragment : Fragment() {
             } else {
                 binding.progressBar.visibility = View.GONE
                 binding.btnRegister.isEnabled = true
-                binding.btnRegister.text = "Register"
+                binding.btnRegister.text = "Create Account"
             }
         }
         

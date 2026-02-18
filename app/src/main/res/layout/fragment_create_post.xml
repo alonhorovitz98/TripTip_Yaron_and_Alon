@@ -1,92 +1,327 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView
+<androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fillViewport="true">
+    android:background="@color/background_light">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:padding="16dp">
+        android:layout_height="match_parent">
 
-        <!-- Post Text Input -->
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/tilPostText"
+        <!-- Top App Bar -->
+        <LinearLayout
+            android:id="@+id/appBar"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:hint="Share your travel experience..."
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="16dp"
+            android:paddingBottom="12dp"
+            android:background="@color/background_white"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
 
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/etPostText"
+            <!-- Cancel Button -->
+            <TextView
+                android:id="@+id/btnCancel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Cancel"
+                android:textSize="16sp"
+                android:textColor="@color/text_primary"
+                android:clickable="true"
+                android:focusable="true"
+                android:padding="8dp" />
+
+            <!-- Center: Create Post Title -->
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Create Post"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary"
+                android:gravity="center"
+                android:fontFamily="sans-serif-medium" />
+
+            <!-- Publish Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnPublish"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="Publish"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_white"
+                android:backgroundTint="@color/orange_primary"
+                app:cornerRadius="18dp"
+                style="@style/Widget.Material3.Button" />
+
+        </LinearLayout>
+
+        <!-- Content ScrollView -->
+        <ScrollView
+            android:id="@+id/scrollView"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:fillViewport="true"
+            app:layout_constraintTop_toBottomOf="@id/appBar"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:minLines="5"
-                android:gravity="top"
-                android:inputType="textMultiLine|textCapSentences" />
+                android:padding="16dp">
 
-        </com.google.android.material.textfield.TextInputLayout>
+                <!-- Photo/Video Upload Area -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/photoUploadCard"
+                    android:layout_width="0dp"
+                    android:layout_height="200dp"
+                    android:layout_marginTop="16dp"
+                    app:cardCornerRadius="@dimen/corner_radius_large"
+                    app:cardElevation="0dp"
+                    app:cardBackgroundColor="@color/background_white"
+                    app:strokeWidth="2dp"
+                    app:strokeColor="@color/text_hint"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- Image Preview -->
-        <ImageView
-            android:id="@+id/ivImagePreview"
-            android:layout_width="0dp"
-            android:layout_height="200dp"
-            android:layout_marginTop="16dp"
-            android:scaleType="centerCrop"
-            android:visibility="gone"
-            app:layout_constraintTop_toBottomOf="@id/tilPostText"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+                    <androidx.constraintlayout.widget.ConstraintLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:clickable="true"
+                        android:focusable="true">
 
-        <!-- Add Image Button -->
-        <Button
-            android:id="@+id/btnAddImage"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Add Image"
-            android:layout_marginTop="16dp"
-            style="@style/Widget.Material3.Button.OutlinedButton"
-            app:layout_constraintTop_toBottomOf="@id/ivImagePreview"
-            app:layout_constraintStart_toStartOf="parent" />
+                        <!-- Image Preview (when image is selected) -->
+                        <ImageView
+                            android:id="@+id/ivImagePreview"
+                            android:layout_width="0dp"
+                            android:layout_height="0dp"
+                            android:scaleType="centerCrop"
+                            android:visibility="gone"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintEnd_toEndOf="parent" />
 
-        <!-- Location Input with Autocomplete -->
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/tilLocation"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:hint="Location (e.g., London, Madrid, Camden Market)"
-            android:layout_marginTop="16dp"
-            app:layout_constraintTop_toBottomOf="@id/btnAddImage"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:endIconMode="clear_text"
-            app:helperText="Start typing to see suggestions">
+                        <!-- Upload Placeholder (when no image) -->
+                        <LinearLayout
+                            android:id="@+id/uploadPlaceholder"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:gravity="center"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintEnd_toEndOf="parent">
 
-            <AutoCompleteTextView
-                android:id="@+id/etLocation"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:inputType="text"
-                android:completionThreshold="2"
-                android:dropDownHeight="200dp" />
+                            <!-- Orange Circle with Camera Icon -->
+                            <FrameLayout
+                                android:layout_width="64dp"
+                                android:layout_height="64dp">
 
-        </com.google.android.material.textfield.TextInputLayout>
+                                <View
+                                    android:layout_width="64dp"
+                                    android:layout_height="64dp"
+                                    android:background="@drawable/orange_circle_light" />
 
-        <!-- Create Post Button -->
-        <Button
-            android:id="@+id/btnCreatePost"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:text="Create Post"
-            android:layout_marginTop="24dp"
-            app:layout_constraintTop_toBottomOf="@id/tilLocation"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+                                <ImageView
+                                    android:layout_width="32dp"
+                                    android:layout_height="32dp"
+                                    android:src="@drawable/ic_camera"
+                                    android:tint="@color/orange_primary"
+                                    android:layout_gravity="center" />
+
+                                <ImageView
+                                    android:layout_width="16dp"
+                                    android:layout_height="16dp"
+                                    android:src="@android:drawable/ic_input_add"
+                                    android:tint="@color/text_white"
+                                    android:layout_gravity="bottom|end"
+                                    android:layout_marginBottom="4dp"
+                                    android:layout_marginEnd="4dp" />
+                            </FrameLayout>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Add photos or videos"
+                                android:textSize="16sp"
+                                android:textColor="@color/text_primary"
+                                android:textStyle="bold"
+                                android:layout_marginTop="16dp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Up to 10 files"
+                                android:textSize="12sp"
+                                android:textColor="@color/text_secondary"
+                                android:layout_marginTop="4dp" />
+                        </LinearLayout>
+
+                    </androidx.constraintlayout.widget.ConstraintLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- CAPTION Label -->
+                <TextView
+                    android:id="@+id/tvCaptionLabel"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:text="CAPTION"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_secondary"
+                    android:textAllCaps="true"
+                    android:letterSpacing="0.1"
+                    android:layout_marginTop="24dp"
+                    app:layout_constraintTop_toBottomOf="@id/photoUploadCard"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent" />
+
+                <!-- Caption Input -->
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/tilPostText"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    app:boxCornerRadiusTopStart="@dimen/corner_radius_medium"
+                    app:boxCornerRadiusTopEnd="@dimen/corner_radius_medium"
+                    app:boxCornerRadiusBottomStart="@dimen/corner_radius_medium"
+                    app:boxCornerRadiusBottomEnd="@dimen/corner_radius_medium"
+                    app:boxBackgroundMode="filled"
+                    app:boxBackgroundColor="@color/background_white"
+                    app:hintEnabled="false"
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etPostText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minLines="4"
+                        android:maxLines="8"
+                        android:gravity="top"
+                        android:inputType="textMultiLine|textCapSentences"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp"
+                        android:paddingTop="16dp"
+                        android:paddingBottom="16dp"
+                        android:hint="Where did you go? Share the magic of your trip..."
+                        android:textColorHint="@color/text_hint" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <!-- Location Input Bar -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/locationCard"
+                    android:layout_width="0dp"
+                    android:layout_height="56dp"
+                    android:layout_marginTop="24dp"
+                    app:cardCornerRadius="@dimen/corner_radius_medium"
+                    app:cardElevation="0dp"
+                    app:cardBackgroundColor="@color/background_white"
+                    app:layout_constraintTop_toBottomOf="@id/tilPostText"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp"
+                        android:clickable="true"
+                        android:focusable="true">
+
+                        <ImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:src="@drawable/ic_location_pin"
+                            android:tint="@color/orange_primary" />
+
+                        <AutoCompleteTextView
+                            android:id="@+id/etLocation"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:hint="Add a location"
+                            android:textColorHint="@color/text_hint"
+                            android:textSize="14sp"
+                            android:inputType="text"
+                            android:completionThreshold="2"
+                            android:dropDownHeight="200dp"
+                            android:background="@android:color/transparent"
+                            android:paddingStart="12dp"
+                            android:paddingEnd="12dp"
+                            android:paddingTop="8dp"
+                            android:paddingBottom="8dp" />
+
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_arrow_forward"
+                            android:tint="@color/text_secondary" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- TAGS Label -->
+                <TextView
+                    android:id="@+id/tvTagsLabel"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:text="TAGS"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_secondary"
+                    android:textAllCaps="true"
+                    android:letterSpacing="0.1"
+                    android:layout_marginTop="24dp"
+                    app:layout_constraintTop_toBottomOf="@id/locationCard"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent" />
+
+                <!-- Tags Input (placeholder for now) -->
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/tilTags"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="24dp"
+                    app:boxCornerRadiusTopStart="@dimen/corner_radius_medium"
+                    app:boxCornerRadiusTopEnd="@dimen/corner_radius_medium"
+                    app:boxCornerRadiusBottomStart="@dimen/corner_radius_medium"
+                    app:boxCornerRadiusBottomEnd="@dimen/corner_radius_medium"
+                    app:boxBackgroundMode="filled"
+                    app:boxBackgroundColor="@color/background_white"
+                    app:hintEnabled="false"
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etTags"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="Add tags (coming soon)"
+                        android:textColorHint="@color/text_hint"
+                        android:enabled="false"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp"
+                        android:paddingTop="16dp"
+                        android:paddingBottom="16dp" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+        </ScrollView>
 
         <!-- Loading Indicator -->
         <ProgressBar
@@ -99,18 +334,6 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
-        <!-- Error Text -->
-        <TextView
-            android:id="@+id/tvError"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:textColor="@android:color/holo_red_dark"
-            android:visibility="gone"
-            android:layout_marginTop="8dp"
-            app:layout_constraintTop_toBottomOf="@id/btnCreatePost"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
-
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-</ScrollView>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
