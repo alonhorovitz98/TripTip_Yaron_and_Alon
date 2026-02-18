@@ -17,6 +17,11 @@ data class PostEntity(
     val latitude: Double? = null,
     val longitude: Double? = null,
     val placeXid: String? = null,
+    // Social features
+    val likes: Int = 0,
+    val likedByCurrentUser: Boolean = false,
+    val commentCount: Int = 0,
     val cachedAt: Long = System.currentTimeMillis()
 )
+
 
