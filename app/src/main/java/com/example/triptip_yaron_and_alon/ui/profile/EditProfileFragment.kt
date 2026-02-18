@@ -1,22 +1,31 @@
 package com.example.triptip_yaron_and_alon.ui.profile
 
+import android.Manifest
 import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
 import android.provider.MediaStore
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
 import coil.load
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.FragmentEditProfileBinding
 import com.example.triptip_yaron_and_alon.util.Result
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 
 class EditProfileFragment : Fragment() {
@@ -26,8 +35,9 @@ class EditProfileFragment : Fragment() {
     
     private lateinit var viewModel: ProfileViewModel
     private var selectedImageUri: Uri? = null
+    private var cameraImageUri: Uri? = null
     
-    // Image picker launcher
+    // Image picker launcher (gallery)
     private val imagePickerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -36,6 +46,31 @@ class EditProfileFragment : Fragment() {
                 selectedImageUri = uri
                 displayImagePreview(uri)
             }
+        }
+    }
+    
+    // Camera launcher
+    private val cameraLauncher = registerForActivityResult(
+        ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success && cameraImageUri != null) {
+            selectedImageUri = cameraImageUri
+            displayImagePreview(cameraImageUri!!)
+        }
+    }
+    
+    // Camera permission launcher
+    private val cameraPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            openCamera()
+        } else {
+            Snackbar.make(
+                binding.root,
+                "Camera permission is required to take photos",
+                Snackbar.LENGTH_LONG
+            ).show()
         }
     }
     
@@ -62,7 +97,7 @@ class EditProfileFragment : Fragment() {
     
     private fun setupListeners() {
         binding.btnChangeImage.setOnClickListener {
-            openImagePicker()
+            showImageSourceDialog()
         }
         
         binding.btnSaveProfile.setOnClickListener {
@@ -70,6 +105,79 @@ class EditProfileFragment : Fragment() {
         }
     }
     
+    /**
+     * Show bottom sheet dialog with options: Take Photo, Choose from Gallery, Cancel
+     */
+    private fun showImageSourceDialog() {
+        val options = arrayOf(
+            getString(R.string.take_photo),
+            getString(R.string.choose_from_gallery),
+            getString(R.string.cancel)
+        )
+        
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(getString(R.string.select_photo_source))
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> openCamera() // Take Photo
+                    1 -> openImagePicker() // Choose from Gallery
+                    2 -> {} // Cancel - do nothing
+                }
+            }
+            .show()
+    }
+    
+    /**
+     * Open camera to take a photo.
+     * Checks for camera permission first.
+     */
+    private fun openCamera() {
+        // Check camera permission
+        if (ContextCompat.checkSelfPermission(
+                requireContext(),
+                Manifest.permission.CAMERA
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+            return
+        }
+        
+        // Create a file for the photo
+        val photoFile = createImageFile()
+        photoFile?.let { file ->
+            // Get URI using FileProvider
+            cameraImageUri = FileProvider.getUriForFile(
+                requireContext(),
+                "${requireContext().packageName}.fileprovider",
+                file
+            )
+            cameraLauncher.launch(cameraImageUri)
+        } ?: run {
+            Snackbar.make(
+                binding.root,
+                "Failed to create image file",
+                Snackbar.LENGTH_SHORT
+            ).show()
+        }
+    }
+    
+    /**
+     * Create a temporary image file for camera capture.
+     */
+    private fun createImageFile(): File? {
+        return try {
+            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+            val imageFileName = "JPEG_${timeStamp}_"
+            val storageDir = requireContext().getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+            File.createTempFile(imageFileName, ".jpg", storageDir)
+        } catch (e: Exception) {
+            null
+        }
+    }
+    
+    /**
+     * Open gallery to pick an existing image.
+     */
     private fun openImagePicker() {
         val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
         imagePickerLauncher.launch(intent)
