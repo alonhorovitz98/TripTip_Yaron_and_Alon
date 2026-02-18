@@ -283,8 +283,8 @@ class CreatePostFragment : Fragment() {
     private fun observeViewModel() {
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
             binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
-            binding.btnCreatePost.isEnabled = !isLoading
-            binding.btnAddImage.isEnabled = !isLoading
+            binding.btnPublish.isEnabled = !isLoading
+            binding.photoUploadCard.isEnabled = !isLoading
         }
         
         viewModel.operationResult.observe(viewLifecycleOwner) { result ->
@@ -304,10 +304,7 @@ class CreatePostFragment : Fragment() {
         
         viewModel.error.observe(viewLifecycleOwner) { error ->
             if (error != null) {
-                binding.tvError.text = error
-                binding.tvError.visibility = View.VISIBLE
-            } else {
-                binding.tvError.visibility = View.GONE
+                Snackbar.make(binding.root, error, Snackbar.LENGTH_LONG).show()
             }
         }
         

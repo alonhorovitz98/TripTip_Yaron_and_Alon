@@ -209,7 +209,7 @@
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/bookmark"
                 android:tint="@color/orange_primary"
-                android:layout_marginStart="auto" />
+                android:layout_gravity="end" />
 
         </LinearLayout>
 

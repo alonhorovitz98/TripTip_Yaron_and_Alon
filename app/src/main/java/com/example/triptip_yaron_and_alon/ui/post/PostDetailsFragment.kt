@@ -52,18 +52,29 @@ class PostDetailsFragment : Fragment() {
     }
     
     private fun setupRecyclerView() {
-        placesAdapter = NearbyPlacesAdapter { place ->
-            // Handle place click - could navigate to place details or show info
-            Snackbar.make(binding.root, "Place: ${place.name}", Snackbar.LENGTH_SHORT).show()
-        }
-        
-        binding.rvNearbyPlaces.apply {
-            adapter = placesAdapter
-            layoutManager = LinearLayoutManager(context)
-        }
+        // Nearby places RecyclerView removed from new layout - can be added back if needed
+        // For now, we'll skip this setup
     }
     
     private fun setupListeners() {
+        // Back button
+        binding.btnBack.setOnClickListener {
+            requireActivity().onBackPressedDispatcher.onBackPressed()
+        }
+        
+        // Share button (placeholder)
+        binding.btnShare.setOnClickListener {
+            // TODO: Implement share functionality
+            Snackbar.make(binding.root, "Share functionality coming soon", Snackbar.LENGTH_SHORT).show()
+        }
+        
+        // Like button (placeholder)
+        binding.btnLike.setOnClickListener {
+            // TODO: Implement like functionality
+            Snackbar.make(binding.root, "Like functionality coming soon", Snackbar.LENGTH_SHORT).show()
+        }
+        
+        // Add to Trip button
         binding.btnAddToTrip.setOnClickListener {
             // Navigate to TripBuilderFragment with postId
             val action = PostDetailsFragmentDirections
@@ -91,8 +102,7 @@ class PostDetailsFragment : Fragment() {
                     viewModel.loadNearbyPlacesForLocation(post.location)
                 }
             } else {
-                binding.tvError.text = "Post not found"
-                binding.tvError.visibility = View.VISIBLE
+                Snackbar.make(binding.root, "Post not found", Snackbar.LENGTH_LONG).show()
             }
         }
         
@@ -110,64 +120,55 @@ class PostDetailsFragment : Fragment() {
         viewModel.weatherError.observe(viewLifecycleOwner) { error ->
             if (error != null) {
                 // Don't show error for weather - just keep it hidden
-                binding.cardWeather.visibility = View.GONE
+                binding.weatherCard.visibility = View.GONE
             }
         }
         
-        // Observe nearby places
-        viewModel.nearbyPlaces.observe(viewLifecycleOwner) { places ->
-            if (places.isNotEmpty()) {
-                displayPlaces(places)
-            } else {
-                binding.tvNearbyPlacesTitle.visibility = View.GONE
-                binding.rvNearbyPlaces.visibility = View.GONE
-            }
-        }
-        
-        viewModel.placesLoading.observe(viewLifecycleOwner) { isLoading ->
-            // Places loading is handled in displayPlaces
-        }
-        
-        viewModel.placesError.observe(viewLifecycleOwner) { error ->
-            if (error != null) {
-                // Don't show error for places - just keep them hidden
-                binding.tvNearbyPlacesTitle.visibility = View.GONE
-                binding.rvNearbyPlaces.visibility = View.GONE
-            }
-        }
+        // Nearby places removed from new layout - can be added back if needed
         
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
-            binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+            // Progress bar not in new layout - show loading via button state
             binding.btnAddToTrip.isEnabled = !isLoading
+            binding.btnAddToTrip.text = if (isLoading) "Loading..." else "Add to Trip"
         }
         
         viewModel.error.observe(viewLifecycleOwner) { error ->
             if (error != null) {
-                binding.tvError.text = error
-                binding.tvError.visibility = View.VISIBLE
                 Snackbar.make(binding.root, error, Snackbar.LENGTH_LONG).show()
-            } else {
-                binding.tvError.visibility = View.GONE
             }
         }
     }
     
     private fun displayPost(post: com.example.triptip_yaron_and_alon.domain.model.Post) {
+        // Title (use post text or location as title)
+        binding.tvTitle.text = post.text.take(50).ifEmpty { post.location ?: "Post" }
+        
+        // Tag chip (can be based on location or category)
+        binding.chipTag.text = post.location?.uppercase() ?: "TRAVEL"
+        
         // User info
         binding.tvUsername.text = post.userName.ifEmpty { "User ${post.userId.take(8)}" }
-        binding.tvTimestamp.text = formatTimestamp(post.createdAt)
+        
+        // Location + time
+        val locationTime = buildString {
+            if (post.location != null) {
+                append(post.location)
+            }
+            append(" • ${formatTimestamp(post.createdAt)}")
+        }
+        binding.tvLocationTime.text = locationTime
         
         // User profile image
         if (post.userImageUrl != null) {
             binding.ivUserProfile.load(post.userImageUrl) {
-                placeholder(R.drawable.ic_launcher_foreground)
-                error(R.drawable.ic_launcher_foreground)
+                placeholder(R.drawable.ic_profile_frame)
+                error(R.drawable.ic_profile_frame)
             }
         } else {
-            binding.ivUserProfile.setImageResource(R.drawable.ic_launcher_foreground)
+            binding.ivUserProfile.setImageResource(R.drawable.ic_profile_frame)
         }
         
-        // Post text
+        // Post text (description)
         binding.tvPostText.text = post.text
         
         // Post image - Coil handles file errors gracefully
@@ -188,44 +189,25 @@ class PostDetailsFragment : Fragment() {
             binding.ivPostImage.visibility = View.GONE
         }
         
-        // Location
-        if (post.location != null) {
-            binding.tvLocation.text = "📍 ${post.location}"
-            binding.tvLocation.visibility = View.VISIBLE
-        } else {
-            binding.tvLocation.visibility = View.GONE
-        }
-        
         // Weather and Places will be loaded if coordinates are available
         // They are observed separately in observeViewModel()
     }
     
     private fun displayWeather(weather: com.example.triptip_yaron_and_alon.domain.model.WeatherInfo) {
         binding.apply {
-            cardWeather.visibility = View.VISIBLE
+            weatherCard.visibility = View.VISIBLE
             
-            // Weather description
-            tvWeatherDescription.text = weather.description
+            // Temperature (large, bold)
+            tvTemperature.text = "${weather.temperature}°C"
             
-            // Weather details
-            val details = buildString {
-                append("${weather.temperature}°C")
-                append(" • ${weather.humidity}% humidity")
-                append(" • ${weather.windSpeed} km/h wind")
-            }
-            tvWeatherDetails.text = details
+            // Condition with icon
+            tvCondition.text = weather.description.capitalize()
             
-            // Weather icon (using emoji or placeholder)
-            // Note: Weather icon URL would need to be loaded with Coil if available
-            ivWeatherIcon.setImageResource(R.drawable.ic_launcher_foreground)
-        }
-    }
-    
-    private fun displayPlaces(places: List<com.example.triptip_yaron_and_alon.domain.model.PlaceInfo>) {
-        binding.apply {
-            tvNearbyPlacesTitle.visibility = View.VISIBLE
-            rvNearbyPlaces.visibility = View.VISIBLE
-            placesAdapter.submitList(places)
+            // Wind speed
+            tvWind.text = "${weather.windSpeed}km/h"
+            
+            // Humidity
+            tvHumidity.text = "${weather.humidity}%"
         }
     }
     

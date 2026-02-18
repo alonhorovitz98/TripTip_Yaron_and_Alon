@@ -124,40 +124,40 @@ class FeedFragment : Fragment() {
     private fun setFilterSelected(selectedButton: com.google.android.material.button.MaterialButton) {
         // Reset all buttons
         binding.btnTrending.apply {
-            backgroundTint = android.content.res.ColorStateList.valueOf(
+            setBackgroundTintList(android.content.res.ColorStateList.valueOf(
                 if (this == selectedButton) resources.getColor(R.color.orange_primary, null)
                 else android.graphics.Color.TRANSPARENT
-            )
+            ))
             setTextColor(if (this == selectedButton) resources.getColor(R.color.text_white, null)
                 else resources.getColor(R.color.orange_primary, null))
             strokeWidth = if (this == selectedButton) 0 else 1
         }
         
         binding.btnFollowing.apply {
-            backgroundTint = android.content.res.ColorStateList.valueOf(
+            setBackgroundTintList(android.content.res.ColorStateList.valueOf(
                 if (this == selectedButton) resources.getColor(R.color.orange_primary, null)
                 else android.graphics.Color.TRANSPARENT
-            )
+            ))
             setTextColor(if (this == selectedButton) resources.getColor(R.color.text_white, null)
                 else resources.getColor(R.color.orange_primary, null))
             strokeWidth = if (this == selectedButton) 0 else 1
         }
         
         binding.btnNearby.apply {
-            backgroundTint = android.content.res.ColorStateList.valueOf(
+            setBackgroundTintList(android.content.res.ColorStateList.valueOf(
                 if (this == selectedButton) resources.getColor(R.color.orange_primary, null)
                 else android.graphics.Color.TRANSPARENT
-            )
+            ))
             setTextColor(if (this == selectedButton) resources.getColor(R.color.text_white, null)
                 else resources.getColor(R.color.orange_primary, null))
             strokeWidth = if (this == selectedButton) 0 else 1
         }
         
         binding.btnSoloTravel.apply {
-            backgroundTint = android.content.res.ColorStateList.valueOf(
+            setBackgroundTintList(android.content.res.ColorStateList.valueOf(
                 if (this == selectedButton) resources.getColor(R.color.orange_primary, null)
                 else android.graphics.Color.TRANSPARENT
-            )
+            ))
             setTextColor(if (this == selectedButton) resources.getColor(R.color.text_white, null)
                 else resources.getColor(R.color.orange_primary, null))
             strokeWidth = if (this == selectedButton) 0 else 1

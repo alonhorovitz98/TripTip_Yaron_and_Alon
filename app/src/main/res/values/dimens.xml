@@ -32,6 +32,7 @@
     <dimen name="input_padding">16dp</dimen>
     
     <!-- Card Elevation -->
+    <dimen name="card_elevation_small">2dp</dimen>
     <dimen name="card_elevation">2dp</dimen>
     <dimen name="card_elevation_medium">4dp</dimen>
     <dimen name="card_elevation_large">8dp</dimen>
