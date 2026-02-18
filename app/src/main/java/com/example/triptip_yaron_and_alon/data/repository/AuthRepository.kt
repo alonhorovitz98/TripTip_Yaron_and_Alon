@@ -154,8 +154,7 @@ class AuthRepository(
             
             // Upload image if provided
             if (imageUri != null) {
-                val uploadResult = storageDataSource.uploadImage(imageUri, Constants.STORAGE_PROFILE_IMAGES)
-                    .first() // Get first emission instead of collecting
+                val uploadResult = storageDataSource.uploadImageSync(imageUri, Constants.STORAGE_PROFILE_IMAGES)
                 
                 when (uploadResult) {
                     is Result.Success -> {
@@ -166,7 +165,7 @@ class AuthRepository(
                         return@flow
                     }
                     is Result.Loading -> {
-                        // Should not happen with first(), but handle just in case
+                        // Should not happen with sync function, but handle just in case
                         emit(Result.Error(Exception("Unexpected loading state"), "Upload failed"))
                         return@flow
                     }

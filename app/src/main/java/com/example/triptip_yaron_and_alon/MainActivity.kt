@@ -11,6 +11,7 @@ import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.setupActionBarWithNavController
 import com.example.triptip_yaron_and_alon.ui.auth.AuthViewModel
 import com.google.android.material.appbar.MaterialToolbar
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
@@ -28,14 +29,33 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun checkAutoLogin() {
-        // Observe logged in state
+        lifecycleScope.launch {
+            // Check login status immediately and navigate if logged in
+            val isLoggedIn = authViewModel.checkLoginStatusSync()
+            
+            if (isLoggedIn) {
+                val navHostFragment = supportFragmentManager
+                    .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
+                val navController = navHostFragment.navController
+                
+                // Navigate to feed if we're on login screen
+                if (navController.currentDestination?.id == R.id.loginFragment) {
+                    navController.navigate(R.id.action_loginFragment_to_feedFragment)
+                }
+            }
+            
+            // Continue observing for future changes
+            authViewModel.checkLoginStatus()
+        }
+        
+        // Observe logged in state for future changes
         authViewModel.isLoggedIn.observe(this) { isLoggedIn ->
             if (isLoggedIn) {
                 val navHostFragment = supportFragmentManager
                     .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
                 val navController = navHostFragment.navController
                 
-                // Only navigate if we're still on login screen
+                // Navigate to feed if we're on login screen
                 if (navController.currentDestination?.id == R.id.loginFragment) {
                     navController.navigate(R.id.action_loginFragment_to_feedFragment)
                 }

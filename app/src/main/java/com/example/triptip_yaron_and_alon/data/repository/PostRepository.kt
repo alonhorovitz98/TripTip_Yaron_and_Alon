@@ -171,8 +171,7 @@ class PostRepository(
             
             // Upload image if provided
             if (imageUri != null) {
-                val uploadResult = storageDataSource.uploadImage(imageUri, Constants.STORAGE_POST_IMAGES)
-                    .first() // Get first emission instead of collecting
+                val uploadResult = storageDataSource.uploadImageSync(imageUri, Constants.STORAGE_POST_IMAGES)
                 
                 when (uploadResult) {
                     is Result.Success -> {
@@ -183,7 +182,7 @@ class PostRepository(
                         return@flow
                     }
                     is Result.Loading -> {
-                        // Should not happen with first(), but handle just in case
+                        // Should not happen with sync function, but handle just in case
                         emit(Result.Error(Exception("Unexpected loading state"), "Upload failed"))
                         return@flow
                     }
@@ -229,8 +228,7 @@ class PostRepository(
                     storageDataSource.deleteImage(oldImageUrl)
                 }
                 
-                val uploadResult = storageDataSource.uploadImage(imageUri, Constants.STORAGE_POST_IMAGES)
-                    .first() // Get first emission instead of collecting
+                val uploadResult = storageDataSource.uploadImageSync(imageUri, Constants.STORAGE_POST_IMAGES)
                 
                 when (uploadResult) {
                     is Result.Success -> {
@@ -241,7 +239,7 @@ class PostRepository(
                         return@flow
                     }
                     is Result.Loading -> {
-                        // Should not happen with first(), but handle just in case
+                        // Should not happen with sync function, but handle just in case
                         emit(Result.Error(Exception("Unexpected loading state"), "Upload failed"))
                         return@flow
                     }

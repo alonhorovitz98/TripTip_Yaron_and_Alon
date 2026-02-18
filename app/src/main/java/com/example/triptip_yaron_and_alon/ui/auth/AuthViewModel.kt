@@ -12,6 +12,7 @@ import com.example.triptip_yaron_and_alon.data.remote.firebase.FirestoreDataSour
 import com.example.triptip_yaron_and_alon.data.repository.AuthRepository
 import com.example.triptip_yaron_and_alon.domain.model.User
 import com.example.triptip_yaron_and_alon.util.Result
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -60,13 +61,22 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     // Removed init block - checkLoginStatus() should be called explicitly from Fragment
     
     /**
-     * Check if user is currently logged in
+     * Check if user is currently logged in (continuously observes)
      */
     fun checkLoginStatus() {
         viewModelScope.launch {
             authRepository.isUserLoggedIn().collect { loggedIn ->
                 _isLoggedIn.value = loggedIn
             }
+        }
+    }
+    
+    /**
+     * Check if user is currently logged in (one-time check, returns immediately)
+     */
+    suspend fun checkLoginStatusSync(): Boolean {
+        return authRepository.isUserLoggedIn().first().also { loggedIn ->
+            _isLoggedIn.value = loggedIn
         }
     }
     

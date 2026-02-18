@@ -51,6 +51,25 @@ class FirebaseStorageDataSource(
     }
     
     /**
+     * Upload an image to local storage (suspend function version).
+     * Returns Result<String> with the file path.
+     * 
+     * @param uri The URI of the image to upload
+     * @param storagePath The storage path (e.g., "post_images" or "profile_images")
+     * @return Result with the file path (e.g., "/storage/.../Pictures/posts/user123/image.jpg")
+     */
+    suspend fun uploadImageSync(uri: Uri, storagePath: String): Result<String> {
+        return try {
+            val filePath = withContext(Dispatchers.IO) {
+                saveImageToLocalStorage(uri, storagePath)
+            }
+            Result.Success(filePath)
+        } catch (e: Exception) {
+            Result.Error(e, e.message ?: "Failed to upload image")
+        }
+    }
+    
+    /**
      * Delete an image from local storage.
      * Returns Result<Unit> indicating success or failure.
      * 
