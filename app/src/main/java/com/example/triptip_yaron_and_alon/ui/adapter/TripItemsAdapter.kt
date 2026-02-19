@@ -42,25 +42,48 @@ class TripItemsAdapter(
         
         fun bind(item: TripItem, position: Int, totalItems: Int) {
             binding.apply {
-                // Post text
-                tvPostText.text = item.post?.text ?: "Loading post..."
-                
-                // Post image - Coil handles file errors gracefully
-                val imageUrl = item.post?.imageUrl
-                if (imageUrl != null) {
-                    ivPostImage.visibility = View.VISIBLE
-                    try {
-                        val imageFile = File(imageUrl)
-                        ivPostImage.load(imageFile) {
+                // Check if this is a post or a place
+                if (item.postId != null && item.post != null) {
+                    // Display as post
+                    tvPostText.text = item.post.text
+                    
+                    // Post image - Coil handles file errors gracefully
+                    val imageUrl = item.post.imageUrl
+                    if (imageUrl != null) {
+                        ivPostImage.visibility = View.VISIBLE
+                        try {
+                            val imageFile = File(imageUrl)
+                            ivPostImage.load(imageFile) {
+                                placeholder(R.drawable.ic_launcher_background)
+                                error(R.drawable.ic_launcher_background)
+                                // Coil will handle missing files automatically
+                            }
+                        } catch (e: Exception) {
+                            // If file path is invalid, hide image view
+                            ivPostImage.visibility = View.GONE
+                        }
+                    } else {
+                        ivPostImage.visibility = View.GONE
+                    }
+                } else if (item.placeId != null && item.place != null) {
+                    // Display as place
+                    val place = item.place
+                    tvPostText.text = place.name
+                    
+                    // Place image
+                    val imageUrl = place.imageUrl
+                    if (imageUrl != null) {
+                        ivPostImage.visibility = View.VISIBLE
+                        ivPostImage.load(imageUrl) {
                             placeholder(R.drawable.ic_launcher_background)
                             error(R.drawable.ic_launcher_background)
-                            // Coil will handle missing files automatically
                         }
-                    } catch (e: Exception) {
-                        // If file path is invalid, hide image view
+                    } else {
                         ivPostImage.visibility = View.GONE
                     }
                 } else {
+                    // Loading state
+                    tvPostText.text = "Loading..."
                     ivPostImage.visibility = View.GONE
                 }
                 

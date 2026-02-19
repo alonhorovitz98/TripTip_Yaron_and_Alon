@@ -30,6 +30,7 @@ class TripDayEditorFragment : Fragment() {
     
     private lateinit var itemsAdapter: TripItemsAdapter
     private lateinit var availablePostsAdapter: AvailablePostsAdapter
+    private lateinit var nearbyPlacesAdapter: com.example.triptip_yaron_and_alon.ui.adapter.NearbyPlacesAdapter
     
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -51,6 +52,10 @@ class TripDayEditorFragment : Fragment() {
         // Load day and available posts
         viewModel.loadDay(args.tripId, args.dayId)
         viewModel.loadAvailablePosts()
+        
+        // Load nearby places based on day's location
+        // We'll need to get location from the day's items or trip
+        // For now, we'll load places when a day with location is available
     }
     
     private fun setupRecyclerViews() {
@@ -87,6 +92,16 @@ class TripDayEditorFragment : Fragment() {
             adapter = availablePostsAdapter
             layoutManager = LinearLayoutManager(context)
         }
+        
+        // Nearby places adapter
+        nearbyPlacesAdapter = com.example.triptip_yaron_and_alon.ui.adapter.NearbyPlacesAdapter { place ->
+            viewModel.addPlaceToDay(args.dayId, place)
+        }
+        
+        binding.rvNearbyPlaces.apply {
+            adapter = nearbyPlacesAdapter
+            layoutManager = LinearLayoutManager(context)
+        }
     }
     
     private fun observeViewModel() {
@@ -109,7 +124,7 @@ class TripDayEditorFragment : Fragment() {
                 }
                 
                 // Update excluded post IDs for available posts adapter
-                val excludedIds = sortedItems.map { it.postId }.toSet()
+                val excludedIds = sortedItems.mapNotNull { it.postId }.toSet()
                 availablePostsAdapter = AvailablePostsAdapter(
                     onAddClick = { post ->
                         viewModel.addItemToDay(args.dayId, post.id)
@@ -122,12 +137,34 @@ class TripDayEditorFragment : Fragment() {
                 viewModel.availablePosts.value?.let { posts ->
                     availablePostsAdapter.submitList(posts)
                 }
+                
+                // Load nearby places if we have location from items
+                // Try to get location from first item with coordinates
+                val itemWithLocation = sortedItems.firstOrNull { item ->
+                    item.post?.latitude != null && item.post?.longitude != null
+                }
+                
+                if (itemWithLocation != null) {
+                    val lat = itemWithLocation.post?.latitude ?: return@observe
+                    val lon = itemWithLocation.post?.longitude ?: return@observe
+                    viewModel.loadNearbyPlaces(lat, lon)
+                } else {
+                    // Try to get location from post location name
+                    val itemWithLocationName = sortedItems.firstOrNull { item ->
+                        item.post?.location != null && item.post?.location?.isNotBlank() == true
+                    }
+                    
+                    if (itemWithLocationName != null) {
+                        val locationName = itemWithLocationName.post?.location ?: return@observe
+                        viewModel.loadNearbyPlacesForLocation(locationName)
+                    }
+                }
             }
         }
         
         // Observe available posts
         viewModel.availablePosts.observe(viewLifecycleOwner) { posts ->
-            val excludedIds = viewModel.currentDay.value?.items?.map { it.postId }?.toSet() ?: emptySet()
+            val excludedIds = viewModel.currentDay.value?.items?.mapNotNull { it.postId }?.toSet() ?: emptySet()
             availablePostsAdapter = AvailablePostsAdapter(
                 onAddClick = { post ->
                     viewModel.addItemToDay(args.dayId, post.id)
@@ -136,6 +173,33 @@ class TripDayEditorFragment : Fragment() {
             )
             binding.rvAvailablePosts.adapter = availablePostsAdapter
             availablePostsAdapter.submitList(posts)
+        }
+        
+        // Observe nearby places
+        viewModel.nearbyPlaces.observe(viewLifecycleOwner) { places ->
+            val excludedPlaceIds = viewModel.currentDay.value?.items?.mapNotNull { it.placeId }?.toSet() ?: emptySet()
+            val filteredPlaces = places.filter { it.xid !in excludedPlaceIds }
+            nearbyPlacesAdapter.submitList(filteredPlaces)
+            
+            // Show/hide section based on whether there are places
+            if (filteredPlaces.isNotEmpty()) {
+                binding.tvNearbyPlacesTitle.visibility = View.VISIBLE
+                binding.rvNearbyPlaces.visibility = View.VISIBLE
+            } else {
+                binding.tvNearbyPlacesTitle.visibility = View.GONE
+                binding.rvNearbyPlaces.visibility = View.GONE
+            }
+        }
+        
+        viewModel.placesLoading.observe(viewLifecycleOwner) { isLoading ->
+            // Show loading state if needed
+        }
+        
+        viewModel.placesError.observe(viewLifecycleOwner) { error ->
+            if (error != null) {
+                binding.tvNearbyPlacesTitle.visibility = View.GONE
+                binding.rvNearbyPlaces.visibility = View.GONE
+            }
         }
         
         // Observe loading

@@ -52,8 +52,20 @@ class PostDetailsFragment : Fragment() {
     }
     
     private fun setupRecyclerView() {
-        // Nearby places RecyclerView removed from new layout - can be added back if needed
-        // For now, we'll skip this setup
+        placesAdapter = NearbyPlacesAdapter { place ->
+            // Navigate to TripDayEditorFragment with place info
+            // For now, show a message - can be enhanced to navigate to trip builder
+            Snackbar.make(
+                binding.root,
+                "Tap 'Add to Trip' to add this place to your trip",
+                Snackbar.LENGTH_LONG
+            ).show()
+        }
+        
+        binding.rvNearbyPlaces.apply {
+            adapter = placesAdapter
+            layoutManager = androidx.recyclerview.widget.LinearLayoutManager(context)
+        }
     }
     
     private fun setupListeners() {
@@ -124,7 +136,29 @@ class PostDetailsFragment : Fragment() {
             }
         }
         
-        // Nearby places removed from new layout - can be added back if needed
+        // Observe nearby places
+        viewModel.nearbyPlaces.observe(viewLifecycleOwner) { places ->
+            if (places.isNotEmpty()) {
+                binding.tvNearbyPlacesLabel.visibility = View.VISIBLE
+                binding.rvNearbyPlaces.visibility = View.VISIBLE
+                placesAdapter.submitList(places)
+            } else {
+                binding.tvNearbyPlacesLabel.visibility = View.GONE
+                binding.rvNearbyPlaces.visibility = View.GONE
+            }
+        }
+        
+        viewModel.placesLoading.observe(viewLifecycleOwner) { isLoading ->
+            // Show loading state if needed
+        }
+        
+        viewModel.placesError.observe(viewLifecycleOwner) { error ->
+            // Don't show error for places - just keep it hidden
+            if (error != null) {
+                binding.tvNearbyPlacesLabel.visibility = View.GONE
+                binding.rvNearbyPlaces.visibility = View.GONE
+            }
+        }
         
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
             // Progress bar not in new layout - show loading via button state
