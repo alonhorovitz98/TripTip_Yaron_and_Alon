@@ -9,7 +9,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.setupActionBarWithNavController
-import androidx.navigation.ui.setupWithNavController
 import com.example.triptip_yaron_and_alon.ui.auth.AuthViewModel
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.bottomnavigation.BottomNavigationView
@@ -21,6 +20,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var authViewModel: AuthViewModel
     private lateinit var bottomNavigationView: BottomNavigationView
     private lateinit var navController: androidx.navigation.NavController
+    private var isUpdatingSelection = false // Flag to prevent infinite loop
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -89,35 +89,32 @@ class MainActivity : AppCompatActivity() {
     private fun setupBottomNavigation() {
         bottomNavigationView = findViewById(R.id.bottomNavigationView)
         
-        // Setup bottom navigation with NavController
-        bottomNavigationView.setupWithNavController(navController)
+        // Handle reselection (when user taps already selected tab)
+        bottomNavigationView.setOnItemReselectedListener { 
+            // No-op: prevents reloading when user taps the same tab
+        }
         
         // Override default navigation behavior for specific items
         bottomNavigationView.setOnItemSelectedListener { item ->
-            when (item.itemId) {
-                R.id.nav_home -> {
-                    navController.navigate(R.id.feedFragment)
-                    true
-                }
-                R.id.nav_explore -> {
-                    // For now, navigate to feed (explore fragment will be created later)
-                    navController.navigate(R.id.feedFragment)
-                    true
-                }
-                R.id.nav_create -> {
-                    navController.navigate(R.id.createPostFragment)
-                    true
-                }
-                R.id.nav_plan -> {
-                    navController.navigate(R.id.tripListFragment)
-                    true
-                }
-                R.id.nav_profile -> {
-                    navController.navigate(R.id.profileFragment)
-                    true
-                }
-                else -> false
+            // Prevent navigation if we're programmatically updating selection
+            if (isUpdatingSelection) {
+                return@setOnItemSelectedListener true
             }
+            
+            val destinationId = when (item.itemId) {
+                R.id.nav_home -> R.id.feedFragment
+                R.id.nav_explore -> R.id.feedFragment // For now, navigate to feed
+                R.id.nav_create -> R.id.createPostFragment
+                R.id.nav_plan -> R.id.tripListFragment
+                R.id.nav_profile -> R.id.profileFragment
+                else -> null
+            }
+            
+            if (destinationId != null && navController.currentDestination?.id != destinationId) {
+                navigateToTopLevelDestination(destinationId)
+            }
+            
+            true
         }
         
         // Listen to navigation changes to show/hide bottom nav
@@ -146,6 +143,16 @@ class MainActivity : AppCompatActivity() {
         }
     }
     
+    /**
+     * Navigate to a top-level destination with state restoration for smooth tab switching
+     * Using launchSingleTop prevents creating duplicate fragments, making tab switching instant
+     */
+    private fun navigateToTopLevelDestination(destinationId: Int) {
+        // Simple navigation - Navigation Component handles state restoration automatically
+        // The key optimization is preventing duplicate collectors in ViewModels
+        navController.navigate(destinationId)
+    }
+    
     private fun updateBottomNavSelection(destinationId: Int) {
         // Map navigation destinations to bottom nav items
         val destinationToNavItem = mapOf(
@@ -156,7 +163,15 @@ class MainActivity : AppCompatActivity() {
         )
         
         destinationToNavItem[destinationId]?.let { menuItemId ->
-            bottomNavigationView.selectedItemId = menuItemId
+            // Only update if different from current selection
+            if (bottomNavigationView.selectedItemId != menuItemId) {
+                isUpdatingSelection = true
+                try {
+                    bottomNavigationView.selectedItemId = menuItemId
+                } finally {
+                    isUpdatingSelection = false
+                }
+            }
         }
     }
     

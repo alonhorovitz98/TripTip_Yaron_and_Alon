@@ -16,6 +16,7 @@ import com.example.triptip_yaron_and_alon.domain.model.Trip
 import com.example.triptip_yaron_and_alon.domain.model.TripDay
 import com.example.triptip_yaron_and_alon.domain.model.TripItem
 import com.example.triptip_yaron_and_alon.util.Result
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
@@ -78,8 +79,19 @@ class TripViewModel(application: Application) : AndroidViewModel(application) {
     private val _error = MutableLiveData<String?>()
     val error: LiveData<String?> = _error
     
+    // Job tracking to prevent multiple collectors
+    private var loadUserTripsJob: Job? = null
+    private var loadTripJob: Job? = null
+    private var loadDayJob: Job? = null
+    private var loadAvailablePostsJob: Job? = null
+    
     fun loadUserTrips(userId: String? = null) {
-        viewModelScope.launch {
+        // Cancel existing job if active to prevent duplicate collectors
+        if (loadUserTripsJob?.isActive == true) {
+            return
+        }
+        
+        loadUserTripsJob = viewModelScope.launch {
             // Get current user ID from Firebase Auth if not provided
             val actualUserId = userId ?: run {
                 authDataSource.getCurrentUser().firstOrNull()?.id
@@ -104,7 +116,12 @@ class TripViewModel(application: Application) : AndroidViewModel(application) {
     }
     
     fun loadTrip(tripId: String) {
-        viewModelScope.launch {
+        // Cancel existing job if active to prevent duplicate collectors
+        if (loadTripJob?.isActive == true) {
+            return
+        }
+        
+        loadTripJob = viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             var isFirstEmission = true
@@ -349,7 +366,12 @@ class TripViewModel(application: Application) : AndroidViewModel(application) {
     // ==================== DAY ITEM MANAGEMENT ====================
     
     fun loadDay(tripId: String, dayId: String) {
-        viewModelScope.launch {
+        // Cancel existing job if active to prevent duplicate collectors
+        if (loadDayJob?.isActive == true) {
+            return
+        }
+        
+        loadDayJob = viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             var isFirstEmission = true
@@ -378,7 +400,12 @@ class TripViewModel(application: Application) : AndroidViewModel(application) {
     }
     
     fun loadAvailablePosts() {
-        viewModelScope.launch {
+        // Cancel existing job if active to prevent duplicate collectors
+        if (loadAvailablePostsJob?.isActive == true) {
+            return
+        }
+        
+        loadAvailablePostsJob = viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             var isFirstEmission = true

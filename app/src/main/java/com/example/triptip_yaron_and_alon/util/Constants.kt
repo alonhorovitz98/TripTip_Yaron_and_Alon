@@ -16,11 +16,13 @@ object Constants {
     // API Keys (store in local.properties or BuildConfig)
     // Open-Meteo doesn't require an API key (free and open source)
     const val OPENTRIPMAP_API_KEY = "" // TODO: Add to BuildConfig in Step 12
+    const val GOOGLE_PLACES_API_KEY = "" // Will be read from BuildConfig
     
     // API Base URLs
     const val OPEN_METEO_BASE_URL = "https://api.open-meteo.com/v1/"
     const val OPENTRIPMAP_BASE_URL = "https://api.opentripmap.io/0.1/en/"
-    const val NOMINATIM_BASE_URL = "https://nominatim.openstreetmap.org/" // Free geocoding API
+    const val NOMINATIM_BASE_URL = "https://nominatim.openstreetmap.org/" // Free geocoding API (fallback)
+    const val GOOGLE_PLACES_BASE_URL = "https://maps.googleapis.com/maps/api/place/"
     
     // Default Values
     const val NEARBY_PLACES_RADIUS = 5000 // meters

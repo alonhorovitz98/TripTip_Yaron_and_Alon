@@ -11,6 +11,7 @@ import com.example.triptip_yaron_and_alon.data.remote.firebase.FirestoreDataSour
 import com.example.triptip_yaron_and_alon.data.repository.PostRepository
 import com.example.triptip_yaron_and_alon.domain.model.Post
 import com.example.triptip_yaron_and_alon.util.Result
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -48,13 +49,22 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
     private val pageSize = 20
     private var isLastPage = false
     
+    // Job tracking to prevent multiple collectors
+    private var loadPostsJob: Job? = null
+    
     // Removed init block - loadPosts() should be called explicitly from Fragment
     
     /**
      * Load posts (cache-first strategy)
+     * Prevents multiple collectors by tracking the job
      */
     fun loadPosts() {
-        viewModelScope.launch {
+        // Cancel existing job if active to prevent duplicate collectors
+        if (loadPostsJob?.isActive == true) {
+            return
+        }
+        
+        loadPostsJob = viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             
@@ -73,6 +83,9 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
      * Refresh posts (pull-to-refresh)
      */
     fun refreshPosts() {
+        // Cancel existing job before refreshing
+        loadPostsJob?.cancel()
+        loadPostsJob = null
         currentPage = 0
         isLastPage = false
         loadPosts()

@@ -23,6 +23,7 @@ android {
         // API Keys - Read from local.properties or use empty string
         // Note: Open-Meteo doesn't require an API key (free and open source)
         buildConfigField("String", "OPENTRIPMAP_API_KEY", "\"${project.findProperty("OPENTRIPMAP_API_KEY") ?: ""}\"")
+        buildConfigField("String", "GOOGLE_PLACES_API_KEY", "\"${project.findProperty("GOOGLE_PLACES_API_KEY") ?: "AIzaSyAp2WRMMi1ntEXmgoqcdqBCOsxeB7DAz98"}\"")
     }
 
     buildTypes {

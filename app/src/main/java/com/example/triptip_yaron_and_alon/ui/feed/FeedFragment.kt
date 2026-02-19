@@ -55,6 +55,11 @@ class FeedFragment : Fragment() {
             adapter = postAdapter
             layoutManager = LinearLayoutManager(context)
             
+            // Performance optimizations for smooth scrolling
+            setHasFixedSize(true) // RecyclerView knows item sizes won't change
+            setItemViewCacheSize(20) // Cache more views off-screen for smoother scrolling
+            recycledViewPool.setMaxRecycledViews(0, 10) // Recycle more views of same type
+            
             // Lazy loading
             addOnScrollListener(object : RecyclerView.OnScrollListener() {
                 override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {

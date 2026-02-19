@@ -3,6 +3,7 @@ package com.example.triptip_yaron_and_alon.data.repository
 import com.example.triptip_yaron_and_alon.BuildConfig
 import com.example.triptip_yaron_and_alon.data.remote.api.ApiClient
 import com.example.triptip_yaron_and_alon.data.remote.api.GeocodingApiService
+import com.example.triptip_yaron_and_alon.data.remote.api.GooglePlacesApiService
 import com.example.triptip_yaron_and_alon.data.remote.api.OpenTripMapApiService
 import com.example.triptip_yaron_and_alon.data.remote.api.WeatherApiService
 import com.example.triptip_yaron_and_alon.data.remote.api.mapper.ApiMapper
@@ -24,7 +25,8 @@ import kotlinx.coroutines.flow.flowOn
 class PlaceInfoRepository(
     private val weatherApiService: WeatherApiService = ApiClient.weatherApiService,
     private val openTripMapApiService: OpenTripMapApiService = ApiClient.openTripMapApiService,
-    private val geocodingApiService: GeocodingApiService = ApiClient.geocodingApiService
+    private val geocodingApiService: GeocodingApiService = ApiClient.geocodingApiService,
+    private val googlePlacesApiService: GooglePlacesApiService = ApiClient.googlePlacesApiService
 ) {
     
     /**
@@ -99,8 +101,7 @@ class PlaceInfoRepository(
     /**
      * Search for location suggestions (autocomplete).
      * Returns Flow<List<LocationSuggestion>> that emits location suggestions.
-     * Uses OpenStreetMap Nominatim API (free, no API key required).
-     * Rate limit: 1 request per second - we add a small delay to respect this.
+     * Uses Google Places API first (better quality, faster), falls back to Nominatim if needed.
      */
     fun searchLocationSuggestions(query: String): Flow<List<LocationSuggestion>> = flow {
         if (query.length < 2) {
@@ -108,6 +109,30 @@ class PlaceInfoRepository(
             return@flow
         }
         
+        try {
+            // Try Google Places first (better quality, no rate limit delay)
+            val apiKey = getGooglePlacesApiKey()
+            if (apiKey.isNotBlank()) {
+                val response = googlePlacesApiService.autocomplete(
+                    input = query,
+                    apiKey = apiKey,
+                    types = null, // null = all types (cities, establishments, addresses, etc.) for better recommendations
+                    language = "en"
+                )
+                
+                if (response.status == "OK" && response.predictions.isNotEmpty()) {
+                    val suggestions = response.predictions.map { 
+                        ApiMapper.toLocationSuggestionFromGoogle(it) 
+                    }
+                    emit(suggestions)
+                    return@flow
+                }
+            }
+        } catch (e: Exception) {
+            // Fall back to Nominatim if Google Places fails
+        }
+        
+        // Fallback to Nominatim (slower, but free)
         // Respect Nominatim rate limit (1 request per second)
         delay(1100) // Slightly more than 1 second to be safe
         
@@ -121,6 +146,31 @@ class PlaceInfoRepository(
     }.catch { e ->
         // Re-throw with more context
         throw Exception("Failed to search locations: ${e.message}", e)
+    }.flowOn(Dispatchers.IO)
+    
+    /**
+     * Get place details from Google Places API by place_id.
+     * Use this when user selects a suggestion to get coordinates and full address.
+     */
+    fun getGooglePlaceDetails(placeId: String): Flow<LocationSuggestion> = flow {
+        val apiKey = getGooglePlacesApiKey()
+        if (apiKey.isBlank()) {
+            throw IllegalStateException("Google Places API key is not configured")
+        }
+        
+        val response = googlePlacesApiService.getPlaceDetails(
+            placeId = placeId,
+            apiKey = apiKey
+        )
+        
+        if (response.status == "OK" && response.result != null) {
+            val suggestion = ApiMapper.toLocationSuggestionFromPlaceDetails(response.result)
+            emit(suggestion)
+        } else {
+            throw Exception("Place not found: ${response.status}")
+        }
+    }.catch { e ->
+        throw Exception("Failed to get place details: ${e.message}", e)
     }.flowOn(Dispatchers.IO)
     
     /**
@@ -177,6 +227,25 @@ class PlaceInfoRepository(
         } catch (e: Exception) {
             // BuildConfig field might not exist yet, use Constants
             Constants.OPENTRIPMAP_API_KEY
+        }
+    }
+    
+    /**
+     * Get Google Places API key from BuildConfig or Constants.
+     * Priority: BuildConfig > Constants
+     */
+    private fun getGooglePlacesApiKey(): String {
+        return try {
+            // Try BuildConfig first (if configured)
+            if (BuildConfig.GOOGLE_PLACES_API_KEY.isNotBlank()) {
+                BuildConfig.GOOGLE_PLACES_API_KEY
+            } else {
+                // Fallback to Constants (may be empty)
+                Constants.GOOGLE_PLACES_API_KEY
+            }
+        } catch (e: Exception) {
+            // BuildConfig field might not exist yet, use Constants
+            Constants.GOOGLE_PLACES_API_KEY
         }
     }
 }

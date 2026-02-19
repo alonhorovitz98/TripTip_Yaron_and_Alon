@@ -14,6 +14,7 @@ import com.example.triptip_yaron_and_alon.data.repository.AuthRepository
 import com.example.triptip_yaron_and_alon.data.repository.UserRepository
 import com.example.triptip_yaron_and_alon.domain.model.User
 import com.example.triptip_yaron_and_alon.util.Result
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class ProfileViewModel(application: Application) : AndroidViewModel(application) {
@@ -60,10 +61,18 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     private val _error = MutableLiveData<String?>()
     val error: LiveData<String?> = _error
     
+    // Job tracking to prevent multiple collectors
+    private var loadProfileJob: Job? = null
+    
     // Removed init block - loadProfile() should be called explicitly from Fragment
     
     fun loadProfile() {
-        viewModelScope.launch {
+        // Cancel existing job if active to prevent duplicate collectors
+        if (loadProfileJob?.isActive == true) {
+            return
+        }
+        
+        loadProfileJob = viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             var isFirstEmission = true

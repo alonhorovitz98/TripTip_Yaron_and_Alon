@@ -1,6 +1,8 @@
 package com.example.triptip_yaron_and_alon.data.remote.api.mapper
 
 import com.example.triptip_yaron_and_alon.data.remote.api.dto.GeocodingResponseDto
+import com.example.triptip_yaron_and_alon.data.remote.api.dto.GooglePlacesAutocompleteResponseDto
+import com.example.triptip_yaron_and_alon.data.remote.api.dto.GooglePlaceDetailsResponseDto
 import com.example.triptip_yaron_and_alon.data.remote.api.dto.NearbyPlacesResponseDto
 import com.example.triptip_yaron_and_alon.data.remote.api.dto.PlaceDetailsDto
 import com.example.triptip_yaron_and_alon.data.remote.api.dto.WeatherResponseDto
@@ -79,11 +81,11 @@ object ApiMapper {
     fun toPlaceInfoList(dto: NearbyPlacesResponseDto, referenceLat: Double, referenceLon: Double): List<PlaceInfo> {
         return dto.features.mapNotNull { feature ->
             try {
-                val coordinates = feature.geometry.coordinates
+                val coordinates: List<Double> = feature.geometry.coordinates
                 if (coordinates.size < 2) return@mapNotNull null
                 
-                val longitude = coordinates[0]
-                val latitude = coordinates[1]
+                val longitude: Double = coordinates[0]
+                val latitude: Double = coordinates[1]
                 
                 PlaceInfo(
                     xid = feature.properties.xid,
@@ -146,6 +148,46 @@ object ApiMapper {
      */
     fun toLocationSuggestionList(dtos: List<GeocodingResponseDto>): List<LocationSuggestion> {
         return dtos.map { toLocationSuggestion(it) }
+    }
+    
+    /**
+     * Convert Google Places Autocomplete Prediction to LocationSuggestion.
+     * Note: Coordinates will be 0.0 initially, should be filled from place details.
+     */
+    fun toLocationSuggestionFromGoogle(prediction: com.example.triptip_yaron_and_alon.data.remote.api.dto.PredictionDto): LocationSuggestion {
+        return LocationSuggestion(
+            displayName = prediction.description,
+            latitude = 0.0, // Will be filled from place details when selected
+            longitude = 0.0, // Will be filled from place details when selected
+            placeId = null, // Nominatim place_id not applicable
+            googlePlaceId = prediction.placeId, // Store Google Places place_id
+            city = prediction.structuredFormatting?.secondaryText,
+            country = null // Extract from address components if needed
+        )
+    }
+    
+    /**
+     * Convert Google Place Details to LocationSuggestion with coordinates.
+     */
+    fun toLocationSuggestionFromPlaceDetails(result: com.example.triptip_yaron_and_alon.data.remote.api.dto.PlaceDetailsResultDto): LocationSuggestion {
+        val location = result.geometry?.location
+        val city = result.addressComponents?.find { 
+            it.types.contains("locality") || it.types.contains("administrative_area_level_1")
+        }?.longName
+        
+        val country = result.addressComponents?.find { 
+            it.types.contains("country")
+        }?.longName
+        
+        return LocationSuggestion(
+            displayName = result.formattedAddress,
+            latitude = location?.lat ?: 0.0,
+            longitude = location?.lng ?: 0.0,
+            placeId = null, // Nominatim place_id not applicable
+            googlePlaceId = result.placeId, // Store Google Places place_id
+            city = city,
+            country = country
+        )
     }
 }
 

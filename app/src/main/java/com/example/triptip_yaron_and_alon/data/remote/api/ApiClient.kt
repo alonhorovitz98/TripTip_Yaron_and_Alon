@@ -51,8 +51,16 @@ object ApiClient {
         .addConverterFactory(GsonConverterFactory.create())
         .build()
     
+    // Google Places API client
+    private val googlePlacesRetrofit = Retrofit.Builder()
+        .baseUrl(Constants.GOOGLE_PLACES_BASE_URL)
+        .client(okHttpClient)
+        .addConverterFactory(GsonConverterFactory.create())
+        .build()
+    
     val weatherApiService: WeatherApiService = weatherRetrofit.create(WeatherApiService::class.java)
     val openTripMapApiService: OpenTripMapApiService = openTripMapRetrofit.create(OpenTripMapApiService::class.java)
     val geocodingApiService: GeocodingApiService = geocodingRetrofit.create(GeocodingApiService::class.java)
+    val googlePlacesApiService: GooglePlacesApiService = googlePlacesRetrofit.create(GooglePlacesApiService::class.java)
 }
 

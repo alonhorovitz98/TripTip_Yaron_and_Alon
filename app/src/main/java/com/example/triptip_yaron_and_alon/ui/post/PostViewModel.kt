@@ -122,6 +122,7 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
     
     /**
      * Search for location suggestions (for autocomplete).
+     * Uses Google Places API for better quality results.
      */
     fun searchLocationSuggestions(query: String) {
         if (query.length < 2) {
@@ -138,6 +139,34 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 .collect { suggestions ->
                     _locationSuggestions.value = suggestions
+                    _locationSuggestionsLoading.value = false
+                }
+        }
+    }
+    
+    /**
+     * Fetch place details from Google Places API by place_id.
+     * Use this when user selects a Google Places suggestion to get coordinates.
+     */
+    fun fetchPlaceDetails(placeId: String) {
+        viewModelScope.launch {
+            _locationSuggestionsLoading.value = true
+            placeInfoRepository.getGooglePlaceDetails(placeId)
+                .catch { e ->
+                    _locationSuggestionsLoading.value = false
+                    _error.value = "Failed to fetch place details: ${e.message}"
+                }
+                .collect { suggestion ->
+                    // Update the location suggestions with the fetched coordinates
+                    val currentSuggestions = _locationSuggestions.value ?: emptyList()
+                    val updatedSuggestions = currentSuggestions.map { 
+                        if (it.googlePlaceId != null && it.googlePlaceId == placeId) {
+                            suggestion // Replace with full details
+                        } else {
+                            it
+                        }
+                    }
+                    _locationSuggestions.value = updatedSuggestions
                     _locationSuggestionsLoading.value = false
                 }
         }
@@ -167,15 +196,38 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
             
             if (location != null && location.isNotBlank() && (latitude == null || longitude == null)) {
                 try {
-                    val coordinates = placeInfoRepository.geocodeLocation(location)
-                        .firstOrNull()
-                    
-                    if (coordinates != null) {
-                        finalLatitude = coordinates.first
-                        finalLongitude = coordinates.second
+                    // Check if location contains a Google Places place_id (format: "place_name|place_id")
+                    val parts = location.split("|")
+                    if (parts.size == 2 && parts[1].isNotBlank()) {
+                        // This is a Google Places place_id, fetch details
+                        val placeDetails = placeInfoRepository.getGooglePlaceDetails(parts[1])
+                            .firstOrNull()
+                        
+                        if (placeDetails != null && placeDetails.latitude != 0.0 && placeDetails.longitude != 0.0) {
+                            finalLatitude = placeDetails.latitude
+                            finalLongitude = placeDetails.longitude
+                        } else {
+                            // Fallback to Nominatim geocoding
+                            val coordinates = placeInfoRepository.geocodeLocation(parts[0])
+                                .firstOrNull()
+                            
+                            if (coordinates != null) {
+                                finalLatitude = coordinates.first
+                                finalLongitude = coordinates.second
+                            }
+                        }
                     } else {
-                        // Location not found, but continue with location name only
-                        _error.value = "Location not found, but post will be created with location name"
+                        // Regular location name, use Nominatim geocoding
+                        val coordinates = placeInfoRepository.geocodeLocation(location)
+                            .firstOrNull()
+                        
+                        if (coordinates != null) {
+                            finalLatitude = coordinates.first
+                            finalLongitude = coordinates.second
+                        } else {
+                            // Location not found, but continue with location name only
+                            _error.value = "Location not found, but post will be created with location name"
+                        }
                     }
                 } catch (e: Exception) {
                     // Geocoding failed, but continue with location name only

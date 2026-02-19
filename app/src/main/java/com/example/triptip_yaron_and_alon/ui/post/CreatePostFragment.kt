@@ -109,8 +109,14 @@ class CreatePostFragment : Fragment() {
                 val view = super.getView(position, convertView, parent)
                 val suggestion = getItem(position)
                 if (suggestion != null) {
-                    // Display the full location name
-                    (view as? android.widget.TextView)?.text = suggestion.displayName
+                    // Display the full location name with better formatting
+                    val textView = view as? android.widget.TextView
+                    textView?.text = suggestion.displayName
+                    // Show city/country as hint if available
+                    if (suggestion.city != null || suggestion.country != null) {
+                        val subtitle = listOfNotNull(suggestion.city, suggestion.country).joinToString(", ")
+                        textView?.hint = subtitle
+                    }
                 }
                 return view
             }
@@ -127,7 +133,7 @@ class CreatePostFragment : Fragment() {
                 // Cancel previous search
                 binding.etLocation.removeCallbacks(searchRunnable)
                 
-                // Debounce search (wait 500ms after user stops typing)
+                // Debounce search (wait 300ms after user stops typing - Google Places is fast!)
                 searchRunnable = Runnable {
                     val query = s?.toString()?.trim()
                     if (!query.isNullOrBlank() && query.length >= 2) {
@@ -137,7 +143,7 @@ class CreatePostFragment : Fragment() {
                         locationAdapter.notifyDataSetChanged()
                     }
                 }
-                binding.etLocation.postDelayed(searchRunnable, 500)
+                binding.etLocation.postDelayed(searchRunnable, 300)
             }
             
             override fun afterTextChanged(s: Editable?) {}
@@ -147,8 +153,17 @@ class CreatePostFragment : Fragment() {
         binding.etLocation.setOnItemClickListener { _, _, position, _ ->
             val selected = locationAdapter.getItem(position)
             selected?.let {
-                // Set the full display name
-                binding.etLocation.setText(it.displayName, false)
+                // If it's a Google Places suggestion without coordinates, fetch details first
+                if (it.googlePlaceId != null && (it.latitude == 0.0 || it.longitude == 0.0)) {
+                    // Fetch place details to get coordinates
+                    viewModel.fetchPlaceDetails(it.googlePlaceId)
+                    // Store the place_id with the display name for later use
+                    val displayText = "${it.displayName}|${it.googlePlaceId}"
+                    binding.etLocation.setText(displayText, false)
+                } else {
+                    // Already has coordinates or is Nominatim result, just use display name
+                    binding.etLocation.setText(it.displayName, false)
+                }
             }
         }
     }

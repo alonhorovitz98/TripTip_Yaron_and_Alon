@@ -59,6 +59,10 @@ class TripListFragment : Fragment() {
         binding.rvTrips.apply {
             adapter = tripAdapter
             layoutManager = LinearLayoutManager(context)
+            
+            // Performance optimizations for smooth scrolling
+            setHasFixedSize(true) // RecyclerView knows item sizes won't change
+            setItemViewCacheSize(10) // Cache more views off-screen
         }
     }
     
