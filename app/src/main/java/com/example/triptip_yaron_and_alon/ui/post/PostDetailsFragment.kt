@@ -12,7 +12,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import coil.load
 import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.FragmentPostDetailsBinding
-import com.example.triptip_yaron_and_alon.ui.adapter.NearbyPlacesAdapter
+import com.example.triptip_yaron_and_alon.ui.adapter.NearbyPlaceAdapter
 import com.example.triptip_yaron_and_alon.util.Result
 import com.google.android.material.snackbar.Snackbar
 import java.io.File
@@ -27,7 +27,7 @@ class PostDetailsFragment : Fragment() {
     
     private lateinit var viewModel: PostViewModel
     private val args: PostDetailsFragmentArgs by navArgs()
-    private lateinit var placesAdapter: NearbyPlacesAdapter
+    private lateinit var placesAdapter: NearbyPlaceAdapter
     
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -52,7 +52,7 @@ class PostDetailsFragment : Fragment() {
     }
     
     private fun setupRecyclerView() {
-        placesAdapter = NearbyPlacesAdapter { place ->
+        placesAdapter = NearbyPlaceAdapter { place ->
             // Navigate to TripDayEditorFragment with place info
             // For now, show a message - can be enhanced to navigate to trip builder
             Snackbar.make(

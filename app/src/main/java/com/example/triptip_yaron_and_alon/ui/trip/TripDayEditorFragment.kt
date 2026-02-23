@@ -30,7 +30,7 @@ class TripDayEditorFragment : Fragment() {
     
     private lateinit var itemsAdapter: TripItemsAdapter
     private lateinit var availablePostsAdapter: AvailablePostsAdapter
-    private lateinit var nearbyPlacesAdapter: com.example.triptip_yaron_and_alon.ui.adapter.NearbyPlacesAdapter
+    private lateinit var nearbyPlacesAdapter: com.example.triptip_yaron_and_alon.ui.adapter.NearbyPlaceAdapter
     
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -103,7 +103,7 @@ class TripDayEditorFragment : Fragment() {
         }
         
         // Nearby places adapter
-        nearbyPlacesAdapter = com.example.triptip_yaron_and_alon.ui.adapter.NearbyPlacesAdapter { place ->
+        nearbyPlacesAdapter = com.example.triptip_yaron_and_alon.ui.adapter.NearbyPlaceAdapter { place ->
             android.util.Log.d("TripDayEditor", "Add place clicked: ${place.xid}")
             viewModel.addPlaceToDay(args.dayId, place)
         }

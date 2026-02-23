@@ -3,12 +3,14 @@ package com.example.triptip_yaron_and_alon.data.remote.api.mapper
 import com.example.triptip_yaron_and_alon.data.remote.api.dto.GeocodingResponseDto
 import com.example.triptip_yaron_and_alon.data.remote.api.dto.GooglePlacesAutocompleteResponseDto
 import com.example.triptip_yaron_and_alon.data.remote.api.dto.GooglePlaceDetailsResponseDto
+import com.example.triptip_yaron_and_alon.data.remote.api.dto.GooglePlacesNearbySearchResponseDto
 import com.example.triptip_yaron_and_alon.data.remote.api.dto.NearbyPlacesResponseDto
 import com.example.triptip_yaron_and_alon.data.remote.api.dto.PlaceDetailsDto
 import com.example.triptip_yaron_and_alon.data.remote.api.dto.WeatherResponseDto
 import com.example.triptip_yaron_and_alon.domain.model.LocationSuggestion
 import com.example.triptip_yaron_and_alon.domain.model.PlaceInfo
 import com.example.triptip_yaron_and_alon.domain.model.WeatherInfo
+import kotlin.math.sqrt
 
 /**
  * Mapper functions to convert API DTOs to domain models.
@@ -188,6 +190,70 @@ object ApiMapper {
             city = city,
             country = country
         )
+    }
+    
+    /**
+     * Convert Google Places Nearby Search response to List<PlaceInfo>.
+     * Uses place_id as xid (stored in xid field for compatibility).
+     * Calculates distance from reference location.
+     * Generates photo URL from photo_reference if available.
+     */
+    fun toPlaceInfoListFromGoogleNearby(
+        dto: GooglePlacesNearbySearchResponseDto,
+        referenceLat: Double,
+        referenceLon: Double,
+        apiKey: String
+    ): List<PlaceInfo> {
+        return dto.results.mapNotNull { place ->
+            try {
+                val location = place.geometry?.location
+                if (location == null) return@mapNotNull null
+                
+                // Calculate distance in meters using Haversine formula
+                val distance = calculateDistance(
+                    referenceLat, referenceLon,
+                    location.lat, location.lng
+                )
+                
+                // Generate photo URL if photo reference is available
+                val photoUrl = place.photos?.firstOrNull()?.let { photo ->
+                    // Google Places Photo API URL
+                    "https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photo.photoReference}&key=$apiKey"
+                }
+                
+                PlaceInfo(
+                    xid = place.placeId, // Store Google place_id in xid field
+                    name = place.name,
+                    description = place.vicinity ?: place.formattedAddress,
+                    latitude = location.lat,
+                    longitude = location.lng,
+                    imageUrl = photoUrl,
+                    categories = place.types ?: emptyList(),
+                    distance = distance
+                )
+            } catch (e: Exception) {
+                null // Skip invalid places
+            }
+        }
+    }
+    
+    /**
+     * Calculate distance between two coordinates using Haversine formula.
+     * Returns distance in meters.
+     */
+    private fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+        val earthRadius = 6371000.0 // Earth radius in meters
+        
+        val dLat = Math.toRadians(lat2 - lat1)
+        val dLon = Math.toRadians(lon2 - lon1)
+        
+        val a = kotlin.math.sin(dLat / 2) * kotlin.math.sin(dLat / 2) +
+                kotlin.math.cos(Math.toRadians(lat1)) * kotlin.math.cos(Math.toRadians(lat2)) *
+                kotlin.math.sin(dLon / 2) * kotlin.math.sin(dLon / 2)
+        
+        val c = 2 * kotlin.math.atan2(sqrt(a), sqrt(1 - a))
+        
+        return earthRadius * c
     }
 }
 

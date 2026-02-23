@@ -48,7 +48,7 @@ class PlaceInfoRepository(
     }.flowOn(Dispatchers.IO)
     
     /**
-     * Get nearby places for given coordinates.
+     * Get nearby places for given coordinates using OpenTripMap API.
      * Returns Flow<List<PlaceInfo>> that emits list of places or completes with error.
      */
     fun getNearbyPlaces(
@@ -74,6 +74,46 @@ class PlaceInfoRepository(
     }.catch { e ->
         // Re-throw with more context
         throw Exception("Failed to fetch nearby places: ${e.message}", e)
+    }.flowOn(Dispatchers.IO)
+    
+    /**
+     * Get nearby places using Google Places API (Nearby Search).
+     * Returns Flow<List<PlaceInfo>> that emits list of places or completes with error.
+     * This provides better quality results with photos and ratings.
+     */
+    fun getGoogleNearbyPlaces(
+        latitude: Double,
+        longitude: Double,
+        radius: Int = 5000 // Default 5km radius (in meters)
+    ): Flow<List<PlaceInfo>> = flow {
+        val apiKey = getGooglePlacesApiKey()
+        if (apiKey.isBlank()) {
+            throw IllegalStateException("Google Places API key is not configured")
+        }
+        
+        val locationString = "$latitude,$longitude"
+        val response = googlePlacesApiService.nearbySearch(
+            location = locationString,
+            radius = radius,
+            apiKey = apiKey,
+            type = null, // null = all types
+            language = "en"
+        )
+        
+        if (response.status == "OK") {
+            val places = ApiMapper.toPlaceInfoListFromGoogleNearby(
+                response,
+                latitude,
+                longitude,
+                apiKey
+            )
+            emit(places)
+        } else {
+            throw Exception("Google Places API error: ${response.status}")
+        }
+    }.catch { e ->
+        // Re-throw with more context
+        throw Exception("Failed to fetch nearby places from Google: ${e.message}", e)
     }.flowOn(Dispatchers.IO)
     
     /**

@@ -20,10 +20,11 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
-        // API Keys - Read from local.properties or use empty string
+        // API Keys - Read from local.properties (NEVER commit API keys to git!)
         // Note: Open-Meteo doesn't require an API key (free and open source)
+        // Add keys to local.properties file (which is in .gitignore)
         buildConfigField("String", "OPENTRIPMAP_API_KEY", "\"${project.findProperty("OPENTRIPMAP_API_KEY") ?: ""}\"")
-        buildConfigField("String", "GOOGLE_PLACES_API_KEY", "\"${project.findProperty("GOOGLE_PLACES_API_KEY") ?: "AIzaSyAp2WRMMi1ntEXmgoqcdqBCOsxeB7DAz98"}\"")
+        buildConfigField("String", "GOOGLE_PLACES_API_KEY", "\"${project.findProperty("GOOGLE_PLACES_API_KEY") ?: ""}\"")
     }
 
     buildTypes {
@@ -93,6 +94,9 @@ dependencies {
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.play.services)
+    
+    // Google Play Services Location
+    implementation("com.google.android.gms:play-services-location:21.3.0")
     
     // Firebase - Use BOM for version management
     implementation(platform(libs.firebase.bom))

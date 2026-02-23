@@ -2,6 +2,7 @@ package com.example.triptip_yaron_and_alon.data.remote.api
 
 import com.example.triptip_yaron_and_alon.data.remote.api.dto.GooglePlacesAutocompleteResponseDto
 import com.example.triptip_yaron_and_alon.data.remote.api.dto.GooglePlaceDetailsResponseDto
+import com.example.triptip_yaron_and_alon.data.remote.api.dto.GooglePlacesNearbySearchResponseDto
 import retrofit2.http.GET
 import retrofit2.http.Query
 
@@ -34,4 +35,17 @@ interface GooglePlacesApiService {
         @Query("key") apiKey: String,
         @Query("fields") fields: String = "place_id,name,formatted_address,geometry,address_components,types"
     ): GooglePlaceDetailsResponseDto
+    
+    /**
+     * Nearby Search - returns places near a location.
+     * Use this to find places within a specified radius of a location.
+     */
+    @GET("nearbysearch/json")
+    suspend fun nearbySearch(
+        @Query("location") location: String, // "latitude,longitude"
+        @Query("radius") radius: Int, // in meters
+        @Query("key") apiKey: String,
+        @Query("type") type: String? = null, // e.g., "restaurant", "tourist_attraction", null = all types
+        @Query("language") language: String = "en"
+    ): GooglePlacesNearbySearchResponseDto
 }
