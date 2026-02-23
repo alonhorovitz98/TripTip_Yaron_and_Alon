@@ -14,8 +14,13 @@ import java.io.File
 
 class AvailablePostsAdapter(
     private val onAddClick: (Post) -> Unit,
-    private val excludedPostIds: Set<String> = emptySet()
+    private var excludedPostIds: Set<String> = emptySet()
 ) : ListAdapter<Post, AvailablePostsAdapter.PostViewHolder>(PostDiffCallback()) {
+    
+    fun updateExcludedIds(excludedIds: Set<String>) {
+        excludedPostIds = excludedIds
+        notifyDataSetChanged() // Refresh all items to update button visibility
+    }
     
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PostViewHolder {
         val binding = ItemAvailablePostBinding.inflate(

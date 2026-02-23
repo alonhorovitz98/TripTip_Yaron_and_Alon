@@ -77,6 +77,9 @@ dependencies {
     implementation(libs.androidx.recyclerview)
     implementation(libs.androidx.swiperefreshlayout)
     
+    // ViewPager2 for tabs
+    implementation("androidx.viewpager2:viewpager2:1.1.0")
+    
     // Networking
     implementation(libs.retrofit)
     implementation(libs.retrofit.gson)

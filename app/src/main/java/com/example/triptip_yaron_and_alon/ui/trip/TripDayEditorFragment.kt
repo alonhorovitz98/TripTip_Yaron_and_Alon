@@ -47,6 +47,7 @@ class TripDayEditorFragment : Fragment() {
         viewModel = ViewModelProvider(this)[TripViewModel::class.java]
         
         setupRecyclerViews()
+        setupListeners()
         observeViewModel()
         
         // Load day and available posts
@@ -56,6 +57,13 @@ class TripDayEditorFragment : Fragment() {
         // Load nearby places based on day's location
         // We'll need to get location from the day's items or trip
         // For now, we'll load places when a day with location is available
+    }
+    
+    private fun setupListeners() {
+        binding.btnDone.setOnClickListener {
+            // Navigate back - changes are already saved automatically
+            findNavController().popBackStack()
+        }
     }
     
     private fun setupRecyclerViews() {
@@ -80,9 +88,10 @@ class TripDayEditorFragment : Fragment() {
             layoutManager = LinearLayoutManager(context)
         }
         
-        // Available posts adapter
+        // Available posts adapter - create once and update excluded IDs
         availablePostsAdapter = AvailablePostsAdapter(
             onAddClick = { post ->
+                android.util.Log.d("TripDayEditor", "Add post clicked: ${post.id}")
                 viewModel.addItemToDay(args.dayId, post.id)
             },
             excludedPostIds = emptySet() // Will be updated when day loads
@@ -95,6 +104,7 @@ class TripDayEditorFragment : Fragment() {
         
         // Nearby places adapter
         nearbyPlacesAdapter = com.example.triptip_yaron_and_alon.ui.adapter.NearbyPlacesAdapter { place ->
+            android.util.Log.d("TripDayEditor", "Add place clicked: ${place.xid}")
             viewModel.addPlaceToDay(args.dayId, place)
         }
         
@@ -123,19 +133,14 @@ class TripDayEditorFragment : Fragment() {
                     binding.rvItems.visibility = View.VISIBLE
                 }
                 
-                // Update excluded post IDs for available posts adapter
+                // Update excluded post IDs for available posts adapter (don't recreate adapter)
                 val excludedIds = sortedItems.mapNotNull { it.postId }.toSet()
-                availablePostsAdapter = AvailablePostsAdapter(
-                    onAddClick = { post ->
-                        viewModel.addItemToDay(args.dayId, post.id)
-                    },
-                    excludedPostIds = excludedIds
-                )
-                binding.rvAvailablePosts.adapter = availablePostsAdapter
+                availablePostsAdapter.updateExcludedIds(excludedIds)
                 
-                // Update available posts list
+                // Update available posts list - filter out already added posts
                 viewModel.availablePosts.value?.let { posts ->
-                    availablePostsAdapter.submitList(posts)
+                    val filteredPosts = posts.filter { it.id !in excludedIds }
+                    availablePostsAdapter.submitList(filteredPosts)
                 }
                 
                 // Load nearby places if we have location from items
@@ -164,15 +169,11 @@ class TripDayEditorFragment : Fragment() {
         
         // Observe available posts
         viewModel.availablePosts.observe(viewLifecycleOwner) { posts ->
+            // Filter out already added posts
             val excludedIds = viewModel.currentDay.value?.items?.mapNotNull { it.postId }?.toSet() ?: emptySet()
-            availablePostsAdapter = AvailablePostsAdapter(
-                onAddClick = { post ->
-                    viewModel.addItemToDay(args.dayId, post.id)
-                },
-                excludedPostIds = excludedIds
-            )
-            binding.rvAvailablePosts.adapter = availablePostsAdapter
-            availablePostsAdapter.submitList(posts)
+            availablePostsAdapter.updateExcludedIds(excludedIds)
+            val filteredPosts = posts.filter { it.id !in excludedIds }
+            availablePostsAdapter.submitList(filteredPosts)
         }
         
         // Observe nearby places
@@ -211,10 +212,10 @@ class TripDayEditorFragment : Fragment() {
         viewModel.itemOperationResult.observe(viewLifecycleOwner) { result ->
             when (result) {
                 is Result.Success -> {
-                    Snackbar.make(binding.root, "Item updated successfully", Snackbar.LENGTH_SHORT).show()
+                    Snackbar.make(binding.root, "Item added successfully", Snackbar.LENGTH_SHORT).show()
                 }
                 is Result.Error -> {
-                    Snackbar.make(binding.root, result.message ?: "An error occurred", Snackbar.LENGTH_LONG).show()
+                    Snackbar.make(binding.root, result.message ?: "Failed to add item", Snackbar.LENGTH_LONG).show()
                 }
                 else -> {}
             }

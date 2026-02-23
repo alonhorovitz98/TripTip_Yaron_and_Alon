@@ -35,17 +35,24 @@ class MainActivity : AppCompatActivity() {
     
     private fun checkAutoLogin() {
         lifecycleScope.launch {
-            // Check login status immediately and navigate if logged in
+            // Check login status immediately and navigate accordingly
             val isLoggedIn = authViewModel.checkLoginStatusSync()
             
+            val navHostFragment = supportFragmentManager
+                .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
+            val navController = navHostFragment.navController
+            
             if (isLoggedIn) {
-                val navHostFragment = supportFragmentManager
-                    .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
-                val navController = navHostFragment.navController
-                
-                // Navigate to feed if we're on login screen
-                if (navController.currentDestination?.id == R.id.loginFragment) {
+                // User is logged in - navigate to feed if on login/register screen
+                val currentDestination = navController.currentDestination?.id
+                if (currentDestination == R.id.loginFragment || currentDestination == R.id.registerFragment) {
                     navController.navigate(R.id.action_loginFragment_to_feedFragment)
+                }
+            } else {
+                // User is not logged in - navigate to login if on feed
+                val currentDestination = navController.currentDestination?.id
+                if (currentDestination == R.id.feedFragment || currentDestination == null) {
+                    navController.navigate(R.id.loginFragment)
                 }
             }
             
@@ -55,14 +62,27 @@ class MainActivity : AppCompatActivity() {
         
         // Observe logged in state for future changes
         authViewModel.isLoggedIn.observe(this) { isLoggedIn ->
+            val navHostFragment = supportFragmentManager
+                .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
+            val navController = navHostFragment.navController
+            
             if (isLoggedIn) {
-                val navHostFragment = supportFragmentManager
-                    .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
-                val navController = navHostFragment.navController
-                
-                // Navigate to feed if we're on login screen
-                if (navController.currentDestination?.id == R.id.loginFragment) {
+                // User logged in - navigate to feed if on login/register screen
+                val currentDestination = navController.currentDestination?.id
+                if (currentDestination == R.id.loginFragment || currentDestination == R.id.registerFragment) {
                     navController.navigate(R.id.action_loginFragment_to_feedFragment)
+                }
+            } else {
+                // User logged out - navigate to login if on protected screens
+                val currentDestination = navController.currentDestination?.id
+                val protectedScreens = setOf(
+                    R.id.feedFragment,
+                    R.id.profileFragment,
+                    R.id.tripListFragment,
+                    R.id.createPostFragment
+                )
+                if (currentDestination in protectedScreens) {
+                    navController.navigate(R.id.loginFragment)
                 }
             }
         }

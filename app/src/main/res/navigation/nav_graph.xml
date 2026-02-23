@@ -32,9 +32,9 @@
     <!-- Main Flow -->
     <fragment
         android:id="@+id/feedFragment"
-        android:name="com.example.triptip_yaron_and_alon.ui.feed.FeedFragment"
+        android:name="com.example.triptip_yaron_and_alon.ui.feed.SocialFeedFragment"
         android:label="Feed"
-        tools:layout="@layout/fragment_feed">
+        tools:layout="@layout/fragment_social_feed">
         <action
             android:id="@+id/action_feedFragment_to_postDetailsFragment"
             app:destination="@id/postDetailsFragment">
