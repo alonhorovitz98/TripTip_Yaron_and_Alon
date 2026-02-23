@@ -133,8 +133,11 @@
             app:destination="@id/tripBuilderFragment">
             <argument
                 android:name="tripId"
+                app:argType="string" />
+            <argument
+                android:name="postId"
                 app:argType="string"
-                android:defaultValue="new" />
+                app:nullable="true" />
         </action>
         <action
             android:id="@+id/action_tripListFragment_to_tripDetailsFragment"
