@@ -7,15 +7,20 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.viewpager2.adapter.FragmentStateAdapter
+import androidx.viewpager2.widget.ViewPager2
 import coil.load
 import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.FragmentGooglePlaceDetailsBinding
-import com.example.triptip_yaron_and_alon.ui.adapter.ReviewAdapter
+import com.example.triptip_yaron_and_alon.ui.adapter.PhotoCarouselAdapter
 import com.google.android.material.snackbar.Snackbar
+import com.google.android.material.tabs.TabLayoutMediator
 
 /**
  * Google Place Details Fragment - Shows full details of a place including photos, reviews, opening hours, etc.
@@ -28,7 +33,9 @@ class GooglePlaceDetailsFragment : Fragment() {
     private val viewModel: GooglePlaceDetailsViewModel by viewModels()
     private val args: GooglePlaceDetailsFragmentArgs by navArgs()
     
-    private lateinit var reviewAdapter: ReviewAdapter
+    private lateinit var photoCarouselAdapter: PhotoCarouselAdapter
+    private lateinit var tabsAdapter: PlaceDetailsTabsAdapter
+    private var currentPlaceDetails: com.example.triptip_yaron_and_alon.data.remote.api.dto.PlaceDetailsResultDto? = null
     
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -42,7 +49,9 @@ class GooglePlaceDetailsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
-        setupRecyclerView()
+        setupPhotoCarousel()
+        setupTabs()
+        setupParallaxScrolling()
         setupListeners()
         observeViewModel()
         
@@ -50,12 +59,54 @@ class GooglePlaceDetailsFragment : Fragment() {
         viewModel.loadPlaceDetails(args.placeId)
     }
     
-    private fun setupRecyclerView() {
-        reviewAdapter = ReviewAdapter()
+    private fun setupParallaxScrolling() {
+        // Parallax scrolling effect on header image
+        binding.nestedScrollView.setOnScrollChangeListener { _, _, scrollY, _, _ ->
+            val imageSection = binding.imageSection
+            val imageHeight = imageSection.height
+            
+            // Parallax effect: move image slower than scroll (0.5x speed)
+            if (imageHeight > 0 && scrollY <= imageHeight) {
+                imageSection.translationY = scrollY * 0.5f
+                // Also apply subtle parallax to photo carousel
+                binding.viewPagerPhotos.translationY = scrollY * 0.3f
+            } else if (scrollY > imageHeight) {
+                // Reset when scrolled past
+                imageSection.translationY = imageHeight * 0.5f
+                binding.viewPagerPhotos.translationY = imageHeight * 0.3f
+            }
+        }
+    }
+    
+    private fun setupPhotoCarousel() {
+        photoCarouselAdapter = PhotoCarouselAdapter()
         
-        binding.rvReviews.apply {
-            adapter = reviewAdapter
-            layoutManager = LinearLayoutManager(context)
+        binding.viewPagerPhotos.apply {
+            adapter = photoCarouselAdapter
+            offscreenPageLimit = 1
+        }
+    }
+    
+    private fun setupTabs() {
+        // Setup ViewPager2 adapter
+        tabsAdapter = PlaceDetailsTabsAdapter(childFragmentManager, lifecycle)
+        binding.viewPagerTabs.adapter = tabsAdapter
+        
+        // Connect TabLayout with ViewPager2
+        TabLayoutMediator(binding.tabLayout, binding.viewPagerTabs) { tab, position ->
+            tab.text = when (position) {
+                0 -> "Overview"
+                1 -> "Reviews"
+                2 -> "Photos"
+                else -> ""
+            }
+        }.attach()
+        
+        // Pass data to fragments when they're ready
+        binding.viewPagerTabs.post {
+            currentPlaceDetails?.let { details ->
+                updateTabFragments(details)
+            }
         }
     }
     
@@ -65,29 +116,47 @@ class GooglePlaceDetailsFragment : Fragment() {
             findNavController().popBackStack()
         }
         
-        // Phone click
-        binding.tvPhone.setOnClickListener {
-            val phone = binding.tvPhone.text.toString()
-            if (phone.isNotBlank()) {
-                val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phone"))
-                startActivity(intent)
-            }
-        }
-        
-        // Website click
-        binding.tvWebsite.setOnClickListener {
-            val website = binding.tvWebsite.text.toString()
-            if (website.isNotBlank()) {
-                val url = if (!website.startsWith("http")) "https://$website" else website
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                startActivity(intent)
-            }
-        }
-        
         // Add to Trip button
         binding.btnAddToTrip.setOnClickListener {
             // TODO: Navigate to trip selection or add directly to a trip
             Snackbar.make(binding.root, "Add to Trip feature coming soon", Snackbar.LENGTH_SHORT).show()
+        }
+        
+        // Photo carousel page change listener for indicators
+        binding.viewPagerPhotos.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) {
+                super.onPageSelected(position)
+                updatePhotoIndicators(position)
+            }
+        })
+    }
+    
+    private fun updatePhotoIndicators(currentPosition: Int) {
+        val indicator = binding.photoIndicator
+        val photoCount = photoCarouselAdapter.itemCount
+        
+        if (photoCount > 1) {
+            indicator.visibility = View.VISIBLE
+            indicator.removeAllViews()
+            
+            for (i in 0 until photoCount) {
+                val dot = View(context).apply {
+                    layoutParams = ViewGroup.MarginLayoutParams(
+                        resources.getDimensionPixelSize(R.dimen.photo_indicator_size),
+                        resources.getDimensionPixelSize(R.dimen.photo_indicator_size)
+                    ).apply {
+                        marginEnd = if (i < photoCount - 1) 8 else 0
+                    }
+                    background = if (i == currentPosition) {
+                        resources.getDrawable(R.drawable.photo_indicator_selected, null)
+                    } else {
+                        resources.getDrawable(R.drawable.photo_indicator_unselected, null)
+                    }
+                }
+                indicator.addView(dot)
+            }
+        } else {
+            indicator.visibility = View.GONE
         }
     }
     
@@ -162,83 +231,64 @@ class GooglePlaceDetailsFragment : Fragment() {
             binding.tvCategories.visibility = View.GONE
         }
         
-        // Opening hours
-        if (details.openingHours != null) {
-            binding.openingHoursLayout.visibility = View.VISIBLE
-            val openNow = details.openingHours.openNow
-            val hoursText = if (openNow == true) {
-                "Open now"
-            } else if (openNow == false) {
-                "Closed now"
-            } else {
-                "Hours not available"
-            }
-            
-            // Add weekday text if available
-            val weekdayText = details.openingHours.weekdayText?.firstOrNull()
-            if (weekdayText != null) {
-                binding.tvOpeningHours.text = "$hoursText • $weekdayText"
-            } else {
-                binding.tvOpeningHours.text = hoursText
-            }
-        } else {
-            binding.openingHoursLayout.visibility = View.GONE
-        }
-        
-        // Phone
-        val phone = details.formattedPhoneNumber ?: details.internationalPhoneNumber
-        if (!phone.isNullOrBlank()) {
-            binding.phoneLayout.visibility = View.VISIBLE
-            binding.tvPhone.text = phone
-        } else {
-            binding.phoneLayout.visibility = View.GONE
-        }
-        
-        // Website
-        if (!details.website.isNullOrBlank()) {
-            binding.websiteLayout.visibility = View.VISIBLE
-            binding.tvWebsite.text = details.website
-        } else {
-            binding.websiteLayout.visibility = View.GONE
-        }
-        
-        // Overview / Editorial Summary
-        val overview = details.editorialSummary?.overview
-        if (!overview.isNullOrBlank()) {
-            binding.tvOverview.text = overview
-            binding.tvOverview.visibility = View.VISIBLE
-        } else {
-            binding.tvOverview.visibility = View.GONE
-        }
-        
-        // Photos - Load first photo
+        // Photos - Load all photos in carousel
         try {
             val apiKey = com.example.triptip_yaron_and_alon.BuildConfig.GOOGLE_PLACES_API_KEY
             if (!apiKey.isBlank() && !details.photos.isNullOrEmpty()) {
-                val firstPhoto = details.photos.first()
-                val photoUrl = "https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${firstPhoto.photoReference}&key=$apiKey"
-                
-                binding.ivPlacePhoto.load(photoUrl) {
-                    placeholder(R.drawable.ic_placeholder_image)
-                    error(R.drawable.ic_placeholder_image)
-                    crossfade(true)
+                val photoUrls = details.photos.map { photo ->
+                    "https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${photo.photoReference}&key=$apiKey"
                 }
+                photoCarouselAdapter.submitList(photoUrls)
+                updatePhotoIndicators(0)
             } else {
-                binding.ivPlacePhoto.setImageResource(R.drawable.ic_placeholder_image)
+                // Show placeholder
+                photoCarouselAdapter.submitList(listOf())
             }
         } catch (e: Exception) {
-            // Fallback if BuildConfig is not available
-            binding.ivPlacePhoto.setImageResource(R.drawable.ic_placeholder_image)
+            photoCarouselAdapter.submitList(listOf())
         }
         
-        // Reviews
-        if (!details.reviews.isNullOrEmpty()) {
-            binding.tvReviewsTitle.visibility = View.VISIBLE
-            binding.rvReviews.visibility = View.VISIBLE
-            reviewAdapter.submitList(details.reviews.take(5)) // Show first 5 reviews
-        } else {
-            binding.tvReviewsTitle.visibility = View.GONE
-            binding.rvReviews.visibility = View.GONE
+        // Store details and pass to tab fragments
+        currentPlaceDetails = details
+        updateTabFragments(details)
+    }
+    
+    private fun updateTabFragments(details: com.example.triptip_yaron_and_alon.data.remote.api.dto.PlaceDetailsResultDto) {
+        // Update tab fragments if they exist
+        val overviewFragment = tabsAdapter.getFragment(0) as? PlaceDetailsOverviewFragment
+        val reviewsFragment = tabsAdapter.getFragment(1) as? PlaceDetailsReviewsFragment
+        val photosFragment = tabsAdapter.getFragment(2) as? PlaceDetailsPhotosFragment
+        
+        overviewFragment?.setPlaceDetails(details)
+        reviewsFragment?.setPlaceDetails(details)
+        photosFragment?.setPlaceDetails(details)
+    }
+    
+    /**
+     * ViewPager2 Adapter for place details tabs
+     */
+    private class PlaceDetailsTabsAdapter(
+        fragmentManager: FragmentManager,
+        lifecycle: Lifecycle
+    ) : FragmentStateAdapter(fragmentManager, lifecycle) {
+        
+        private val fragments = mutableMapOf<Int, Fragment>()
+        
+        override fun getItemCount(): Int = 3
+        
+        override fun createFragment(position: Int): Fragment {
+            val fragment = when (position) {
+                0 -> PlaceDetailsOverviewFragment()
+                1 -> PlaceDetailsReviewsFragment()
+                2 -> PlaceDetailsPhotosFragment()
+                else -> PlaceDetailsOverviewFragment()
+            }
+            fragments[position] = fragment
+            return fragment
+        }
+        
+        fun getFragment(position: Int): Fragment? {
+            return fragments[position]
         }
     }
     

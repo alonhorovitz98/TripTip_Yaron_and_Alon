@@ -34,6 +34,7 @@ class NearbyPlacesFragment : Fragment() {
     
     private val viewModel: NearbyPlacesViewModel by viewModels()
     private lateinit var placeAdapter: com.example.triptip_yaron_and_alon.ui.adapter.NearbyPlaceAdapter
+    private lateinit var skeletonAdapter: com.example.triptip_yaron_and_alon.ui.adapter.SkeletonPlaceAdapter
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     
     companion object {
@@ -77,8 +78,10 @@ class NearbyPlacesFragment : Fragment() {
             }
         )
         
+        skeletonAdapter = com.example.triptip_yaron_and_alon.ui.adapter.SkeletonPlaceAdapter(5)
+        
         binding.rvPlaces.apply {
-            adapter = placeAdapter
+            adapter = skeletonAdapter // Start with skeleton
             layoutManager = LinearLayoutManager(context)
             setHasFixedSize(true)
             
@@ -111,17 +114,27 @@ class NearbyPlacesFragment : Fragment() {
         binding.swipeRefresh.setOnRefreshListener {
             requestLocationAndLoadPlaces()
         }
+        
+        // Empty state refresh button
+        binding.emptyState.btnRefresh.setOnClickListener {
+            requestLocationAndLoadPlaces()
+        }
     }
     
     private fun observeViewModel() {
         // Observe places
         viewModel.places.observe(viewLifecycleOwner) { places ->
-            if (places.isEmpty()) {
-                binding.tvEmptyState.visibility = View.VISIBLE
+            if (places.isEmpty() && !viewModel.isLoading.value!!) {
+                // Show empty state only if not loading
+                binding.emptyState.visibility = View.VISIBLE
                 binding.rvPlaces.visibility = View.GONE
-            } else {
-                binding.tvEmptyState.visibility = View.GONE
+            } else if (places.isNotEmpty()) {
+                binding.emptyState.visibility = View.GONE
                 binding.rvPlaces.visibility = View.VISIBLE
+                // Switch to real adapter when we have data
+                if (binding.rvPlaces.adapter != placeAdapter) {
+                    binding.rvPlaces.adapter = placeAdapter
+                }
                 placeAdapter.submitList(places)
             }
         }
@@ -129,7 +142,13 @@ class NearbyPlacesFragment : Fragment() {
         // Observe loading
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
             if (isLoading && (viewModel.places.value == null || viewModel.places.value!!.isEmpty())) {
-                binding.progressBar.visibility = View.VISIBLE
+                // Show skeleton loader
+                binding.progressBar.visibility = View.GONE
+                binding.emptyState.visibility = View.GONE
+                binding.rvPlaces.visibility = View.VISIBLE
+                if (binding.rvPlaces.adapter != skeletonAdapter) {
+                    binding.rvPlaces.adapter = skeletonAdapter
+                }
             } else {
                 binding.progressBar.visibility = View.GONE
                 binding.swipeRefresh.isRefreshing = false

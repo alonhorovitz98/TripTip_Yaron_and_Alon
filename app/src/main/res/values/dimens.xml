@@ -67,4 +67,7 @@
     <dimen name="text_size_xl">20sp</dimen>
     <dimen name="text_size_xxl">24sp</dimen>
     <dimen name="text_size_xxxl">32sp</dimen>
+    
+    <!-- Photo Indicators -->
+    <dimen name="photo_indicator_size">8dp</dimen>
 </resources>
