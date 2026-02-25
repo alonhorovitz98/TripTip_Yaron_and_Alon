@@ -182,7 +182,7 @@ object ApiMapper {
         }?.longName
         
         return LocationSuggestion(
-            displayName = result.formattedAddress,
+            displayName = result.formattedAddress ?: result.name ?: "Unknown location",
             latitude = location?.lat ?: 0.0,
             longitude = location?.lng ?: 0.0,
             placeId = null, // Nominatim place_id not applicable

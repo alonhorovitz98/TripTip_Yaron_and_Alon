@@ -30,24 +30,6 @@
         <item name="android:navigationBarColor">@color/background_white</item>
     </style>
     
-    <!-- Button Styles -->
-    <style name="Widget.TripTip.Button.Primary" parent="Widget.Material3.Button">
-        <item name="backgroundTint">@color/orange_primary</item>
-        <item name="android:textColor">@color/text_white</item>
-        <item name="cornerRadius">12dp</item>
-        <item name="android:textStyle">bold</item>
-    </style>
+    <!-- Button and Card styles moved to styles.xml to avoid duplicates -->
     
-    <style name="Widget.TripTip.Button.Outlined" parent="Widget.Material3.Button.OutlinedButton">
-        <item name="strokeColor">@color/orange_primary</item>
-        <item name="android:textColor">@color/orange_primary</item>
-        <item name="cornerRadius">12dp</item>
-    </style>
-    
-    <!-- Card Style - Use MaterialCardView style -->
-    <style name="Widget.TripTip.Card" parent="Widget.MaterialComponents.CardView">
-        <item name="cardCornerRadius">@dimen/corner_radius_medium</item>
-        <item name="cardElevation">@dimen/card_elevation_medium</item>
-        <item name="cardBackgroundColor">@color/card_background</item>
-    </style>
 </resources>

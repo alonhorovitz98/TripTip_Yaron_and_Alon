@@ -126,10 +126,10 @@ class NearbyPlacesFragment : Fragment() {
         viewModel.places.observe(viewLifecycleOwner) { places ->
             if (places.isEmpty() && !viewModel.isLoading.value!!) {
                 // Show empty state only if not loading
-                binding.emptyState.visibility = View.VISIBLE
+                binding.emptyState.root.visibility = View.VISIBLE
                 binding.rvPlaces.visibility = View.GONE
             } else if (places.isNotEmpty()) {
-                binding.emptyState.visibility = View.GONE
+                binding.emptyState.root.visibility = View.GONE
                 binding.rvPlaces.visibility = View.VISIBLE
                 // Switch to real adapter when we have data
                 if (binding.rvPlaces.adapter != placeAdapter) {
@@ -144,7 +144,7 @@ class NearbyPlacesFragment : Fragment() {
             if (isLoading && (viewModel.places.value == null || viewModel.places.value!!.isEmpty())) {
                 // Show skeleton loader
                 binding.progressBar.visibility = View.GONE
-                binding.emptyState.visibility = View.GONE
+                binding.emptyState.root.visibility = View.GONE
                 binding.rvPlaces.visibility = View.VISIBLE
                 if (binding.rvPlaces.adapter != skeletonAdapter) {
                     binding.rvPlaces.adapter = skeletonAdapter

@@ -52,15 +52,21 @@ class PostDetailsFragment : Fragment() {
     }
     
     private fun setupRecyclerView() {
-        placesAdapter = NearbyPlaceAdapter { place ->
-            // Navigate to TripDayEditorFragment with place info
-            // For now, show a message - can be enhanced to navigate to trip builder
-            Snackbar.make(
-                binding.root,
-                "Tap 'Add to Trip' to add this place to your trip",
-                Snackbar.LENGTH_LONG
-            ).show()
-        }
+        placesAdapter = NearbyPlaceAdapter(
+            onAddToTripClick = { place ->
+                // Navigate to TripDayEditorFragment with place info
+                // For now, show a message - can be enhanced to navigate to trip builder
+                Snackbar.make(
+                    binding.root,
+                    "Tap 'Add to Trip' to add this place to your trip",
+                    Snackbar.LENGTH_LONG
+                ).show()
+            },
+            onPlaceClick = { place ->
+                // Navigate to place details if needed
+                // For now, do nothing
+            }
+        )
         
         binding.rvNearbyPlaces.apply {
             adapter = placesAdapter

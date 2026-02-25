@@ -103,10 +103,16 @@ class TripDayEditorFragment : Fragment() {
         }
         
         // Nearby places adapter
-        nearbyPlacesAdapter = com.example.triptip_yaron_and_alon.ui.adapter.NearbyPlaceAdapter { place ->
-            android.util.Log.d("TripDayEditor", "Add place clicked: ${place.xid}")
-            viewModel.addPlaceToDay(args.dayId, place)
-        }
+        nearbyPlacesAdapter = com.example.triptip_yaron_and_alon.ui.adapter.NearbyPlaceAdapter(
+            onAddToTripClick = { place ->
+                android.util.Log.d("TripDayEditor", "Add place clicked: ${place.xid}")
+                viewModel.addPlaceToDay(args.dayId, place)
+            },
+            onPlaceClick = { place ->
+                // Navigate to place details if needed
+                // For now, do nothing
+            }
+        )
         
         binding.rvNearbyPlaces.apply {
             adapter = nearbyPlacesAdapter

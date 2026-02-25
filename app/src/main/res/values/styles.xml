@@ -51,32 +51,34 @@
         <item name="strokeColor">@color/divider</item>
     </style>
     
-    <!-- Text Styles -->
-    <style name="TextAppearance.TripTip.Headline">
+    <!-- Base TextAppearance style (required for typography.xml styles using dot notation) -->
+    <style name="TextAppearance.TripTip" parent="@android:style/TextAppearance">
+        <item name="android:textColor">@color/text_primary</item>
+    </style>
+    
+    <!-- Text Styles - Using underscore instead of dot to avoid parent resolution issues -->
+    <style name="TextAppearance_TripTip_Headline" parent="@android:style/TextAppearance">
         <item name="android:textSize">24sp</item>
         <item name="android:textStyle">bold</item>
         <item name="android:textColor">@color/text_primary</item>
         <item name="android:letterSpacing">-0.01</item>
     </style>
     
-    <style name="TextAppearance.TripTip.Title">
+    <style name="TextAppearance_TripTip_Title" parent="@android:style/TextAppearance">
         <item name="android:textSize">20sp</item>
         <item name="android:textStyle">bold</item>
         <item name="android:textColor">@color/text_primary</item>
     </style>
     
-    <style name="TextAppearance.TripTip.Body">
+    <style name="TextAppearance_TripTip_Body" parent="@android:style/TextAppearance">
         <item name="android:textSize">16sp</item>
         <item name="android:textColor">@color/text_primary</item>
         <item name="android:lineSpacingMultiplier">1.2</item>
     </style>
     
-    <style name="TextAppearance.TripTip.Caption">
-        <item name="android:textSize">14sp</item>
-        <item name="android:textColor">@color/text_secondary</item>
-    </style>
+    <!-- TextAppearance.TripTip.Caption is defined in typography.xml -->
     
-    <style name="TextAppearance.TripTip.Overline">
+    <style name="TextAppearance_TripTip_Overline" parent="@android:style/TextAppearance">
         <item name="android:textSize">12sp</item>
         <item name="android:textColor">@color/text_secondary</item>
         <item name="android:textStyle">bold</item>
