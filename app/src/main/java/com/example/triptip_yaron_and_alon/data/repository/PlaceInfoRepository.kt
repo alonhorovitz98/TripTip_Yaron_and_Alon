@@ -78,27 +78,36 @@ class PlaceInfoRepository(
     
     /**
      * Get nearby places using Google Places API (Nearby Search).
-     * Returns Flow<List<PlaceInfo>> that emits list of places or completes with error.
+     * Returns Flow<NearbyPlacesResult> that emits places and nextPageToken for pagination.
      * This provides better quality results with photos and ratings.
      */
     fun getGoogleNearbyPlaces(
         latitude: Double,
         longitude: Double,
-        radius: Int = 5000 // Default 5km radius (in meters)
-    ): Flow<List<PlaceInfo>> = flow {
+        radius: Int = 5000, // Default 5km radius (in meters)
+        pageToken: String? = null // For pagination
+    ): Flow<com.example.triptip_yaron_and_alon.domain.model.NearbyPlacesResult> = flow {
         val apiKey = getGooglePlacesApiKey()
+        android.util.Log.d("PlaceInfoRepo", "API Key length: ${apiKey.length}, isBlank: ${apiKey.isBlank()}")
+        
         if (apiKey.isBlank()) {
+            android.util.Log.e("PlaceInfoRepo", "Google Places API key is not configured!")
             throw IllegalStateException("Google Places API key is not configured")
         }
         
         val locationString = "$latitude,$longitude"
+        android.util.Log.d("PlaceInfoRepo", "Calling Google Places API: location=$locationString, radius=$radius, pageToken=${pageToken?.take(20)}...")
+        
         val response = googlePlacesApiService.nearbySearch(
             location = locationString,
             radius = radius,
             apiKey = apiKey,
             type = null, // null = all types
-            language = "en"
+            language = "en",
+            pagetoken = pageToken
         )
+        
+        android.util.Log.d("PlaceInfoRepo", "API Response status: ${response.status}, results count: ${response.results.size}, hasNextPage: ${response.nextPageToken != null}")
         
         if (response.status == "OK") {
             val places = ApiMapper.toPlaceInfoListFromGoogleNearby(
@@ -107,11 +116,17 @@ class PlaceInfoRepository(
                 longitude,
                 apiKey
             )
-            emit(places)
+            android.util.Log.d("PlaceInfoRepo", "Mapped ${places.size} places")
+            emit(com.example.triptip_yaron_and_alon.domain.model.NearbyPlacesResult(
+                places = places,
+                nextPageToken = response.nextPageToken
+            ))
         } else {
+            android.util.Log.e("PlaceInfoRepo", "Google Places API error: ${response.status}")
             throw Exception("Google Places API error: ${response.status}")
         }
     }.catch { e ->
+        android.util.Log.e("PlaceInfoRepo", "Exception in getGoogleNearbyPlaces: ${e.message}", e)
         // Re-throw with more context
         throw Exception("Failed to fetch nearby places from Google: ${e.message}", e)
     }.flowOn(Dispatchers.IO)
@@ -210,6 +225,37 @@ class PlaceInfoRepository(
             throw Exception("Place not found: ${response.status}")
         }
     }.catch { e ->
+        throw Exception("Failed to get place details: ${e.message}", e)
+    }.flowOn(Dispatchers.IO)
+    
+    /**
+     * Get full place details from Google Places API by place_id.
+     * Returns complete PlaceDetailsResultDto with photos, reviews, opening hours, etc.
+     * Use this for displaying detailed place information screen.
+     */
+    fun getFullPlaceDetails(placeId: String): Flow<com.example.triptip_yaron_and_alon.data.remote.api.dto.PlaceDetailsResultDto> = flow {
+        val apiKey = getGooglePlacesApiKey()
+        if (apiKey.isBlank()) {
+            throw IllegalStateException("Google Places API key is not configured")
+        }
+        
+        android.util.Log.d("PlaceInfoRepo", "Fetching full details for placeId=$placeId")
+        
+        val response = googlePlacesApiService.getPlaceDetails(
+            placeId = placeId,
+            apiKey = apiKey
+        )
+        
+        android.util.Log.d("PlaceInfoRepo", "Place details response status: ${response.status}")
+        
+        if (response.status == "OK" && response.result != null) {
+            emit(response.result)
+        } else {
+            android.util.Log.e("PlaceInfoRepo", "Place not found: ${response.status}")
+            throw Exception("Place not found: ${response.status}")
+        }
+    }.catch { e ->
+        android.util.Log.e("PlaceInfoRepo", "Exception in getFullPlaceDetails: ${e.message}", e)
         throw Exception("Failed to get place details: ${e.message}", e)
     }.flowOn(Dispatchers.IO)
     

@@ -27,13 +27,13 @@ interface GooglePlacesApiService {
     
     /**
      * Get place details by place_id.
-     * Use this after user selects a suggestion to get full details including coordinates.
+     * Use this after user selects a suggestion to get full details including coordinates, photos, reviews, etc.
      */
     @GET("details/json")
     suspend fun getPlaceDetails(
         @Query("place_id") placeId: String,
         @Query("key") apiKey: String,
-        @Query("fields") fields: String = "place_id,name,formatted_address,geometry,address_components,types"
+        @Query("fields") fields: String = "place_id,name,formatted_address,geometry,address_components,types,formatted_phone_number,international_phone_number,website,rating,user_ratings_total,opening_hours,photos,reviews,editorial_summary,vicinity"
     ): GooglePlaceDetailsResponseDto
     
     /**
@@ -46,6 +46,7 @@ interface GooglePlacesApiService {
         @Query("radius") radius: Int, // in meters
         @Query("key") apiKey: String,
         @Query("type") type: String? = null, // e.g., "restaurant", "tourist_attraction", null = all types
-        @Query("language") language: String = "en"
+        @Query("language") language: String = "en",
+        @Query("pagetoken") pagetoken: String? = null // For pagination
     ): GooglePlacesNearbySearchResponseDto
 }

@@ -204,23 +204,77 @@ object ApiMapper {
         referenceLon: Double,
         apiKey: String
     ): List<PlaceInfo> {
-        return dto.results.mapNotNull { place ->
+        // Travel-relevant place types (what we WANT to show)
+        // Priority types (will be sorted first): park, museum, tourist_attraction
+        val priorityTypes = setOf("park", "museum", "tourist_attraction", "art_gallery", "zoo", "aquarium")
+        
+        val travelRelevantTypes = setOf(
+            // Priority: Parks, Museums, Tourist Attractions (shown first)
+            "park", "museum", "tourist_attraction", "art_gallery", "zoo", "aquarium",
+            // Food & Dining
+            "restaurant", "cafe", "bakery", "food", "meal_takeaway", "meal_delivery",
+            "bar", "night_club",
+            // Attractions & Entertainment
+            "point_of_interest", "amusement_park", "theme_park", "stadium", "casino",
+            // Shopping (only malls, no individual stores)
+            "shopping_mall",
+            // Accommodation
+            "lodging", "hotel",
+            // Transportation & Services
+            "airport", "subway_station", "train_station", "bus_station",
+            "transit_station", "light_rail_station", "parking", "car_rental", "travel_agency",
+            // Religious & Cultural
+            "church", "mosque", "synagogue", "hindu_temple", "place_of_worship",
+            // Nature & Views
+            "natural_feature", "campground"
+        )
+
+        // Types we explicitly want to EXCLUDE from the feed
+        val excludedTypes = setOf(
+            "locality", "political", "administrative_area_level_1", "administrative_area_level_2",
+            "administrative_area_level_3", "administrative_area_level_4", "administrative_area_level_5",
+            "country", "postal_code",
+            "route", "street_address", "intersection", "premise", "subpremise",
+            "plus_code",
+            // Non-travel business/services
+            "accounting", "lawyer", "dentist", "doctor", "hospital", "pharmacy",
+            "veterinary_care", "funeral_home", "cemetery",
+            // Education
+            "school", "primary_school", "secondary_school", "university"
+        )
+
+        val mappedPlaces = dto.results.mapNotNull { place ->
             try {
-                val location = place.geometry?.location
-                if (location == null) return@mapNotNull null
-                
+                val location = place.geometry?.location ?: return@mapNotNull null
+                val types = place.types ?: emptyList()
+
+                // Skip if it has any excluded type as the main type (first in list)
+                val primaryType = types.firstOrNull()
+                if (primaryType != null && primaryType in excludedTypes) {
+                    return@mapNotNull null
+                }
+
+                // Require at least one travel-relevant type
+                val hasRelevantType = types.any { it in travelRelevantTypes }
+                if (!hasRelevantType) {
+                    return@mapNotNull null
+                }
+
                 // Calculate distance in meters using Haversine formula
                 val distance = calculateDistance(
                     referenceLat, referenceLon,
                     location.lat, location.lng
                 )
-                
+
                 // Generate photo URL if photo reference is available
                 val photoUrl = place.photos?.firstOrNull()?.let { photo ->
                     // Google Places Photo API URL
                     "https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photo.photoReference}&key=$apiKey"
                 }
-                
+
+                // Only keep travel-relevant categories in the model
+                val filteredCategories = types.filter { it in travelRelevantTypes }
+
                 PlaceInfo(
                     xid = place.placeId, // Store Google place_id in xid field
                     name = place.name,
@@ -228,13 +282,27 @@ object ApiMapper {
                     latitude = location.lat,
                     longitude = location.lng,
                     imageUrl = photoUrl,
-                    categories = place.types ?: emptyList(),
+                    categories = filteredCategories,
                     distance = distance
                 )
             } catch (e: Exception) {
                 null // Skip invalid places
             }
         }
+        
+        // Sort: Priority types first (parks, museums, tourist_attractions), then by distance
+        return mappedPlaces.sortedWith(compareBy(
+            { place ->
+                // Higher priority for parks, museums, tourist_attractions
+                when {
+                    place.categories.contains("park") -> 0
+                    place.categories.contains("museum") -> 1
+                    place.categories.contains("tourist_attraction") -> 2
+                    else -> 3
+                }
+            },
+            { place -> place.distance ?: Double.MAX_VALUE } // Then by distance
+        ))
     }
     
     /**

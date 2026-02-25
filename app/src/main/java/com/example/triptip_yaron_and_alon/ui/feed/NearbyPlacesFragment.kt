@@ -11,12 +11,15 @@ import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.ViewModelProvider
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.FragmentNearbyPlacesBinding
 import com.example.triptip_yaron_and_alon.domain.model.PlaceInfo
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import com.google.android.material.snackbar.Snackbar
 
 /**
@@ -60,14 +63,46 @@ class NearbyPlacesFragment : Fragment() {
     }
     
     private fun setupRecyclerView() {
-        placeAdapter = com.example.triptip_yaron_and_alon.ui.adapter.NearbyPlaceAdapter { place ->
-            onAddToTripClick(place)
-        }
+        placeAdapter = com.example.triptip_yaron_and_alon.ui.adapter.NearbyPlaceAdapter(
+            onAddToTripClick = { place ->
+                onAddToTripClick(place)
+            },
+            onPlaceClick = { place ->
+                // Navigate to place details screen
+                // Use place.xid as placeId (it contains Google place_id)
+                val action = com.example.triptip_yaron_and_alon.ui.feed.SocialFeedFragmentDirections
+                    .actionFeedFragmentToGooglePlaceDetailsFragment(place.xid)
+                findNavController().navigate(action)
+            }
+        )
         
         binding.rvPlaces.apply {
             adapter = placeAdapter
             layoutManager = LinearLayoutManager(context)
             setHasFixedSize(true)
+            
+            // Endless scrolling - load more when reaching the end
+            addOnScrollListener(object : RecyclerView.OnScrollListener() {
+                override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                    super.onScrolled(recyclerView, dx, dy)
+                    
+                    val layoutManager = recyclerView.layoutManager as LinearLayoutManager
+                    val visibleItemCount = layoutManager.childCount
+                    val totalItemCount = layoutManager.itemCount
+                    val firstVisibleItemPosition = layoutManager.findFirstVisibleItemPosition()
+                    
+                    // Load more when reaching near the end (within 3 items of the end)
+                    if ((visibleItemCount + firstVisibleItemPosition) >= totalItemCount - 3
+                        && firstVisibleItemPosition >= 0
+                        && totalItemCount >= 10
+                        && viewModel.hasMorePages()
+                        && viewModel.isLoadingMore.value != true
+                    ) {
+                        android.util.Log.d("NearbyPlaces", "Loading more places...")
+                        viewModel.loadMorePlaces()
+                    }
+                }
+            })
         }
     }
     
@@ -98,6 +133,12 @@ class NearbyPlacesFragment : Fragment() {
                 binding.progressBar.visibility = View.GONE
                 binding.swipeRefresh.isRefreshing = false
             }
+        }
+        
+        // Observe loading more (for pagination)
+        viewModel.isLoadingMore.observe(viewLifecycleOwner) { isLoadingMore ->
+            // You can show a loading indicator at the bottom if needed
+            // For now, we'll just let it load silently
         }
         
         // Observe error
@@ -134,13 +175,44 @@ class NearbyPlacesFragment : Fragment() {
             return
         }
         
-        // Get last known location
-        fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
+        // Try to get a fresh current location with high accuracy
+        fusedLocationClient.getCurrentLocation(
+            Priority.PRIORITY_HIGH_ACCURACY,
+            null // no cancellation token
+        ).addOnSuccessListener { location: Location? ->
             if (location != null) {
+                android.util.Log.d(
+                    "NearbyPlaces",
+                    "Current location: lat=${location.latitude}, lon=${location.longitude}"
+                )
                 viewModel.loadNearbyPlaces(location.latitude, location.longitude)
             } else {
-                // Location not available, show error
-                binding.tvError.text = "Location not available. Please enable location services."
+                android.util.Log.d(
+                    "NearbyPlaces",
+                    "Current location unavailable, falling back to last known location"
+                )
+                // Fallback to last known location if current location is not available
+                loadFromLastKnownLocation()
+            }
+        }.addOnFailureListener { e ->
+            android.util.Log.e("NearbyPlaces", "Failed to get current location: ${e.message}")
+            // Fallback to last known location on failure
+            loadFromLastKnownLocation(errorMessage = e.message)
+        }
+    }
+
+    private fun loadFromLastKnownLocation(errorMessage: String? = null) {
+        fusedLocationClient.lastLocation.addOnSuccessListener { lastLocation: Location? ->
+            if (lastLocation != null) {
+                android.util.Log.d(
+                    "NearbyPlaces",
+                    "Using last known location: lat=${lastLocation.latitude}, lon=${lastLocation.longitude}"
+                )
+                viewModel.loadNearbyPlaces(lastLocation.latitude, lastLocation.longitude)
+            } else {
+                binding.tvError.text = errorMessage?.let {
+                    "Failed to get location: $it"
+                } ?: "Location not available. Please enable location services and try again."
                 binding.tvError.visibility = View.VISIBLE
                 binding.progressBar.visibility = View.GONE
                 binding.swipeRefresh.isRefreshing = false

@@ -26,6 +26,9 @@
     <color name="input_background">#F5F5F5</color>
     <color name="input_border">#E0E0E0</color>
     
+    <!-- Divider Color -->
+    <color name="divider">#E0E0E0</color>
+    
     <!-- Card Colors -->
     <color name="card_background">#FFFFFF</color>
     <color name="card_shadow">#1A000000</color>

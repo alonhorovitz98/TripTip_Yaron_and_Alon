@@ -17,7 +17,8 @@ import java.text.DecimalFormat
  * Each item shows place name, photo, address, and "Add to Trip" button.
  */
 class NearbyPlaceAdapter(
-    private val onAddToTripClick: (PlaceInfo) -> Unit
+    private val onAddToTripClick: (PlaceInfo) -> Unit,
+    private val onPlaceClick: (PlaceInfo) -> Unit
 ) : ListAdapter<PlaceInfo, NearbyPlaceAdapter.PlaceViewHolder>(PlaceDiffCallback()) {
     
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PlaceViewHolder {
@@ -26,7 +27,7 @@ class NearbyPlaceAdapter(
             parent,
             false
         )
-        return PlaceViewHolder(binding, onAddToTripClick)
+        return PlaceViewHolder(binding, onAddToTripClick, onPlaceClick)
     }
     
     override fun onBindViewHolder(holder: PlaceViewHolder, position: Int) {
@@ -35,7 +36,8 @@ class NearbyPlaceAdapter(
     
     class PlaceViewHolder(
         private val binding: ItemNearbyPlaceBinding,
-        private val onAddToTripClick: (PlaceInfo) -> Unit
+        private val onAddToTripClick: (PlaceInfo) -> Unit,
+        private val onPlaceClick: (PlaceInfo) -> Unit
     ) : RecyclerView.ViewHolder(binding.root) {
         
         fun bind(place: PlaceInfo) {
@@ -79,6 +81,11 @@ class NearbyPlaceAdapter(
                     tvCategories.visibility = View.VISIBLE
                 } else {
                     tvCategories.visibility = View.GONE
+                }
+                
+                // Card click - navigate to details
+                root.setOnClickListener {
+                    onPlaceClick(place)
                 }
                 
                 // Add to Trip button

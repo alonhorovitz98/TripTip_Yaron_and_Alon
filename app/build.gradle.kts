@@ -1,9 +1,20 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.kapt)
     alias(libs.plugins.navigation.safe.args)
     alias(libs.plugins.google.services)
+}
+
+// Load local.properties file manually
+val localPropertiesFile = rootProject.file("local.properties")
+val localProperties = Properties()
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.inputStream().use { stream ->
+        localProperties.load(stream)
+    }
 }
 
 android {
@@ -23,8 +34,10 @@ android {
         // API Keys - Read from local.properties (NEVER commit API keys to git!)
         // Note: Open-Meteo doesn't require an API key (free and open source)
         // Add keys to local.properties file (which is in .gitignore)
-        buildConfigField("String", "OPENTRIPMAP_API_KEY", "\"${project.findProperty("OPENTRIPMAP_API_KEY") ?: ""}\"")
-        buildConfigField("String", "GOOGLE_PLACES_API_KEY", "\"${project.findProperty("GOOGLE_PLACES_API_KEY") ?: ""}\"")
+        val opentripmapApiKey = localProperties.getProperty("OPENTRIPMAP_API_KEY", "")
+        val googlePlacesApiKey = localProperties.getProperty("GOOGLE_PLACES_API_KEY", "")
+        buildConfigField("String", "OPENTRIPMAP_API_KEY", "\"$opentripmapApiKey\"")
+        buildConfigField("String", "GOOGLE_PLACES_API_KEY", "\"$googlePlacesApiKey\"")
     }
 
     buildTypes {
