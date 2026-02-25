@@ -8,26 +8,54 @@
     android:layout_marginEnd="8dp"
     android:layout_marginTop="8dp"
     android:layout_marginBottom="8dp"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="2dp"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="4dp"
     app:cardBackgroundColor="@color/background_white"
     android:clickable="true"
-    android:focusable="true">
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
-        <!-- Place Photo -->
-        <ImageView
-            android:id="@+id/ivPlacePhoto"
+        <!-- Place Photo with Gradient Overlay -->
+        <FrameLayout
+            android:id="@+id/photoContainer"
             android:layout_width="0dp"
             android:layout_height="200dp"
-            android:scaleType="centerCrop"
-            android:background="@color/background_light"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            app:layout_constraintEnd_toEndOf="parent">
+            
+            <ImageView
+                android:id="@+id/ivPlacePhoto"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:background="@color/background_light"
+                android:transitionName="place_photo" />
+            
+            <!-- Gradient Overlay Bottom -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="80dp"
+                android:layout_gravity="bottom"
+                android:background="@drawable/gradient_overlay_bottom" />
+            
+            <!-- Quick Action Button (Favorite) -->
+            <ImageButton
+                android:id="@+id/btnFavorite"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_gravity="top|end"
+                android:layout_margin="12dp"
+                android:src="@drawable/ic_heart"
+                android:background="@drawable/circle_background_white"
+                android:contentDescription="Favorite"
+                android:tint="@color/orange_primary"
+                android:visibility="gone" />
+        </FrameLayout>
 
         <!-- Place Info Container -->
         <LinearLayout
@@ -109,11 +137,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Add to Trip"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                android:backgroundTint="@color/orange_primary"
-                app:cornerRadius="8dp"
-                style="@style/Widget.Material3.Button" />
+                style="@style/Widget.TripTip.Button.Primary" />
 
         </LinearLayout>
 

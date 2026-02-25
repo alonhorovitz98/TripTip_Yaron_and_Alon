@@ -26,14 +26,38 @@
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintHeight_percent="0.4">
 
-                <!-- Place Photo -->
-                <ImageView
-                    android:id="@+id/ivPlacePhoto"
+                <!-- Place Photo with Gradient Overlay -->
+                <FrameLayout
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:scaleType="centerCrop"
-                    android:background="@color/background_light"
-                    tools:src="@drawable/ic_placeholder_image" />
+                    android:layout_height="match_parent">
+                    
+                    <ImageView
+                        android:id="@+id/ivPlacePhoto"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="centerCrop"
+                        android:background="@color/background_light"
+                        android:transitionName="place_photo"
+                        tools:src="@drawable/ic_placeholder_image" />
+                    
+                    <!-- Gradient Overlay Bottom -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="120dp"
+                        android:layout_gravity="bottom"
+                        android:background="@drawable/gradient_overlay_bottom" />
+                    
+                    <!-- Photo Indicator (for carousel) -->
+                    <LinearLayout
+                        android:id="@+id/photoIndicator"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="bottom|center_horizontal"
+                        android:layout_marginBottom="16dp"
+                        android:orientation="horizontal"
+                        android:gravity="center"
+                        android:visibility="gone" />
+                </FrameLayout>
 
                 <!-- Overlay Icons -->
                 <LinearLayout
@@ -327,10 +351,8 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:text="Add to Trip"
-                    android:textColor="@color/text_white"
-                    android:backgroundTint="@color/orange_primary"
                     android:layout_marginTop="24dp"
-                    app:cornerRadius="8dp"
+                    style="@style/Widget.TripTip.Button.Primary"
                     app:layout_constraintTop_toBottomOf="@id/rvReviews"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintEnd_toEndOf="parent"

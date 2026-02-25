@@ -111,6 +111,10 @@ dependencies {
     // Google Play Services Location
     implementation("com.google.android.gms:play-services-location:21.3.0")
     
+    // UI Enhancements
+    implementation(libs.lottie)
+    implementation(libs.shimmer)
+    
     // Firebase - Use BOM for version management
     implementation(platform(libs.firebase.bom))
     // Firebase libraries - versions managed by BOM
