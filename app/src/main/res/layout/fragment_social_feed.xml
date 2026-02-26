@@ -10,7 +10,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <!-- Custom Toolbar -->
+        <!-- Compact header: TripTip + notifications -->
         <LinearLayout
             android:id="@+id/toolbar"
             android:layout_width="0dp"
@@ -19,9 +19,10 @@
             android:gravity="center_vertical"
             android:paddingStart="16dp"
             android:paddingEnd="16dp"
-            android:paddingTop="16dp"
-            android:paddingBottom="12dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="8dp"
             android:background="@color/background_white"
+            android:elevation="2dp"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
@@ -54,33 +55,20 @@
                 android:fontFamily="sans-serif-medium"
                 android:layout_marginStart="12dp" />
 
-            <!-- Right: Bell and Message icons -->
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_gravity="end">
+            <View
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
 
-                <ImageButton
-                    android:id="@+id/btnNotifications"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:src="@drawable/ic_notifications"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/notifications"
-                    android:tint="@color/text_primary" />
-
-                <ImageButton
-                    android:id="@+id/btnMessages"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:src="@drawable/ic_messages"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/messages"
-                    android:tint="@color/text_primary"
-                    android:layout_marginStart="8dp" />
-            </LinearLayout>
+            <!-- Notifications -->
+            <ImageButton
+                android:id="@+id/btnNotifications"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_notifications"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/notifications"
+                android:tint="@color/text_primary" />
 
         </LinearLayout>
 
@@ -112,12 +100,13 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
-        <!-- FAB for creating new post -->
+        <!-- FAB: positioned above bottom nav so it doesn't overlap -->
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/fabCreatePost"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_margin="16dp"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="72dp"
             android:src="@drawable/ic_create"
             android:contentDescription="Create Post"
             android:backgroundTint="@color/orange_primary"

@@ -51,6 +51,7 @@
     <!-- Bottom Navigation -->
     <dimen name="bottom_nav_height">56dp</dimen>
     <dimen name="bottom_nav_icon_size">24dp</dimen>
+    <dimen name="bottom_nav_min_inset_fallback">48dp</dimen>
     
     <!-- FAB -->
     <dimen name="fab_size">56dp</dimen>

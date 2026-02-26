@@ -62,12 +62,7 @@ class SocialFeedFragment : Fragment() {
             Snackbar.make(binding.root, "Notifications coming soon", Snackbar.LENGTH_SHORT).show()
         }
         
-        // Messages button
-        binding.btnMessages.setOnClickListener {
-            Snackbar.make(binding.root, "Messages coming soon", Snackbar.LENGTH_SHORT).show()
-        }
-        
-        // FAB - Create new post
+        // FAB - Add new post
         binding.fabCreatePost.setOnClickListener {
             // Navigate to create post
             findNavController().navigate(R.id.action_feedFragment_to_createPostFragment)

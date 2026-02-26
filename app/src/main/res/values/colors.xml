@@ -16,6 +16,7 @@
     <color name="text_secondary">#666666</color>
     <color name="text_hint">#999999</color>
     <color name="text_white">#FFFFFF</color>
+    <color name="white_faded">#80FFFFFF</color>
     
     <!-- Background Colors -->
     <color name="background_light">#F5F5F5</color>

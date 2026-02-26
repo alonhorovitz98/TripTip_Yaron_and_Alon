@@ -4,32 +4,130 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/white">
+    android:background="@color/orange_primary">
 
-    <!-- TripTip Logo/Icon -->
-    <ImageView
-        android:id="@+id/ivLogo"
-        android:layout_width="120dp"
-        android:layout_height="120dp"
-        android:src="@mipmap/ic_launcher"
-        android:contentDescription="@string/app_name"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <!-- App Name -->
-    <TextView
-        android:id="@+id/tvAppName"
+    <!-- Logo + app name + tagline group (centered, slightly above midpoint) -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/logoGroup"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/app_name"
-        android:textSize="32sp"
-        android:textStyle="bold"
-        android:textColor="#FF6B35"
-        android:layout_marginTop="24dp"
-        app:layout_constraintTop_toBottomOf="@id/ivLogo"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/dotsContainer"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintVertical_bias="0.42">
+
+        <!-- Logo: white rounded square + plane + heart badge -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/logoContainer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <!-- White rounded square (squircle) -->
+            <View
+                android:id="@+id/whiteSquare"
+                android:layout_width="88dp"
+                android:layout_height="88dp"
+                android:background="@drawable/white_rounded_square"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent" />
+
+            <!-- Orange paper airplane inside square -->
+            <ImageView
+                android:id="@+id/ivAirplane"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:src="@drawable/ic_paper_airplane"
+                android:tint="@color/orange_primary"
+                android:contentDescription="@null"
+                app:layout_constraintTop_toTopOf="@id/whiteSquare"
+                app:layout_constraintBottom_toBottomOf="@id/whiteSquare"
+                app:layout_constraintStart_toStartOf="@id/whiteSquare"
+                app:layout_constraintEnd_toEndOf="@id/whiteSquare" />
+
+            <!-- White circle overlapping bottom-right of square (heart badge) -->
+            <FrameLayout
+                android:id="@+id/heartBadge"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:background="@drawable/white_circle"
+                app:layout_constraintBottom_toBottomOf="@id/whiteSquare"
+                app:layout_constraintEnd_toEndOf="@id/whiteSquare"
+                android:layout_marginEnd="-6dp"
+                android:layout_marginBottom="-6dp">
+
+                <ImageView
+                    android:id="@+id/ivHeart"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_heart"
+                    android:tint="@color/orange_primary"
+                    android:contentDescription="@null" />
+            </FrameLayout>
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <!-- App name: TripTip -->
+        <TextView
+            android:id="@+id/tvAppName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="TripTip"
+            android:textSize="32sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_white"
+            android:fontFamily="sans-serif-medium"
+            android:layout_marginTop="20dp"
+            app:layout_constraintTop_toBottomOf="@id/logoContainer"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- Tagline: PLAN • SHARE • EXPLORE -->
+        <TextView
+            android:id="@+id/tvTagline"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="PLAN • SHARE • EXPLORE"
+            android:textSize="14sp"
+            android:textColor="@color/text_white"
+            android:letterSpacing="0.08"
+            android:layout_marginTop="8dp"
+            app:layout_constraintTop_toBottomOf="@id/tvAppName"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Bottom pager dots -->
+    <LinearLayout
+        android:id="@+id/dotsContainer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:paddingBottom="4dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginBottom="48dp">
+
+        <View
+            android:layout_width="8dp"
+            android:layout_height="8dp"
+            android:background="@drawable/dot_selected"
+            android:layout_marginEnd="8dp" />
+        <View
+            android:layout_width="8dp"
+            android:layout_height="8dp"
+            android:background="@drawable/dot_unselected"
+            android:layout_marginEnd="8dp" />
+        <View
+            android:layout_width="8dp"
+            android:layout_height="8dp"
+            android:background="@drawable/dot_unselected" />
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
