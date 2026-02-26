@@ -12,6 +12,37 @@
         android:layout_height="wrap_content"
         android:padding="16dp">
 
+        <!-- Address/Location -->
+        <LinearLayout
+            android:id="@+id/addressLayout"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:visibility="gone"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_location_pin"
+                android:tint="@color/text_secondary"
+                android:contentDescription="Address" />
+
+            <TextView
+                android:id="@+id/tvAddress"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="14sp"
+                android:textColor="@color/text_primary"
+                android:layout_marginStart="8dp"
+                tools:text="HaCarmel St 20, Rishon LeZion, Israel" />
+
+        </LinearLayout>
+
         <!-- Opening Hours -->
         <LinearLayout
             android:id="@+id/openingHoursLayout"
@@ -19,8 +50,9 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
+            android:layout_marginTop="12dp"
             android:visibility="gone"
-            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/addressLayout"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
 
@@ -39,6 +71,8 @@
                 android:textSize="14sp"
                 android:textColor="@color/text_primary"
                 android:layout_marginStart="8dp"
+                android:maxLines="10"
+                android:ellipsize="none"
                 tools:text="Open now • Closes 10:00 PM" />
 
         </LinearLayout>

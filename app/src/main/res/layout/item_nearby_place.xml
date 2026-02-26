@@ -33,7 +33,6 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:scaleType="centerCrop"
-                android:background="@color/background_light"
                 android:transitionName="place_photo" />
             
             <!-- Gradient Overlay Bottom -->
@@ -64,9 +63,10 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:padding="16dp"
-            app:layout_constraintTop_toBottomOf="@id/ivPlacePhoto"
+            app:layout_constraintTop_toBottomOf="@id/photoContainer"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent">
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent">
 
             <!-- Place Name -->
             <TextView
@@ -123,7 +123,7 @@
                 android:layout_height="wrap_content"
                 android:text="restaurant, cafe"
                 android:textSize="12sp"
-                android:textColor="#00CED1"
+                android:textColor="@color/text_white"
                 android:background="@drawable/rounded_background_turquoise"
                 android:paddingStart="8dp"
                 android:paddingEnd="8dp"

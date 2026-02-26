@@ -49,6 +49,21 @@ class GooglePlaceDetailsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
+        // Set image section to 40% of screen height and update scroll view padding
+        val displayMetrics = resources.displayMetrics
+        val screenHeight = displayMetrics.heightPixels
+        val imageHeight = (screenHeight * 0.4f).toInt()
+        binding.imageSection.layoutParams.height = imageHeight
+        binding.imageSection.requestLayout()
+        
+        // Update NestedScrollView padding to match image height
+        binding.nestedScrollView.setPadding(
+            binding.nestedScrollView.paddingLeft,
+            imageHeight,
+            binding.nestedScrollView.paddingRight,
+            binding.nestedScrollView.paddingBottom
+        )
+        
         setupPhotoCarousel()
         setupTabs()
         setupParallaxScrolling()
@@ -60,22 +75,8 @@ class GooglePlaceDetailsFragment : Fragment() {
     }
     
     private fun setupParallaxScrolling() {
-        // Parallax scrolling effect on header image
-        binding.nestedScrollView.setOnScrollChangeListener { _, _, scrollY, _, _ ->
-            val imageSection = binding.imageSection
-            val imageHeight = imageSection.height
-            
-            // Parallax effect: move image slower than scroll (0.5x speed)
-            if (imageHeight > 0 && scrollY <= imageHeight) {
-                imageSection.translationY = scrollY * 0.5f
-                // Also apply subtle parallax to photo carousel
-                binding.viewPagerPhotos.translationY = scrollY * 0.3f
-            } else if (scrollY > imageHeight) {
-                // Reset when scrolled past
-                imageSection.translationY = imageHeight * 0.5f
-                binding.viewPagerPhotos.translationY = imageHeight * 0.3f
-            }
-        }
+        // Image stays fixed - no parallax scrolling to prevent content from going over image
+        // The CoordinatorLayout behavior handles the positioning
     }
     
     private fun setupPhotoCarousel() {
@@ -172,11 +173,11 @@ class GooglePlaceDetailsFragment : Fragment() {
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
             if (isLoading) {
                 binding.progressBar.visibility = View.VISIBLE
-                binding.contentSection.visibility = View.GONE
+                binding.nestedScrollView.visibility = View.GONE
                 binding.tvError.visibility = View.GONE
             } else {
                 binding.progressBar.visibility = View.GONE
-                binding.contentSection.visibility = View.VISIBLE
+                binding.nestedScrollView.visibility = View.VISIBLE
             }
         }
         
@@ -185,7 +186,7 @@ class GooglePlaceDetailsFragment : Fragment() {
             if (error != null) {
                 binding.tvError.text = error
                 binding.tvError.visibility = View.VISIBLE
-                binding.contentSection.visibility = View.GONE
+                binding.nestedScrollView.visibility = View.GONE
                 binding.progressBar.visibility = View.GONE
                 Snackbar.make(binding.root, error, Snackbar.LENGTH_LONG).show()
             } else {
@@ -254,7 +255,12 @@ class GooglePlaceDetailsFragment : Fragment() {
     }
     
     private fun updateTabFragments(details: com.example.triptip_yaron_and_alon.data.remote.api.dto.PlaceDetailsResultDto) {
-        // Update tab fragments if they exist
+        android.util.Log.d("PlaceDetails", "Updating tab fragments. Reviews count: ${details.reviews?.size ?: 0}")
+        
+        // Update adapter which will update existing fragments and store for future fragments
+        tabsAdapter.updatePlaceDetails(details)
+        
+        // Also update directly if fragments exist
         val overviewFragment = tabsAdapter.getFragment(0) as? PlaceDetailsOverviewFragment
         val reviewsFragment = tabsAdapter.getFragment(1) as? PlaceDetailsReviewsFragment
         val photosFragment = tabsAdapter.getFragment(2) as? PlaceDetailsPhotosFragment
@@ -273,6 +279,19 @@ class GooglePlaceDetailsFragment : Fragment() {
     ) : FragmentStateAdapter(fragmentManager, lifecycle) {
         
         private val fragments = mutableMapOf<Int, Fragment>()
+        private var placeDetails: com.example.triptip_yaron_and_alon.data.remote.api.dto.PlaceDetailsResultDto? = null
+        
+        fun updatePlaceDetails(details: com.example.triptip_yaron_and_alon.data.remote.api.dto.PlaceDetailsResultDto) {
+            placeDetails = details
+            // Update existing fragments
+            fragments.values.forEach { fragment ->
+                when (fragment) {
+                    is PlaceDetailsOverviewFragment -> fragment.setPlaceDetails(details)
+                    is PlaceDetailsReviewsFragment -> fragment.setPlaceDetails(details)
+                    is PlaceDetailsPhotosFragment -> fragment.setPlaceDetails(details)
+                }
+            }
+        }
         
         override fun getItemCount(): Int = 3
         
@@ -284,6 +303,16 @@ class GooglePlaceDetailsFragment : Fragment() {
                 else -> PlaceDetailsOverviewFragment()
             }
             fragments[position] = fragment
+            
+            // Set data immediately if available
+            placeDetails?.let { details ->
+                when (fragment) {
+                    is PlaceDetailsOverviewFragment -> fragment.setPlaceDetails(details)
+                    is PlaceDetailsReviewsFragment -> fragment.setPlaceDetails(details)
+                    is PlaceDetailsPhotosFragment -> fragment.setPlaceDetails(details)
+                }
+            }
+            
             return fragment
         }
         

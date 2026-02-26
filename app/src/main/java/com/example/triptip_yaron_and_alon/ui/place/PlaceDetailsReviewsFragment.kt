@@ -57,10 +57,15 @@ class PlaceDetailsReviewsFragment : Fragment() {
     }
     
     private fun displayReviews(details: PlaceDetailsResultDto) {
+        android.util.Log.d("ReviewsFragment", "Displaying reviews. Reviews count: ${details.reviews?.size ?: 0}")
+        
         if (!details.reviews.isNullOrEmpty()) {
+            android.util.Log.d("ReviewsFragment", "Submitting ${details.reviews.size} reviews to adapter")
             reviewAdapter.submitList(details.reviews)
+            binding.rvReviews.visibility = View.VISIBLE
         } else {
-            // Show empty state if needed
+            android.util.Log.d("ReviewsFragment", "No reviews available")
+            binding.rvReviews.visibility = View.GONE
         }
     }
     

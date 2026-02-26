@@ -68,21 +68,30 @@ class PlaceDetailsOverviewFragment : Fragment() {
     }
     
     private fun displayDetails(details: PlaceDetailsResultDto) {
-        // Opening hours
+        // Address/Location
+        val address = details.formattedAddress ?: details.vicinity
+        if (!address.isNullOrBlank()) {
+            binding.addressLayout.visibility = View.VISIBLE
+            binding.tvAddress.text = address
+        } else {
+            binding.addressLayout.visibility = View.GONE
+        }
+        
+        // Opening hours - Show all hours
         if (details.openingHours != null) {
             binding.openingHoursLayout.visibility = View.VISIBLE
             val openNow = details.openingHours.openNow
-            val hoursText = if (openNow == true) {
-                "Open now"
-            } else if (openNow == false) {
-                "Closed now"
-            } else {
-                "Hours not available"
+            val hoursText = when {
+                openNow == true -> "Open now"
+                openNow == false -> "Closed now"
+                else -> "Hours not available"
             }
             
-            val weekdayText = details.openingHours.weekdayText?.firstOrNull()
-            if (weekdayText != null) {
-                binding.tvOpeningHours.text = "$hoursText • $weekdayText"
+            // Show all weekday hours
+            val weekdayText = details.openingHours.weekdayText
+            if (!weekdayText.isNullOrEmpty()) {
+                val allHours = weekdayText.joinToString("\n")
+                binding.tvOpeningHours.text = "$hoursText\n$allHours"
             } else {
                 binding.tvOpeningHours.text = hoursText
             }

@@ -7,238 +7,229 @@
     android:layout_height="match_parent"
     android:background="@color/background_light">
 
+    <!-- Top Image Section (40% of screen) - Fixed at top -->
+    <FrameLayout
+        android:id="@+id/imageSection"
+        android:layout_width="match_parent"
+        android:layout_height="300dp"
+        android:layout_gravity="top"
+        android:elevation="4dp">
+
+        <!-- Photo Carousel with Gradient Overlay -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+            
+            <androidx.viewpager2.widget.ViewPager2
+                android:id="@+id/viewPagerPhotos"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+            
+            <!-- Gradient Overlay Bottom -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="120dp"
+                android:layout_gravity="bottom"
+                android:background="@drawable/gradient_overlay_bottom" />
+            
+            <!-- Photo Indicator (dots) -->
+            <LinearLayout
+                android:id="@+id/photoIndicator"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|center_horizontal"
+                android:layout_marginBottom="16dp"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:visibility="gone" />
+        </FrameLayout>
+
+        <!-- Overlay Icons -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="16dp"
+            android:paddingBottom="16dp">
+
+            <!-- Back Arrow (circular white button) -->
+            <ImageButton
+                android:id="@+id/btnBack"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_arrow_back"
+                android:background="@drawable/circle_background_white"
+                android:contentDescription="Back"
+                android:scaleType="centerInside"
+                android:padding="8dp" />
+
+        </LinearLayout>
+
+    </FrameLayout>
+
+    <!-- Content Section - Scrollable, positioned below image -->
     <androidx.core.widget.NestedScrollView
         android:id="@+id/nestedScrollView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:fillViewport="true">
+        android:fillViewport="true"
+        android:paddingTop="300dp"
+        android:paddingBottom="80dp"
+        android:clipToPadding="false">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content">
+            android:layout_height="wrap_content"
+            android:padding="16dp">
 
-            <!-- Top Image Section (40% of screen) with Parallax -->
-            <FrameLayout
-                android:id="@+id/imageSection"
+            <!-- Place Name -->
+            <TextView
+                android:id="@+id/tvPlaceName"
                 android:layout_width="0dp"
-                android:layout_height="0dp"
+                android:layout_height="wrap_content"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintHeight_percent="0.4">
+                tools:text="Eiffel Tower" />
 
-                <!-- Photo Carousel with Gradient Overlay -->
-                <FrameLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent">
-                    
-                    <androidx.viewpager2.widget.ViewPager2
-                        android:id="@+id/viewPagerPhotos"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent" />
-                    
-                    <!-- Gradient Overlay Bottom -->
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="120dp"
-                        android:layout_gravity="bottom"
-                        android:background="@drawable/gradient_overlay_bottom" />
-                    
-                    <!-- Photo Indicator (dots) -->
-                    <LinearLayout
-                        android:id="@+id/photoIndicator"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="bottom|center_horizontal"
-                        android:layout_marginBottom="16dp"
-                        android:orientation="horizontal"
-                        android:gravity="center"
-                        android:visibility="gone" />
-                </FrameLayout>
-
-                <!-- Overlay Icons -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="16dp"
-                    android:paddingTop="16dp"
-                    android:paddingBottom="16dp">
-
-                    <!-- Back Arrow (circular white button) -->
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnBack"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
-                        android:insetTop="0dp"
-                        android:insetBottom="0dp"
-                        android:insetLeft="0dp"
-                        android:insetRight="0dp"
-                        app:icon="@drawable/ic_arrow_back"
-                        app:iconTint="@color/text_primary"
-                        app:backgroundTint="@color/background_white"
-                        app:cornerRadius="20dp"
-                        app:iconSize="24dp"
-                        android:contentDescription="Back" />
-
-                </LinearLayout>
-
-            </FrameLayout>
-
-            <!-- Content Section -->
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:id="@+id/contentSection"
-                android:layout_width="0dp"
+            <!-- Rating and Reviews Count -->
+            <LinearLayout
+                android:id="@+id/ratingLayout"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:padding="16dp"
-                app:layout_constraintTop_toBottomOf="@id/imageSection"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent">
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="8dp"
+                app:layout_constraintTop_toBottomOf="@id/tvPlaceName"
+                app:layout_constraintStart_toStartOf="parent">
 
-                <!-- Place Name -->
+                <ImageView
+                    android:id="@+id/ivRatingStar"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_star"
+                    android:tint="@color/orange_primary"
+                    android:contentDescription="Rating" />
+
                 <TextView
-                    android:id="@+id/tvPlaceName"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:textSize="24sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/text_primary"
-                    app:layout_constraintTop_toTopOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    tools:text="Eiffel Tower" />
-
-                <!-- Rating and Reviews Count -->
-                <LinearLayout
-                    android:id="@+id/ratingLayout"
+                    android:id="@+id/tvRating"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_marginTop="8dp"
-                    app:layout_constraintTop_toBottomOf="@id/tvPlaceName"
-                    app:layout_constraintStart_toStartOf="parent">
+                    android:textSize="16sp"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginStart="4dp"
+                    tools:text="4.7" />
 
-                    <ImageView
-                        android:id="@+id/ivRatingStar"
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:src="@drawable/ic_star"
-                        android:tint="@color/orange_primary"
-                        android:contentDescription="Rating" />
-
-                    <TextView
-                        android:id="@+id/tvRating"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textSize="16sp"
-                        android:textColor="@color/text_primary"
-                        android:layout_marginStart="4dp"
-                        tools:text="4.7" />
-
-                    <TextView
-                        android:id="@+id/tvReviewsCount"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textSize="14sp"
-                        android:textColor="@color/text_secondary"
-                        android:layout_marginStart="8dp"
-                        tools:text="(1,234 reviews)" />
-
-                </LinearLayout>
-
-                <!-- Address -->
                 <TextView
-                    android:id="@+id/tvAddress"
-                    android:layout_width="0dp"
+                    android:id="@+id/tvReviewsCount"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textSize="14sp"
                     android:textColor="@color/text_secondary"
-                    android:layout_marginTop="8dp"
-                    app:layout_constraintTop_toBottomOf="@id/ratingLayout"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    tools:text="Champ de Mars, 5 Avenue Anatole France, 75007 Paris, France" />
+                    android:layout_marginStart="8dp"
+                    tools:text="(1,234 reviews)" />
 
-                <!-- Categories -->
-                <TextView
-                    android:id="@+id/tvCategories"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textSize="12sp"
-                    android:textColor="@color/text_white"
-                    android:paddingStart="8dp"
-                    android:paddingTop="4dp"
-                    android:paddingEnd="8dp"
-                    android:paddingBottom="4dp"
-                    android:background="@drawable/rounded_background_turquoise"
-                    android:layout_marginTop="8dp"
-                    app:layout_constraintTop_toBottomOf="@id/tvAddress"
-                    app:layout_constraintStart_toStartOf="parent"
-                    tools:text="Landmark, Tourist Attraction" />
+            </LinearLayout>
 
-                <!-- Divider -->
-                <View
-                    android:id="@+id/divider1"
-                    android:layout_width="0dp"
-                    android:layout_height="1dp"
-                    android:background="@color/divider"
-                    android:layout_marginTop="16dp"
-                    app:layout_constraintTop_toBottomOf="@id/tvCategories"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintEnd_toEndOf="parent" />
+            <!-- Address -->
+            <TextView
+                android:id="@+id/tvAddress"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:textSize="14sp"
+                android:textColor="@color/text_secondary"
+                android:layout_marginTop="8dp"
+                app:layout_constraintTop_toBottomOf="@id/ratingLayout"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                tools:text="Champ de Mars, 5 Avenue Anatole France, 75007 Paris, France" />
 
-                <!-- TabLayout for Overview, Reviews, Photos -->
-                <com.google.android.material.tabs.TabLayout
-                    android:id="@+id/tabLayout"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:background="@color/background_white"
-                    android:layout_marginTop="8dp"
-                    app:tabMode="fixed"
-                    app:tabGravity="fill"
-                    app:tabTextColor="@color/text_secondary"
-                    app:tabSelectedTextColor="@color/orange_primary"
-                    app:tabIndicatorColor="@color/orange_primary"
-                    app:tabIndicatorHeight="3dp"
-                    app:layout_constraintTop_toBottomOf="@id/divider1"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintEnd_toEndOf="parent" />
+            <!-- Categories -->
+            <TextView
+                android:id="@+id/tvCategories"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="12sp"
+                android:textColor="@color/text_white"
+                android:paddingStart="8dp"
+                android:paddingTop="4dp"
+                android:paddingEnd="8dp"
+                android:paddingBottom="4dp"
+                android:background="@drawable/rounded_background_turquoise"
+                android:layout_marginTop="8dp"
+                app:layout_constraintTop_toBottomOf="@id/tvAddress"
+                app:layout_constraintStart_toStartOf="parent"
+                tools:text="Landmark, Tourist Attraction" />
 
-                <!-- ViewPager2 for tab content -->
-                <androidx.viewpager2.widget.ViewPager2
-                    android:id="@+id/viewPagerTabs"
-                    android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:layout_marginTop="8dp"
-                    app:layout_constraintTop_toBottomOf="@id/tabLayout"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintBottom_toTopOf="@id/btnAddToTrip"
-                    app:layout_constraintHeight_default="wrap" />
+            <!-- Divider -->
+            <View
+                android:id="@+id/divider1"
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:background="@color/divider"
+                android:layout_marginTop="16dp"
+                app:layout_constraintTop_toBottomOf="@id/tvCategories"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent" />
 
-                <!-- Content moved to tabs (Overview, Reviews, Photos) -->
+            <!-- TabLayout for Overview, Reviews, Photos -->
+            <com.google.android.material.tabs.TabLayout
+                android:id="@+id/tabLayout"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:background="@color/background_white"
+                android:layout_marginTop="8dp"
+                app:tabMode="fixed"
+                app:tabGravity="fill"
+                app:tabTextColor="@color/text_secondary"
+                app:tabSelectedTextColor="@color/orange_primary"
+                app:tabIndicatorColor="@color/orange_primary"
+                app:tabIndicatorHeight="3dp"
+                app:layout_constraintTop_toBottomOf="@id/divider1"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent" />
 
-                <!-- Add to Trip Button -->
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnAddToTrip"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:text="Add to Trip"
-                    android:layout_marginTop="24dp"
-                    style="@style/Widget.TripTip.Button.Primary"
-                    app:layout_constraintTop_toBottomOf="@id/viewPagerTabs"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintBottom_toBottomOf="parent" />
+            <!-- ViewPager2 for tab content -->
+            <androidx.viewpager2.widget.ViewPager2
+                android:id="@+id/viewPagerTabs"
+                android:layout_width="0dp"
+                android:layout_height="600dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="24dp"
+                android:nestedScrollingEnabled="false"
+                app:layout_constraintTop_toBottomOf="@id/tabLayout"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" />
 
-            </androidx.constraintlayout.widget.ConstraintLayout>
+            <!-- Content moved to tabs (Overview, Reviews, Photos) -->
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
     </androidx.core.widget.NestedScrollView>
+
+    <!-- Add to Trip Button - Fixed at bottom, outside scrollable area -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:padding="16dp"
+        android:elevation="8dp"
+        android:background="@color/background_white">
+        
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnAddToTrip"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Add to Trip"
+            style="@style/Widget.TripTip.Button.Primary" />
+    </FrameLayout>
 
     <!-- Loading Indicator -->
     <ProgressBar
