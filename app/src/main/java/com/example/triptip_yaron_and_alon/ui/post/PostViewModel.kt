@@ -10,10 +10,14 @@ import com.example.triptip_yaron_and_alon.data.local.database.TripTipDatabase
 import com.example.triptip_yaron_and_alon.data.remote.firebase.FirebaseAuthDataSource
 import com.example.triptip_yaron_and_alon.data.remote.firebase.FirebaseStorageDataSource
 import com.example.triptip_yaron_and_alon.data.remote.firebase.FirestoreDataSource
+import com.example.triptip_yaron_and_alon.data.remote.firebase.NotificationsDataSource
+import com.example.triptip_yaron_and_alon.data.remote.firebase.CommentsDataSource
+import com.example.triptip_yaron_and_alon.data.repository.CommentsRepository
 import com.example.triptip_yaron_and_alon.data.repository.PlaceInfoRepository
 import com.example.triptip_yaron_and_alon.data.repository.PostRepository
 import com.example.triptip_yaron_and_alon.domain.model.LocationSuggestion
 import com.example.triptip_yaron_and_alon.domain.model.PlaceInfo
+import com.example.triptip_yaron_and_alon.domain.model.Comment
 import com.example.triptip_yaron_and_alon.domain.model.Post
 import com.example.triptip_yaron_and_alon.domain.model.WeatherInfo
 import com.example.triptip_yaron_and_alon.util.Result
@@ -37,10 +41,21 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
     private val placeInfoRepository by lazy { PlaceInfoRepository() }
+    private val notificationsDataSource by lazy { NotificationsDataSource() }
+    private val commentsDataSource by lazy { CommentsDataSource() }
+    private val commentsRepository by lazy { CommentsRepository(commentsDataSource, database.commentDao()) }
     
     // Current post
     private val _post = MutableLiveData<Post?>()
     val post: LiveData<Post?> = _post
+    
+    // Whether current user liked the current post (for details screen like button)
+    private val _isLikedByCurrentUser = MutableLiveData<Boolean>(false)
+    val isLikedByCurrentUser: LiveData<Boolean> = _isLikedByCurrentUser
+    
+    // Comments for current post
+    private val _comments = MutableLiveData<List<Comment>>(emptyList())
+    val comments: LiveData<List<Comment>> = _comments
     
     // User posts
     private val _userPosts = MutableLiveData<List<Post>>()
@@ -95,14 +110,89 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
     
     fun loadPost(postId: String) {
         viewModelScope.launch {
+            currentUserId = authDataSource.getCurrentUser().firstOrNull()?.id
             _isLoading.value = true
             _error.value = null
             var isFirstEmission = true
             postRepository.getPostById(postId).collect { post ->
                 _post.value = post
+                _isLikedByCurrentUser.value = currentUserId?.let { post?.likedBy?.contains(it) == true } ?: false
                 if (isFirstEmission) {
                     _isLoading.value = false
                     isFirstEmission = false
+                }
+            }
+        }
+    }
+    
+    fun likePost(postId: String) {
+        viewModelScope.launch {
+            val user = authDataSource.getCurrentUser().firstOrNull()
+            val uid = user?.id ?: currentUserId ?: return@launch
+            when (val r = postRepository.likePost(postId, uid)) {
+                is Result.Success -> {
+                    val ownerId = r.data
+                    if (ownerId != null && ownerId != uid && user != null) {
+                        notificationsDataSource.createNotification(
+                            recipientUserId = ownerId,
+                            type = NotificationsDataSource.TYPE_LIKE,
+                            actorUserId = uid,
+                            actorUserName = user.name.ifBlank { user.email.takeWhile { it != '@' }.ifBlank { "Someone" } },
+                            targetPostId = postId,
+                            message = "${user.name.ifBlank { "Someone" }} liked your post"
+                        )
+                    }
+                }
+                is Result.Error -> _error.value = r.message
+                is Result.Loading -> { }
+            }
+        }
+    }
+    
+    fun unlikePost(postId: String) {
+        viewModelScope.launch {
+            val uid = currentUserId ?: authDataSource.getCurrentUser().firstOrNull()?.id ?: return@launch
+            when (val r = postRepository.unlikePost(postId, uid)) {
+                is Result.Success -> { }
+                is Result.Error -> _error.value = r.message
+                is Result.Loading -> { }
+            }
+        }
+    }
+    
+    fun toggleLike(postId: String) {
+        val post = _post.value ?: return
+        val uid = currentUserId ?: return
+        if (post.likedBy.contains(uid)) unlikePost(postId) else likePost(postId)
+    }
+    
+    fun loadComments(postId: String) {
+        viewModelScope.launch {
+            commentsRepository.getCommentsByPost(postId).collect { _comments.value = it }
+        }
+    }
+    
+    fun addComment(postId: String, text: String, imageUrl: String?) {
+        if (text.isBlank()) return
+        viewModelScope.launch {
+            val user = authDataSource.getCurrentUser().firstOrNull() ?: return@launch
+            commentsRepository.addComment(postId, text, imageUrl, null).collect { result ->
+                when (result) {
+                    is Result.Success -> {
+                        val ownerId = _post.value?.userId
+                        if (ownerId != null && ownerId != user.id) {
+                            notificationsDataSource.createNotification(
+                                recipientUserId = ownerId,
+                                type = NotificationsDataSource.TYPE_COMMENT,
+                                actorUserId = user.id,
+                                actorUserName = user.name.ifBlank { user.email.takeWhile { it != '@' }.ifBlank { "Someone" } },
+                                targetPostId = postId,
+                                message = "${user.name.ifBlank { "Someone" }} commented on your post"
+                            )
+                        }
+                    }
+                    is Result.Error -> _error.value = result.message
+                    is Result.Loading -> { }
                 }
             }
         }
@@ -193,13 +283,18 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
             _isLoading.value = true
             _error.value = null
             
-            // Get current user ID
-            val userId = authDataSource.getCurrentUser().firstOrNull()?.id
+            // Get current user (id, name, profile image) for post attribution
+            val currentUser = authDataSource.getCurrentUser().firstOrNull()
                 ?: run {
                     _isLoading.value = false
                     _error.value = "User not authenticated"
                     return@launch
                 }
+            val userId = currentUser.id
+            val userName = currentUser.name.ifBlank {
+                currentUser.email.takeWhile { it != '@' }.ifBlank { "User" }
+            }
+            val userImageUrl = currentUser.profileImageUrl
             
             // Geocode location if name provided but no coordinates
             var finalLatitude = latitude
@@ -246,12 +341,12 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
             
-            // Create Post object
+            // Create Post object with real user display name and avatar
             val post = Post(
                 id = "", // Will be generated by Firestore
                 userId = userId,
-                userName = "", // Will be loaded from user data
-                userImageUrl = null,
+                userName = userName,
+                userImageUrl = userImageUrl,
                 text = text,
                 imageUrl = null, // Will be set after image upload
                 createdAt = System.currentTimeMillis(),

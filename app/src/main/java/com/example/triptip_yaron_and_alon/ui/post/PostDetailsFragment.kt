@@ -13,6 +13,7 @@ import coil.load
 import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.FragmentPostDetailsBinding
 import com.example.triptip_yaron_and_alon.ui.adapter.NearbyPlaceAdapter
+import com.example.triptip_yaron_and_alon.ui.post.CommentAdapter
 import com.example.triptip_yaron_and_alon.util.Result
 import com.google.android.material.snackbar.Snackbar
 import java.io.File
@@ -28,6 +29,7 @@ class PostDetailsFragment : Fragment() {
     private lateinit var viewModel: PostViewModel
     private val args: PostDetailsFragmentArgs by navArgs()
     private lateinit var placesAdapter: NearbyPlaceAdapter
+    private lateinit var commentAdapter: CommentAdapter
     
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -44,11 +46,13 @@ class PostDetailsFragment : Fragment() {
         viewModel = ViewModelProvider(this)[PostViewModel::class.java]
         
         setupRecyclerView()
+        setupCommentsList()
         setupListeners()
         observeViewModel()
         
-        // Load post
+        // Load post and comments
         viewModel.loadPost(args.postId)
+        viewModel.loadComments(args.postId)
     }
     
     private fun setupRecyclerView() {
@@ -74,6 +78,14 @@ class PostDetailsFragment : Fragment() {
         }
     }
     
+    private fun setupCommentsList() {
+        commentAdapter = CommentAdapter()
+        binding.rvComments.apply {
+            adapter = commentAdapter
+            layoutManager = androidx.recyclerview.widget.LinearLayoutManager(requireContext())
+        }
+    }
+    
     private fun setupListeners() {
         // Back button
         binding.btnBack.setOnClickListener {
@@ -86,10 +98,16 @@ class PostDetailsFragment : Fragment() {
             Snackbar.make(binding.root, "Share functionality coming soon", Snackbar.LENGTH_SHORT).show()
         }
         
-        // Like button (placeholder)
-        binding.btnLike.setOnClickListener {
-            // TODO: Implement like functionality
-            Snackbar.make(binding.root, "Like functionality coming soon", Snackbar.LENGTH_SHORT).show()
+        // Like button (real like/unlike)
+        binding.btnLike.setOnClickListener { viewModel.toggleLike(args.postId) }
+        
+        // Send comment
+        binding.btnSendComment.setOnClickListener {
+            val text = binding.etComment.text?.toString()?.trim() ?: return@setOnClickListener
+            if (text.isNotEmpty()) {
+                viewModel.addComment(args.postId, text, null)
+                binding.etComment.text?.clear()
+            }
         }
         
         // Add to Trip button
@@ -166,6 +184,13 @@ class PostDetailsFragment : Fragment() {
             }
         }
         
+        viewModel.isLikedByCurrentUser.observe(viewLifecycleOwner) { liked ->
+            binding.btnLike.setIconResource(
+                if (liked) com.example.triptip_yaron_and_alon.R.drawable.ic_heart_filled
+                else com.example.triptip_yaron_and_alon.R.drawable.ic_heart
+            )
+        }
+        
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
             // Progress bar not in new layout - show loading via button state
             binding.btnAddToTrip.isEnabled = !isLoading
@@ -176,6 +201,10 @@ class PostDetailsFragment : Fragment() {
             if (error != null) {
                 Snackbar.make(binding.root, error, Snackbar.LENGTH_LONG).show()
             }
+        }
+        
+        viewModel.comments.observe(viewLifecycleOwner) { comments ->
+            commentAdapter.submitList(comments)
         }
     }
     

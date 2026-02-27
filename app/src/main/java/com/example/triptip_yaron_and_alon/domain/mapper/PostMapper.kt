@@ -8,6 +8,7 @@ object PostMapper {
      * Converts PostEntity (Room) to Post (Domain)
      */
     fun toDomain(entity: PostEntity): Post {
+        val likedBy = entity.likedBy.split(",").map { it.trim() }.filter { it.isNotBlank() }
         return Post(
             id = entity.id,
             userId = entity.userId,
@@ -19,7 +20,11 @@ object PostMapper {
             location = entity.location,
             latitude = entity.latitude,
             longitude = entity.longitude,
-            placeXid = entity.placeXid
+            placeXid = entity.placeXid,
+            likes = entity.likes,
+            likedBy = likedBy,
+            likedByCurrentUser = entity.likedByCurrentUser,
+            commentCount = entity.commentCount
         )
     }
     
@@ -39,6 +44,10 @@ object PostMapper {
             latitude = domain.latitude,
             longitude = domain.longitude,
             placeXid = domain.placeXid,
+            likes = domain.likes,
+            likedBy = domain.likedBy.joinToString(","),
+            likedByCurrentUser = domain.likedByCurrentUser,
+            commentCount = domain.commentCount,
             cachedAt = System.currentTimeMillis()
         )
     }

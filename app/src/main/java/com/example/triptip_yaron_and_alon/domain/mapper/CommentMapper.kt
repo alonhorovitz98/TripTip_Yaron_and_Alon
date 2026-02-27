@@ -19,6 +19,7 @@ object CommentMapper {
             userName = entity.userName,
             userAvatarUrl = entity.userAvatarUrl,
             text = entity.text,
+            imageUrl = entity.imageUrl,
             parentCommentId = entity.parentCommentId,
             likes = entity.likes,
             createdAt = entity.createdAt
@@ -36,6 +37,7 @@ object CommentMapper {
             userName = comment.userName,
             userAvatarUrl = comment.userAvatarUrl,
             text = comment.text,
+            imageUrl = comment.imageUrl,
             parentCommentId = comment.parentCommentId,
             likes = comment.likes,
             createdAt = comment.createdAt,

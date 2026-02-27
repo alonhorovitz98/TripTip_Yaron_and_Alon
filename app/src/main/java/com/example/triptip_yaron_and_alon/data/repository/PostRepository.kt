@@ -268,6 +268,44 @@ class PostRepository(
     }.flowOn(Dispatchers.IO)
     
     /**
+     * Like a post. Updates Firestore and local cache. Returns post owner id for notification.
+     */
+    suspend fun likePost(postId: String, userId: String): Result<String?> {
+        return withContext(Dispatchers.IO) {
+            when (val result = firestoreDataSource.likePost(postId, userId)) {
+                is Result.Success -> {
+                    result.data?.let { ownerId ->
+                        firestoreDataSource.getPostById(postId).first().let { updatedPost ->
+                            updatedPost?.let { postDao.insert(PostMapper.toEntity(it)) }
+                        }
+                    }
+                    Result.Success(result.data)
+                }
+                is Result.Error -> result
+                is Result.Loading -> Result.Error(Exception("Unexpected"), "Loading")
+            }
+        }
+    }
+    
+    /**
+     * Unlike a post. Updates Firestore and local cache.
+     */
+    suspend fun unlikePost(postId: String, userId: String): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            when (val result = firestoreDataSource.unlikePost(postId, userId)) {
+                is Result.Success -> {
+                    firestoreDataSource.getPostById(postId).first().let { updatedPost ->
+                        updatedPost?.let { postDao.insert(PostMapper.toEntity(it)) }
+                    }
+                    Result.Success(Unit)
+                }
+                is Result.Error -> result
+                is Result.Loading -> Result.Error(Exception("Unexpected"), "Loading")
+            }
+        }
+    }
+    
+    /**
      * Delete a post.
      * Deletes from Firestore, Room cache, and storage.
      */

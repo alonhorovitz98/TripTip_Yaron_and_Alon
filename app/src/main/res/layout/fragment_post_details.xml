@@ -211,6 +211,65 @@
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintEnd_toEndOf="parent" />
 
+                    <!-- Comments Section -->
+                    <TextView
+                        android:id="@+id/tvCommentsLabel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:text="Comments"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text_primary"
+                        android:layout_marginTop="20dp"
+                        app:layout_constraintTop_toBottomOf="@id/tvPostText"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent" />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rvComments"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:nestedScrollingEnabled="false"
+                        android:maxHeight="200dp"
+                        android:layout_marginTop="8dp"
+                        app:layout_constraintTop_toBottomOf="@id/tvCommentsLabel"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent" />
+
+                    <LinearLayout
+                        android:id="@+id/commentInputRow"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginTop="8dp"
+                        app:layout_constraintTop_toBottomOf="@id/rvComments"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent">
+
+                        <EditText
+                            android:id="@+id/etComment"
+                            android:layout_width="0dp"
+                            android:layout_height="44dp"
+                            android:layout_weight="1"
+                            android:hint="Add a comment..."
+                            android:inputType="textCapSentences|textMultiLine"
+                            android:maxLines="3"
+                            android:background="@drawable/white_rounded_square"
+                            android:paddingStart="12dp"
+                            android:paddingEnd="12dp"
+                            android:textSize="14sp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnSendComment"
+                            android:layout_width="wrap_content"
+                            android:layout_height="44dp"
+                            android:text="Send"
+                            android:layout_marginStart="8dp"
+                            app:cornerRadius="8dp"
+                            style="@style/Widget.Material3.Button" />
+                    </LinearLayout>
+
                     <!-- CURRENT WEATHER Section -->
                     <TextView
                         android:id="@+id/tvWeatherLabel"
@@ -223,7 +282,7 @@
                         android:textAllCaps="true"
                         android:letterSpacing="0.1"
                         android:layout_marginTop="24dp"
-                        app:layout_constraintTop_toBottomOf="@id/tvPostText"
+                        app:layout_constraintTop_toBottomOf="@id/commentInputRow"
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintEnd_toEndOf="parent" />
 

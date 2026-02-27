@@ -59,7 +59,7 @@ class SocialFeedFragment : Fragment() {
     private fun setupListeners() {
         // Notifications button
         binding.btnNotifications.setOnClickListener {
-            Snackbar.make(binding.root, "Notifications coming soon", Snackbar.LENGTH_SHORT).show()
+            findNavController().navigate(com.example.triptip_yaron_and_alon.R.id.action_feedFragment_to_notificationsFragment)
         }
         
         // FAB - Add new post

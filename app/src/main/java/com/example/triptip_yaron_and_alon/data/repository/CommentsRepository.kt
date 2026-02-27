@@ -37,17 +37,18 @@ class CommentsRepository(
     }
     
     /**
-     * Add a new comment.
+     * Add a new comment (with optional image URL; upload image in UI layer first if needed).
      */
     suspend fun addComment(
         postId: String,
         text: String,
+        imageUrl: String? = null,
         parentCommentId: String? = null
     ): Flow<Result<Comment>> {
         return kotlinx.coroutines.flow.flow {
             emit(Result.Loading)
             
-            val result = commentsDataSource.addComment(postId, text, parentCommentId)
+            val result = commentsDataSource.addComment(postId, text, imageUrl, parentCommentId)
             
             when (result) {
                 is Result.Success -> {

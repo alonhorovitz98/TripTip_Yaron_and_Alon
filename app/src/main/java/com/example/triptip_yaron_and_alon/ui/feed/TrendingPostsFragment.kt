@@ -47,17 +47,24 @@ class TrendingPostsFragment : Fragment() {
     }
     
     private fun setupRecyclerView() {
-        postAdapter = PostAdapter { post ->
-            // Navigate to PostDetailsFragment using action ID and bundle
-            val navController = findNavController()
-            val bundle = android.os.Bundle().apply {
-                putString("postId", post.id)
-            }
-            navController.navigate(
-                com.example.triptip_yaron_and_alon.R.id.action_feedFragment_to_postDetailsFragment,
-                bundle
-            )
-        }
+        postAdapter = PostAdapter(
+            onPostClick = { post ->
+                val navController = findNavController()
+                val bundle = android.os.Bundle().apply { putString("postId", post.id) }
+                navController.navigate(
+                    com.example.triptip_yaron_and_alon.R.id.action_feedFragment_to_postDetailsFragment,
+                    bundle
+                )
+            },
+            onLikeClick = { post ->
+                val uid = viewModel.currentUserId.value
+                if (uid != null) {
+                    if (post.likedBy.contains(uid)) viewModel.unlikePost(post.id)
+                    else viewModel.likePost(post.id)
+                }
+            },
+            currentUserId = null
+        )
         
         binding.rvPosts.apply {
             adapter = postAdapter
@@ -98,7 +105,7 @@ class TrendingPostsFragment : Fragment() {
     }
     
     private fun observeViewModel() {
-        // Observe posts
+        // Observe posts and current user (for like state)
         viewModel.posts.observe(viewLifecycleOwner) { posts ->
             if (posts.isEmpty()) {
                 binding.tvEmptyState.visibility = View.VISIBLE
@@ -108,6 +115,9 @@ class TrendingPostsFragment : Fragment() {
                 binding.rvPosts.visibility = View.VISIBLE
                 postAdapter.submitList(posts)
             }
+        }
+        viewModel.currentUserId.observe(viewLifecycleOwner) { id ->
+            postAdapter.setCurrentUserId(id)
         }
         
         // Observe loading

@@ -48,17 +48,23 @@ class FollowingPostsFragment : Fragment() {
     }
     
     private fun setupRecyclerView() {
-        postAdapter = PostAdapter { post ->
-            // Navigate to PostDetailsFragment using action ID and bundle
-            val navController = findNavController()
-            val bundle = android.os.Bundle().apply {
-                putString("postId", post.id)
-            }
-            navController.navigate(
-                com.example.triptip_yaron_and_alon.R.id.action_feedFragment_to_postDetailsFragment,
-                bundle
-            )
-        }
+        postAdapter = PostAdapter(
+            onPostClick = { post ->
+                val navController = findNavController()
+                val bundle = android.os.Bundle().apply { putString("postId", post.id) }
+                navController.navigate(
+                    com.example.triptip_yaron_and_alon.R.id.action_feedFragment_to_postDetailsFragment,
+                    bundle
+                )
+            },
+            onLikeClick = { post ->
+                viewModel.currentUserId.value?.let { uid ->
+                    if (post.likedBy.contains(uid)) viewModel.unlikePost(post.id)
+                    else viewModel.likePost(post.id)
+                }
+            },
+            currentUserId = viewModel.currentUserId.value
+        )
         
         binding.rvPosts.apply {
             adapter = postAdapter
@@ -75,8 +81,10 @@ class FollowingPostsFragment : Fragment() {
     }
     
     private fun observeViewModel() {
+        viewModel.currentUserId.observe(viewLifecycleOwner) { id ->
+            postAdapter.setCurrentUserId(id)
+        }
         // TODO: Observe followed users' posts when following system is implemented
-        // For now, show empty state
     }
     
     private fun showEmptyState() {

@@ -12,6 +12,7 @@ object Constants {
     // Storage Paths (for local file storage)
     const val STORAGE_POST_IMAGES = "post_images"
     const val STORAGE_PROFILE_IMAGES = "profile_images"
+    const val STORAGE_COMMENT_IMAGES = "comment_images"
     
     // API Keys (store in local.properties or BuildConfig)
     // Open-Meteo doesn't require an API key (free and open source)

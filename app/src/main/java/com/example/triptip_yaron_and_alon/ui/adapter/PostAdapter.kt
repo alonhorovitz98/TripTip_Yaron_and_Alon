@@ -3,6 +3,7 @@ package com.example.triptip_yaron_and_alon.ui.adapter
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -16,8 +17,22 @@ import java.util.Date
 import java.util.Locale
 
 class PostAdapter(
-    private val onPostClick: (Post) -> Unit
+    private val onPostClick: (Post) -> Unit,
+    private val onLikeClick: ((Post) -> Unit)? = null,
+    currentUserId: String? = null
 ) : ListAdapter<Post, PostAdapter.PostViewHolder>(PostDiffCallback()) {
+    
+    private var _currentUserId: String? = currentUserId
+        set(value) {
+            if (field != value) {
+                field = value
+                notifyDataSetChanged()
+            }
+        }
+    
+    fun setCurrentUserId(id: String?) {
+        _currentUserId = id
+    }
     
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PostViewHolder {
         val binding = ItemPostBinding.inflate(
@@ -25,7 +40,7 @@ class PostAdapter(
             parent,
             false
         )
-        return PostViewHolder(binding, onPostClick)
+        return PostViewHolder(binding, onPostClick, onLikeClick) { _currentUserId }
     }
     
     override fun onBindViewHolder(holder: PostViewHolder, position: Int) {
@@ -34,33 +49,42 @@ class PostAdapter(
     
     class PostViewHolder(
         private val binding: ItemPostBinding,
-        private val onPostClick: (Post) -> Unit
+        private val onPostClick: (Post) -> Unit,
+        private val onLikeClick: ((Post) -> Unit)?,
+        private val currentUserIdProvider: () -> String?
     ) : RecyclerView.ViewHolder(binding.root) {
         
         fun bind(post: Post) {
+            val currentUserId = currentUserIdProvider()
+            val liked = currentUserId != null && post.likedBy.contains(currentUserId)
             binding.apply {
                 // Post text
                 tvPostText.text = post.text
                 
-                // Username (you'll need to fetch from userId later)
-                tvUsername.text = "User ${post.userId.take(8)}"
+                // Username and profile image from post (set at create from current user)
+                tvUsername.text = post.userName.ifBlank { "User ${post.userId.take(8)}" }
                 
                 // Timestamp
                 tvTimestamp.text = formatTimestamp(post.createdAt)
                 
-                // Post image - Coil handles file errors gracefully
-                if (post.imageUrl != null) {
+                // Post image (URL or local file path)
+                if (!post.imageUrl.isNullOrBlank()) {
                     ivPostImage.visibility = View.VISIBLE
-                    try {
-                        val imageFile = File(post.imageUrl)
-                        ivPostImage.load(imageFile) {
+                    val isUrl = post.imageUrl.startsWith("http", ignoreCase = true)
+                    if (isUrl) {
+                        ivPostImage.load(post.imageUrl) {
                             placeholder(R.drawable.ic_launcher_background)
                             error(R.drawable.ic_launcher_background)
-                            // Coil will handle missing files automatically
                         }
-                    } catch (e: Exception) {
-                        // If file path is invalid, hide image view
-                        ivPostImage.visibility = View.GONE
+                    } else {
+                        try {
+                            ivPostImage.load(File(post.imageUrl)) {
+                                placeholder(R.drawable.ic_launcher_background)
+                                error(R.drawable.ic_launcher_background)
+                            }
+                        } catch (e: Exception) {
+                            ivPostImage.visibility = View.GONE
+                        }
                     }
                 } else {
                     ivPostImage.visibility = View.GONE
@@ -74,16 +98,41 @@ class PostAdapter(
                     locationTag.visibility = View.GONE
                 }
                 
-                // User profile image (placeholder for now)
-                ivUserProfile.load(R.drawable.ic_launcher_foreground) {
-                    placeholder(R.drawable.ic_profile_frame)
-                    error(R.drawable.ic_profile_frame)
+                // User profile image (from post or placeholder)
+                if (!post.userImageUrl.isNullOrBlank()) {
+                    ivUserProfile.load(post.userImageUrl) {
+                        placeholder(R.drawable.ic_profile_frame)
+                        error(R.drawable.ic_profile_frame)
+                    }
+                } else {
+                    ivUserProfile.load(R.drawable.ic_profile_frame) {
+                        placeholder(R.drawable.ic_profile_frame)
+                        error(R.drawable.ic_profile_frame)
+                    }
                 }
                 
-                // Engagement buttons (placeholder - can be implemented later)
-                btnLike.setOnClickListener {
-                    // TODO: Implement like functionality
+                // Like count (real data from DB)
+                tvLikeCount.text = when (val n = post.likes) {
+                    0 -> ""
+                    1 -> "1"
+                    in 2..999 -> n.toString()
+                    else -> "${n / 1000}.${(n % 1000) / 100}k"
                 }
+                tvCommentCount.text = when (val n = post.commentCount) {
+                    0 -> "0"
+                    in 1..999 -> n.toString()
+                    else -> "${n / 1000}k"
+                }
+                
+                // Like button state (filled when current user liked)
+                btnLike.setImageResource(
+                    if (liked) R.drawable.ic_heart_filled else R.drawable.ic_heart
+                )
+                btnLike.setColorFilter(
+                    ContextCompat.getColor(binding.root.context, R.color.orange_primary)
+                )
+                // Engagement: like (wired in Fragment via onLikeClick)
+                btnLike.setOnClickListener { onLikeClick?.invoke(post) }
                 
                 btnComment.setOnClickListener {
                     // Navigate to post details (which has comments)

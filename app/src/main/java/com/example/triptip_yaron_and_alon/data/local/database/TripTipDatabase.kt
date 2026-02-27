@@ -21,7 +21,7 @@ import com.example.triptip_yaron_and_alon.data.local.database.entities.*
         NotificationEntity::class,
         SearchHistoryEntity::class
     ],
-    version = 3, // Incremented for TripItemEntity schema change (added placeId, made postId nullable)
+    version = 5, // Added imageUrl to comments
     exportSchema = false
 )
 abstract class TripTipDatabase : RoomDatabase() {
@@ -84,6 +84,18 @@ abstract class TripTipDatabase : RoomDatabase() {
             }
         }
         
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE posts ADD COLUMN likedBy TEXT NOT NULL DEFAULT ''")
+            }
+        }
+        
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE comments ADD COLUMN imageUrl TEXT")
+            }
+        }
+        
         fun getDatabase(context: Context): TripTipDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -91,7 +103,7 @@ abstract class TripTipDatabase : RoomDatabase() {
                     TripTipDatabase::class.java,
                     "triptip_database"
                 )
-                    .addMigrations(MIGRATION_2_3)
+                    .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .fallbackToDestructiveMigration() // Fallback if migration fails
                     .build()
                 INSTANCE = instance

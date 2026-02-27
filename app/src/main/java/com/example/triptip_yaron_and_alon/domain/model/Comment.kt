@@ -11,6 +11,7 @@ data class Comment(
     val userName: String,
     val userAvatarUrl: String?,
     val text: String,
+    val imageUrl: String? = null,
     val parentCommentId: String?, // null for top-level comments
     val likes: Int = 0,
     val createdAt: Long

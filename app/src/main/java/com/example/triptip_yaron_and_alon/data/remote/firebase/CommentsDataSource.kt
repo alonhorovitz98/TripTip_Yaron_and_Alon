@@ -44,6 +44,7 @@ class CommentsDataSource {
                             userName = doc.getString("userName") ?: "",
                             userAvatarUrl = doc.getString("userAvatarUrl"),
                             text = doc.getString("text") ?: "",
+                            imageUrl = doc.getString("imageUrl"),
                             parentCommentId = doc.getString("parentCommentId"),
                             likes = doc.getLong("likes")?.toInt() ?: 0,
                             createdAt = doc.getLong("createdAt") ?: 0L
@@ -60,11 +61,12 @@ class CommentsDataSource {
     }
     
     /**
-     * Add a new comment to a post.
+     * Add a new comment to a post (with optional image URL from repository upload).
      */
     suspend fun addComment(
         postId: String,
         text: String,
+        imageUrl: String? = null,
         parentCommentId: String? = null
     ): Result<Comment> {
         return try {
@@ -79,6 +81,7 @@ class CommentsDataSource {
                 userName = currentUser.displayName ?: "Anonymous",
                 userAvatarUrl = currentUser.photoUrl?.toString(),
                 text = text,
+                imageUrl = imageUrl,
                 parentCommentId = parentCommentId,
                 likes = 0,
                 createdAt = System.currentTimeMillis()
@@ -90,6 +93,7 @@ class CommentsDataSource {
                 "userName" to comment.userName,
                 "userAvatarUrl" to comment.userAvatarUrl,
                 "text" to comment.text,
+                "imageUrl" to comment.imageUrl,
                 "parentCommentId" to comment.parentCommentId,
                 "likes" to comment.likes,
                 "createdAt" to comment.createdAt
