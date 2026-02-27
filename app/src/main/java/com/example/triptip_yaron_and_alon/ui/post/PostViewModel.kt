@@ -19,6 +19,7 @@ import com.example.triptip_yaron_and_alon.domain.model.WeatherInfo
 import com.example.triptip_yaron_and_alon.util.Result
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class PostViewModel(application: Application) : AndroidViewModel(application) {
@@ -86,6 +87,8 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
     
     private val _locationSuggestionsLoading = MutableLiveData<Boolean>()
     val locationSuggestionsLoading: LiveData<Boolean> = _locationSuggestionsLoading
+    private var locationSearchJob: Job? = null
+    private var latestLocationQuery: String = ""
     
     // Current user ID (simplified - should come from auth)
     private var currentUserId: String? = null
@@ -126,11 +129,16 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun searchLocationSuggestions(query: String) {
         if (query.length < 2) {
+            latestLocationQuery = ""
+            locationSearchJob?.cancel()
             _locationSuggestions.value = emptyList()
+            _locationSuggestionsLoading.value = false
             return
         }
-        
-        viewModelScope.launch {
+
+        latestLocationQuery = query
+        locationSearchJob?.cancel()
+        locationSearchJob = viewModelScope.launch {
             _locationSuggestionsLoading.value = true
             placeInfoRepository.searchLocationSuggestions(query)
                 .catch { e ->
@@ -138,7 +146,10 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
                     _error.value = "Failed to search locations: ${e.message}"
                 }
                 .collect { suggestions ->
-                    _locationSuggestions.value = suggestions
+                    // Ignore stale responses that return after a newer query was fired.
+                    if (query == latestLocationQuery) {
+                        _locationSuggestions.value = suggestions
+                    }
                     _locationSuggestionsLoading.value = false
                 }
         }

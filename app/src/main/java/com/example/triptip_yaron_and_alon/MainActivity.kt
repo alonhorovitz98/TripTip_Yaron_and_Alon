@@ -159,8 +159,11 @@ class MainActivity : AppCompatActivity() {
                 bottomNavigationView.visibility = android.view.View.VISIBLE
             }
             
-            // Hide activity app bar on feed so only the fragment's header (TripTip + tabs) shows
-            appBarLayout.visibility = if (destination.id == R.id.feedFragment) View.GONE else View.VISIBLE
+            // Hide activity app bar on screens that have their own custom headers (feed, create post)
+            appBarLayout.visibility = if (
+                destination.id == R.id.feedFragment ||
+                destination.id == R.id.createPostFragment
+            ) View.GONE else View.VISIBLE
             
             // Update selected item based on destination
             updateBottomNavSelection(destination.id)
@@ -168,7 +171,10 @@ class MainActivity : AppCompatActivity() {
         
         // Sync app bar visibility with current destination (e.g. after process death)
         navController.currentDestination?.id?.let { id ->
-            appBarLayout.visibility = if (id == R.id.feedFragment) View.GONE else View.VISIBLE
+            appBarLayout.visibility = if (
+                id == R.id.feedFragment ||
+                id == R.id.createPostFragment
+            ) View.GONE else View.VISIBLE
         }
     }
     

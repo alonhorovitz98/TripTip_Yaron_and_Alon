@@ -1,36 +1,45 @@
 package com.example.triptip_yaron_and_alon.ui.post
 
 import android.Manifest
-import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.Geocoder
+import android.location.Location
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ArrayAdapter
+import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import coil.load
 import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.FragmentCreatePostBinding
 import com.example.triptip_yaron_and_alon.domain.model.LocationSuggestion
 import com.example.triptip_yaron_and_alon.util.Result
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import com.google.android.material.snackbar.Snackbar
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class CreatePostFragment : Fragment() {
     
@@ -40,17 +49,39 @@ class CreatePostFragment : Fragment() {
     private lateinit var viewModel: PostViewModel
     private var selectedImageUri: Uri? = null
     private var cameraImageUri: Uri? = null
-    private lateinit var locationAdapter: ArrayAdapter<LocationSuggestion>
+    private lateinit var locationSuggestionsAdapter: LocationSuggestionsAdapter
+    private val currentLocationSuggestions = mutableListOf<LocationSuggestion>()
+    private lateinit var fusedLocationClient: com.google.android.gms.location.FusedLocationProviderClient
+    private var selectedLatitude: Double? = null
+    private var selectedLongitude: Double? = null
+    private var selectedGooglePlaceId: String? = null
+    private var isProgrammaticLocationUpdate: Boolean = false
     
-    // Image picker launcher (gallery)
+    // Image picker launcher (storage / gallery)
     private val imagePickerLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            result.data?.data?.let { uri ->
-                selectedImageUri = uri
-                displayImagePreview(uri)
-            }
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            selectedImageUri = it
+            displayImagePreview(it)
+        }
+    }
+    
+    // Location permission launcher
+    private val locationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        
+        if (granted) {
+            autoFillCurrentLocation()
+        } else {
+            Snackbar.make(
+                binding.root,
+                "Location permission denied. You can still type location manually.",
+                Snackbar.LENGTH_LONG
+            ).show()
         }
     }
     
@@ -61,6 +92,12 @@ class CreatePostFragment : Fragment() {
         if (success && cameraImageUri != null) {
             selectedImageUri = cameraImageUri
             displayImagePreview(cameraImageUri!!)
+        } else {
+            Snackbar.make(
+                binding.root,
+                "Camera canceled or failed. Try gallery instead.",
+                Snackbar.LENGTH_SHORT
+            ).show()
         }
     }
     
@@ -92,37 +129,33 @@ class CreatePostFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         
         viewModel = ViewModelProvider(this)[PostViewModel::class.java]
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireActivity())
+        locationSuggestionsAdapter = LocationSuggestionsAdapter { selected ->
+            onLocationSuggestionSelected(selected)
+        }
+        binding.rvLocationSuggestions.apply {
+            layoutManager = LinearLayoutManager(requireContext())
+            adapter = locationSuggestionsAdapter
+        }
         
         setupLocationAutocomplete()
         setupListeners()
         observeViewModel()
+        
+        // Ensure screen opens at the top so the Add photos card is visible
+        binding.scrollView.post {
+            binding.scrollView.scrollTo(0, 0)
+        }
+        // Prevent location field from stealing focus on open and jumping the layout.
+        binding.etLocation.clearFocus()
+        
+        // Auto-fill location from current GPS on open (if empty)
+        if (binding.etLocation.text.isNullOrBlank()) {
+            requestLocationPermissionAndAutofill()
+        }
     }
     
     private fun setupLocationAutocomplete() {
-        // Create adapter for location suggestions with custom display
-        locationAdapter = object : ArrayAdapter<LocationSuggestion>(
-            requireContext(),
-            android.R.layout.simple_dropdown_item_1line,
-            mutableListOf<LocationSuggestion>()
-        ) {
-            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-                val view = super.getView(position, convertView, parent)
-                val suggestion = getItem(position)
-                if (suggestion != null) {
-                    // Display the full location name with better formatting
-                    val textView = view as? android.widget.TextView
-                    textView?.text = suggestion.displayName
-                    // Show city/country as hint if available
-                    if (suggestion.city != null || suggestion.country != null) {
-                        val subtitle = listOfNotNull(suggestion.city, suggestion.country).joinToString(", ")
-                        textView?.hint = subtitle
-                    }
-                }
-                return view
-            }
-        }
-        binding.etLocation.setAdapter(locationAdapter)
-        
         // Handle text changes to trigger search
         binding.etLocation.addTextChangedListener(object : TextWatcher {
             private var searchRunnable: Runnable? = null
@@ -130,40 +163,51 @@ class CreatePostFragment : Fragment() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                if (isProgrammaticLocationUpdate) return
+                
+                // User is typing manually: clear cached coordinates/place id
+                selectedLatitude = null
+                selectedLongitude = null
+                selectedGooglePlaceId = null
+                
                 // Cancel previous search
                 binding.etLocation.removeCallbacks(searchRunnable)
                 
                 // Debounce search (wait 300ms after user stops typing - Google Places is fast!)
                 searchRunnable = Runnable {
                     val query = s?.toString()?.trim()
-                    if (!query.isNullOrBlank() && query.length >= 2) {
+                    if (!query.isNullOrBlank() && query.length >= 1) {
                         viewModel.searchLocationSuggestions(query)
                     } else {
-                        locationAdapter.clear()
-                        locationAdapter.notifyDataSetChanged()
+                        currentLocationSuggestions.clear()
+                        locationSuggestionsAdapter.submit(emptyList())
+                        binding.rvLocationSuggestions.visibility = View.GONE
                     }
                 }
                 binding.etLocation.postDelayed(searchRunnable, 300)
+                
             }
             
             override fun afterTextChanged(s: Editable?) {}
         })
         
-        // Handle item selection
-        binding.etLocation.setOnItemClickListener { _, _, position, _ ->
-            val selected = locationAdapter.getItem(position)
-            selected?.let {
-                // If it's a Google Places suggestion without coordinates, fetch details first
-                if (it.googlePlaceId != null && (it.latitude == 0.0 || it.longitude == 0.0)) {
-                    // Fetch place details to get coordinates
-                    viewModel.fetchPlaceDetails(it.googlePlaceId)
-                    // Store the place_id with the display name for later use
-                    val displayText = "${it.displayName}|${it.googlePlaceId}"
-                    binding.etLocation.setText(displayText, false)
-                } else {
-                    // Already has coordinates or is Nominatim result, just use display name
-                    binding.etLocation.setText(it.displayName, false)
+        // On focus/click, select current text so typing replaces default location (e.g. current city)
+        binding.etLocation.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) {
+                binding.etLocation.selectAll()
+                val query = binding.etLocation.text?.toString()?.trim()
+                if (!query.isNullOrBlank()) {
+                    viewModel.searchLocationSuggestions(query)
                 }
+            } else {
+                binding.rvLocationSuggestions.visibility = View.GONE
+            }
+        }
+        binding.etLocation.setOnClickListener {
+            binding.etLocation.selectAll()
+            val query = binding.etLocation.text?.toString()?.trim()
+            if (!query.isNullOrBlank()) {
+                viewModel.searchLocationSuggestions(query)
             }
         }
     }
@@ -181,35 +225,42 @@ class CreatePostFragment : Fragment() {
         
         // Photo upload card
         binding.photoUploadCard.setOnClickListener {
-            showImageSourceDialog()
+            Log.d("CreatePostFragment", "Photo card tapped")
+            openImagePicker()
+        }
+        
+        // Full photo area should always open source picker
+        binding.photoUploadContainer.setOnClickListener {
+            Log.d("CreatePostFragment", "Photo container tapped")
+            openImagePicker()
         }
         
         // Upload placeholder (also clickable)
         binding.uploadPlaceholder.setOnClickListener {
-            showImageSourceDialog()
+            Log.d("CreatePostFragment", "Upload placeholder tapped")
+            openImagePicker()
         }
-    }
-    
-    /**
-     * Show bottom sheet dialog with options: Take Photo, Choose from Gallery, Cancel
-     */
-    private fun showImageSourceDialog() {
-        val options = arrayOf(
-            getString(R.string.take_photo),
-            getString(R.string.choose_from_gallery),
-            getString(R.string.cancel)
-        )
         
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle(getString(R.string.select_photo_source))
-            .setItems(options) { _, which ->
-                when (which) {
-                    0 -> openCamera() // Take Photo
-                    1 -> openImagePicker() // Choose from Gallery
-                    2 -> {} // Cancel - do nothing
-                }
-            }
-            .show()
+        // If preview is visible, tapping it should still allow changing media
+        binding.ivImagePreview.setOnClickListener {
+            Log.d("CreatePostFragment", "Image preview tapped")
+            openImagePicker()
+        }
+
+        binding.btnTakePhoto.setOnClickListener {
+            Log.d("CreatePostFragment", "Take photo button tapped")
+            openCamera()
+        }
+
+        binding.btnChooseGallery.setOnClickListener {
+            Log.d("CreatePostFragment", "Choose gallery button tapped")
+            openImagePicker()
+        }
+        
+        // Explicit "Use current location" action (always refreshes from GPS).
+        binding.btnUseCurrentLocation.setOnClickListener {
+            requestLocationPermissionAndAutofill()
+        }
     }
     
     /**
@@ -228,15 +279,33 @@ class CreatePostFragment : Fragment() {
         }
         
         // Create a file for the photo
+        val cameraIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+        if (cameraIntent.resolveActivity(requireContext().packageManager) == null) {
+            Snackbar.make(
+                binding.root,
+                "No camera app available on this device",
+                Snackbar.LENGTH_SHORT
+            ).show()
+            return
+        }
+
         val photoFile = createImageFile()
         photoFile?.let { file ->
-            // Get URI using FileProvider
-            cameraImageUri = FileProvider.getUriForFile(
-                requireContext(),
-                "${requireContext().packageName}.fileprovider",
-                file
-            )
-            cameraLauncher.launch(cameraImageUri)
+            try {
+                cameraImageUri = FileProvider.getUriForFile(
+                    requireContext(),
+                    "${requireContext().packageName}.fileprovider",
+                    file
+                )
+                cameraLauncher.launch(cameraImageUri)
+            } catch (e: Exception) {
+                Log.e("CreatePostFragment", "Camera launch failed", e)
+                Snackbar.make(
+                    binding.root,
+                    "Failed to open camera: ${e.localizedMessage ?: "unknown error"}",
+                    Snackbar.LENGTH_LONG
+                ).show()
+            }
         } ?: run {
             Snackbar.make(
                 binding.root,
@@ -264,8 +333,80 @@ class CreatePostFragment : Fragment() {
      * Open gallery to pick an existing image.
      */
     private fun openImagePicker() {
-        val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
-        imagePickerLauncher.launch(intent)
+        imagePickerLauncher.launch("image/*")
+    }
+    
+    private fun requestLocationPermissionAndAutofill() {
+        val hasFineLocation = ContextCompat.checkSelfPermission(
+            requireContext(),
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        
+        val hasCoarseLocation = ContextCompat.checkSelfPermission(
+            requireContext(),
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        
+        if (hasFineLocation || hasCoarseLocation) {
+            autoFillCurrentLocation()
+        } else {
+            locationPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
+        }
+    }
+    
+    private fun autoFillCurrentLocation() {
+        fusedLocationClient.getCurrentLocation(
+            Priority.PRIORITY_HIGH_ACCURACY,
+            null
+        ).addOnSuccessListener { location: Location? ->
+            if (location == null) {
+                Snackbar.make(
+                    binding.root,
+                    "Could not get current location",
+                    Snackbar.LENGTH_SHORT
+                ).show()
+                return@addOnSuccessListener
+            }
+            
+            selectedLatitude = location.latitude
+            selectedLongitude = location.longitude
+            selectedGooglePlaceId = null
+            
+            // Resolve coordinates to human-readable place name.
+            lifecycleScope.launch {
+                val locationText = withContext(Dispatchers.IO) {
+                    try {
+                        val geocoder = Geocoder(requireContext(), Locale.getDefault())
+                        @Suppress("DEPRECATION")
+                        val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
+                        val address = addresses?.firstOrNull()
+                        val city = address?.locality ?: address?.subAdminArea
+                        val country = address?.countryName
+                        listOfNotNull(city, country).joinToString(", ").ifBlank { "Current location" }
+                    } catch (e: Exception) {
+                        "Current location"
+                    }
+                }
+                isProgrammaticLocationUpdate = true
+                binding.etLocation.setText(locationText, false)
+                isProgrammaticLocationUpdate = false
+                binding.etLocation.clearFocus()
+                binding.scrollView.post {
+                    binding.scrollView.scrollTo(0, 0)
+                }
+            }
+        }.addOnFailureListener {
+            Snackbar.make(
+                binding.root,
+                "Could not get current location",
+                Snackbar.LENGTH_SHORT
+            ).show()
+        }
     }
     
     private fun displayImagePreview(uri: Uri) {
@@ -279,7 +420,12 @@ class CreatePostFragment : Fragment() {
     
     private fun createPost() {
         val text = binding.etPostText.text.toString().trim()
-        val location = binding.etLocation.text.toString().trim().takeIf { it.isNotEmpty() }
+        val locationText = binding.etLocation.text.toString().trim().takeIf { it.isNotEmpty() }
+        val location = if (!locationText.isNullOrBlank() && !selectedGooglePlaceId.isNullOrBlank()) {
+            "${locationText}|${selectedGooglePlaceId}"
+        } else {
+            locationText
+        }
         
         if (text.isBlank()) {
             Snackbar.make(binding.root, "Please enter post text", Snackbar.LENGTH_SHORT).show()
@@ -290,8 +436,8 @@ class CreatePostFragment : Fragment() {
             text = text,
             imageUri = selectedImageUri,
             location = location,
-            latitude = null, // TODO: Add location picker in future
-            longitude = null // TODO: Add location picker in future
+            latitude = selectedLatitude,
+            longitude = selectedLongitude
         )
     }
     
@@ -325,9 +471,12 @@ class CreatePostFragment : Fragment() {
         
         // Observe location suggestions
         viewModel.locationSuggestions.observe(viewLifecycleOwner) { suggestions ->
-            locationAdapter.clear()
-            locationAdapter.addAll(suggestions)
-            locationAdapter.notifyDataSetChanged()
+            Log.d("CreatePostFragment", "Location suggestions count=${suggestions.size}")
+            currentLocationSuggestions.clear()
+            currentLocationSuggestions.addAll(suggestions)
+            locationSuggestionsAdapter.submit(suggestions)
+            binding.rvLocationSuggestions.visibility =
+                if (suggestions.isNotEmpty() && binding.etLocation.hasFocus()) View.VISIBLE else View.GONE
         }
         
         viewModel.locationSuggestionsLoading.observe(viewLifecycleOwner) { isLoading ->
@@ -338,5 +487,59 @@ class CreatePostFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    private fun onLocationSuggestionSelected(selected: LocationSuggestion) {
+        if (selected.googlePlaceId != null && (selected.latitude == 0.0 || selected.longitude == 0.0)) {
+            viewModel.fetchPlaceDetails(selected.googlePlaceId)
+            selectedGooglePlaceId = selected.googlePlaceId
+            selectedLatitude = null
+            selectedLongitude = null
+        } else {
+            selectedGooglePlaceId = selected.googlePlaceId
+            selectedLatitude = selected.latitude.takeIf { lat -> lat != 0.0 }
+            selectedLongitude = selected.longitude.takeIf { lon -> lon != 0.0 }
+        }
+
+        isProgrammaticLocationUpdate = true
+        binding.etLocation.setText(selected.displayName)
+        binding.etLocation.setSelection(binding.etLocation.text?.length ?: 0)
+        isProgrammaticLocationUpdate = false
+        binding.rvLocationSuggestions.visibility = View.GONE
+        binding.etLocation.clearFocus()
+    }
+
+    private inner class LocationSuggestionsAdapter(
+        private val onSuggestionClick: (LocationSuggestion) -> Unit
+    ) : RecyclerView.Adapter<LocationSuggestionsAdapter.SuggestionViewHolder>() {
+
+        private val items = mutableListOf<LocationSuggestion>()
+
+        fun submit(newItems: List<LocationSuggestion>) {
+            items.clear()
+            items.addAll(newItems)
+            notifyDataSetChanged()
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SuggestionViewHolder {
+            val view = layoutInflater.inflate(android.R.layout.simple_list_item_1, parent, false)
+            return SuggestionViewHolder(view)
+        }
+
+        override fun onBindViewHolder(holder: SuggestionViewHolder, position: Int) {
+            holder.bind(items[position])
+        }
+
+        override fun getItemCount(): Int = items.size
+
+        inner class SuggestionViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+            private val textView: TextView = itemView.findViewById(android.R.id.text1)
+
+            fun bind(item: LocationSuggestion) {
+                textView.text = item.displayName
+                textView.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_primary))
+                itemView.setOnClickListener { onSuggestionClick(item) }
+            }
+        }
     }
 }
