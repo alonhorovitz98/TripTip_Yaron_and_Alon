@@ -558,6 +558,7 @@ class FirestoreDataSource(
                 latitude = getDouble("latitude"),
                 longitude = getDouble("longitude"),
                 placeXid = getString("placeXid"),
+                priceLevel = getLong("priceLevel")?.toInt()?.coerceIn(0, 4),
                 likes = (getLong("likes") ?: 0).toInt(),
                 likedBy = likedByList,
                 likedByCurrentUser = false, // Set in UI from currentUserId
@@ -583,6 +584,7 @@ class FirestoreDataSource(
             "latitude" to latitude,
             "longitude" to longitude,
             "placeXid" to placeXid,
+            "priceLevel" to priceLevel,
             "likes" to likes,
             "likedBy" to likedBy,
             "commentCount" to commentCount

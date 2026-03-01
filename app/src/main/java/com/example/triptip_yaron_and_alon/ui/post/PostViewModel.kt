@@ -20,6 +20,7 @@ import com.example.triptip_yaron_and_alon.domain.model.PlaceInfo
 import com.example.triptip_yaron_and_alon.domain.model.Comment
 import com.example.triptip_yaron_and_alon.domain.model.Post
 import com.example.triptip_yaron_and_alon.domain.model.WeatherInfo
+import com.example.triptip_yaron_and_alon.util.Constants
 import com.example.triptip_yaron_and_alon.util.Result
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.firstOrNull
@@ -172,11 +173,22 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
     
-    fun addComment(postId: String, text: String, imageUrl: String?) {
-        if (text.isBlank()) return
+    fun addComment(postId: String, text: String, imageUri: Uri? = null) {
+        if (text.isBlank() && imageUri == null) return
         viewModelScope.launch {
+            var imageUrl: String? = null
+            if (imageUri != null) {
+                when (val r = storageDataSource.uploadImageSync(imageUri, Constants.STORAGE_COMMENT_IMAGES)) {
+                    is Result.Success -> imageUrl = r.data
+                    is Result.Error -> {
+                        _error.value = r.message
+                        return@launch
+                    }
+                    is Result.Loading -> { }
+                }
+            }
             val user = authDataSource.getCurrentUser().firstOrNull() ?: return@launch
-            commentsRepository.addComment(postId, text, imageUrl, null).collect { result ->
+            commentsRepository.addComment(postId, text.ifBlank { "" }, imageUrl, null).collect { result ->
                 when (result) {
                     is Result.Success -> {
                         val ownerId = _post.value?.userId
@@ -296,18 +308,21 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
             }
             val userImageUrl = currentUser.profileImageUrl
             
-            // Geocode location if name provided but no coordinates
+            // Geocode location if name provided but no coordinates; also get price_level from Google when place_id present
             var finalLatitude = latitude
             var finalLongitude = longitude
+            var priceLevel: Int? = null
             
             if (location != null && location.isNotBlank() && (latitude == null || longitude == null)) {
                 try {
                     // Check if location contains a Google Places place_id (format: "place_name|place_id")
                     val parts = location.split("|")
                     if (parts.size == 2 && parts[1].isNotBlank()) {
-                        // This is a Google Places place_id, fetch details
+                        // This is a Google Places place_id, fetch details (coords + price_level)
                         val placeDetails = placeInfoRepository.getGooglePlaceDetails(parts[1])
                             .firstOrNull()
+                        val fullDetails = placeInfoRepository.getFullPlaceDetails(parts[1]).firstOrNull()
+                        priceLevel = fullDetails?.priceLevel?.coerceIn(0, 4)
                         
                         if (placeDetails != null && placeDetails.latitude != 0.0 && placeDetails.longitude != 0.0) {
                             finalLatitude = placeDetails.latitude
@@ -353,7 +368,8 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
                 location = location,
                 latitude = finalLatitude,
                 longitude = finalLongitude,
-                placeXid = null
+                placeXid = null,
+                priceLevel = priceLevel
             )
             
             postRepository.createPost(post, imageUri).collect { result ->

@@ -50,7 +50,10 @@ data class PlaceDetailsResultDto(
     @SerializedName("editorial_summary")
     val editorialSummary: EditorialSummaryDto? = null,
     
-    val vicinity: String? = null
+    val vicinity: String? = null,
+    
+    @SerializedName("price_level")
+    val priceLevel: Int? = null // 0-4 from Google Places
 )
 
 data class GoogleGeometryDto(

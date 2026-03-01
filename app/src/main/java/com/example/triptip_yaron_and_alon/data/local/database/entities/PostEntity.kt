@@ -17,6 +17,7 @@ data class PostEntity(
     val latitude: Double? = null,
     val longitude: Double? = null,
     val placeXid: String? = null,
+    val priceLevel: Int? = null,
     // Social features (likedBy stored as comma-separated ids in Room)
     val likes: Int = 0,
     val likedBy: String = "",

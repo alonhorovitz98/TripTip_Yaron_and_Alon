@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
@@ -14,7 +15,10 @@ import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.FragmentPostDetailsBinding
 import com.example.triptip_yaron_and_alon.ui.adapter.NearbyPlaceAdapter
 import com.example.triptip_yaron_and_alon.ui.post.CommentAdapter
-import com.example.triptip_yaron_and_alon.util.Result
+import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.MapView
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.snackbar.Snackbar
 import java.io.File
 import java.text.SimpleDateFormat
@@ -53,6 +57,39 @@ class PostDetailsFragment : Fragment() {
         // Load post and comments
         viewModel.loadPost(args.postId)
         viewModel.loadComments(args.postId)
+        
+        binding.mapView.onCreate(savedInstanceState)
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        binding.mapView.onResume()
+    }
+    
+    override fun onPause() {
+        binding.mapView.onPause()
+        super.onPause()
+    }
+    
+    override fun onDestroyView() {
+        binding.mapView.onDestroy()
+        super.onDestroyView()
+        _binding = null
+    }
+    
+    override fun onLowMemory() {
+        super.onLowMemory()
+        binding.mapView.onLowMemory()
+    }
+    
+    private val commentImagePicker = registerForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            val text = binding.etComment.text?.toString()?.trim() ?: ""
+            viewModel.addComment(args.postId, text, it)
+            binding.etComment.text?.clear()
+        }
     }
     
     private fun setupRecyclerView() {
@@ -103,11 +140,14 @@ class PostDetailsFragment : Fragment() {
         
         // Send comment
         binding.btnSendComment.setOnClickListener {
-            val text = binding.etComment.text?.toString()?.trim() ?: return@setOnClickListener
-            if (text.isNotEmpty()) {
-                viewModel.addComment(args.postId, text, null)
-                binding.etComment.text?.clear()
-            }
+            val text = binding.etComment.text?.toString()?.trim() ?: ""
+            viewModel.addComment(args.postId, text, null)
+            binding.etComment.text?.clear()
+        }
+        
+        // Add photo to comment (camera icon)
+        binding.btnCommentPhoto.setOnClickListener {
+            commentImagePicker.launch("image/*")
         }
         
         // Add to Trip button
@@ -240,22 +280,61 @@ class PostDetailsFragment : Fragment() {
         // Post text (description)
         binding.tvPostText.text = post.text
         
-        // Post image - Coil handles file errors gracefully
+        // Post image - Coil handles file errors gracefully (URL or file path)
         if (post.imageUrl != null) {
             binding.ivPostImage.visibility = View.VISIBLE
-            try {
-                val imageFile = java.io.File(post.imageUrl)
-                binding.ivPostImage.load(imageFile) {
+            if (post.imageUrl!!.startsWith("http", ignoreCase = true)) {
+                binding.ivPostImage.load(post.imageUrl) {
                     placeholder(R.drawable.ic_launcher_background)
                     error(R.drawable.ic_launcher_background)
-                    // Coil will handle missing files automatically
                 }
-            } catch (e: Exception) {
-                // If file path is invalid, hide image view
-                binding.ivPostImage.visibility = View.GONE
+            } else {
+                try {
+                    binding.ivPostImage.load(java.io.File(post.imageUrl)) {
+                        placeholder(R.drawable.ic_launcher_background)
+                        error(R.drawable.ic_launcher_background)
+                    }
+                } catch (e: Exception) {
+                    binding.ivPostImage.visibility = View.GONE
+                }
             }
         } else {
             binding.ivPostImage.visibility = View.GONE
+        }
+        
+        // Price level (Google 0-4): only show when we have real data
+        val level = post.priceLevel?.coerceIn(0, 4)
+        if (level != null) {
+            binding.pricingSection.visibility = View.VISIBLE
+            binding.tvPrice.text = when (level) {
+                0 -> "Free"
+                1 -> "$"
+                2 -> "$$"
+                3 -> "$$$"
+                4 -> "$$$$"
+                else -> ""
+            }
+        } else {
+            binding.pricingSection.visibility = View.GONE
+        }
+        
+        // Map: show real Google map only when we have coordinates
+        val lat = post.latitude
+        val lng = post.longitude
+        if (lat != null && lng != null) {
+            binding.tvLocationLabel.visibility = View.VISIBLE
+            binding.mapCard.visibility = View.VISIBLE
+            binding.mapView.getMapAsync { googleMap ->
+                googleMap.uiSettings.isMapToolbarEnabled = false
+                val pos = LatLng(lat, lng)
+                googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(pos, 14f))
+                googleMap.addMarker(
+                    MarkerOptions().position(pos).title(post.location ?: "Location")
+                )
+            }
+        } else {
+            binding.tvLocationLabel.visibility = View.GONE
+            binding.mapCard.visibility = View.GONE
         }
         
         // Weather and Places will be loaded if coordinates are available
@@ -270,7 +349,7 @@ class PostDetailsFragment : Fragment() {
             tvTemperature.text = "${weather.temperature}°C"
             
             // Condition with icon
-            tvCondition.text = weather.description.capitalize()
+            tvCondition.text = weather.description.replaceFirstChar { it.uppercase() }
             
             // Wind speed
             tvWind.text = "${weather.windSpeed}km/h"
@@ -296,8 +375,4 @@ class PostDetailsFragment : Fragment() {
         }
     }
     
-    override fun onDestroyView() {
-        super.onDestroyView()
-        _binding = null
-    }
 }

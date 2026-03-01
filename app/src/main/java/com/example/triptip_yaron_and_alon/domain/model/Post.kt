@@ -12,6 +12,7 @@ data class Post(
     val latitude: Double? = null,
     val longitude: Double? = null,
     val placeXid: String? = null, // OpenTripMap xid if post is about a specific place
+    val priceLevel: Int? = null, // Google Places price_level 0-4 ($ to $$$$)
     // Social features (likedBy stored in Firestore for real counts)
     val likes: Int = 0,
     val likedBy: List<String> = emptyList(),

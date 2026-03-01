@@ -38,6 +38,7 @@ android {
         val googlePlacesApiKey = localProperties.getProperty("GOOGLE_PLACES_API_KEY", "")
         buildConfigField("String", "OPENTRIPMAP_API_KEY", "\"$opentripmapApiKey\"")
         buildConfigField("String", "GOOGLE_PLACES_API_KEY", "\"$googlePlacesApiKey\"")
+        manifestPlaceholders["GOOGLE_PLACES_API_KEY"] = googlePlacesApiKey
     }
 
     buildTypes {
@@ -108,8 +109,9 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.play.services)
     
-    // Google Play Services Location
+    // Google Play Services Location & Maps
     implementation("com.google.android.gms:play-services-location:21.3.0")
+    implementation("com.google.android.gms:play-services-maps:19.0.0")
     
     // UI Enhancements
     implementation(libs.lottie)

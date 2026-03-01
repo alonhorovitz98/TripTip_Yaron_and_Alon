@@ -31,7 +31,8 @@ class CommentsDataSource {
             .orderBy("createdAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(Exception(error))
+                    // Don't close with exception (crashes app). Emit empty list so UI shows no comments.
+                    trySend(emptyList())
                     return@addSnapshotListener
                 }
                 
