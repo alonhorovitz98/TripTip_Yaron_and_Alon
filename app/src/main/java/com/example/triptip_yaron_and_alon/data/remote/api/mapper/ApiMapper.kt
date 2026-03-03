@@ -272,6 +272,11 @@ object ApiMapper {
                     "https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photo.photoReference}&key=$apiKey"
                 }
 
+                // Filter out places that don't have a photo (we only want places with images)
+                if (photoUrl == null) {
+                    return@mapNotNull null
+                }
+
                 // Only keep travel-relevant categories in the model
                 val filteredCategories = types.filter { it in travelRelevantTypes }
 
