@@ -15,6 +15,7 @@ import com.example.triptip_yaron_and_alon.data.remote.firebase.CommentsDataSourc
 import com.example.triptip_yaron_and_alon.data.repository.CommentsRepository
 import com.example.triptip_yaron_and_alon.data.repository.PlaceInfoRepository
 import com.example.triptip_yaron_and_alon.data.repository.PostRepository
+import com.example.triptip_yaron_and_alon.data.repository.UserRepository
 import com.example.triptip_yaron_and_alon.domain.model.LocationSuggestion
 import com.example.triptip_yaron_and_alon.domain.model.PlaceInfo
 import com.example.triptip_yaron_and_alon.domain.model.Comment
@@ -45,7 +46,15 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
     private val notificationsDataSource by lazy { NotificationsDataSource() }
     private val commentsDataSource by lazy { CommentsDataSource() }
     private val commentsRepository by lazy { CommentsRepository(commentsDataSource, database.commentDao()) }
-    
+    private val userRepository by lazy {
+        UserRepository(
+            database.userDao(),
+            authDataSource,
+            firestoreDataSource,
+            storageDataSource
+        )
+    }
+
     // Current post
     private val _post = MutableLiveData<Post?>()
     val post: LiveData<Post?> = _post
@@ -169,7 +178,9 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
     
     fun loadComments(postId: String) {
         viewModelScope.launch {
-            commentsRepository.getCommentsByPost(postId).collect { _comments.value = it }
+            commentsRepository.getCommentsByPost(postId).collect { list ->
+                _comments.postValue(list)
+            }
         }
     }
     
@@ -187,8 +198,18 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
                     is Result.Loading -> { }
                 }
             }
-            val user = authDataSource.getCurrentUser().firstOrNull() ?: return@launch
-            commentsRepository.addComment(postId, text.ifBlank { "" }, imageUrl, null).collect { result ->
+            val user = userRepository.getCurrentUser().firstOrNull()
+                ?: authDataSource.getCurrentUser().firstOrNull()
+                ?: return@launch
+            val displayName = user.name.ifBlank { user.email.takeWhile { it != '@' }.ifBlank { "User" } }
+            commentsRepository.addComment(
+                postId,
+                text.ifBlank { "" },
+                imageUrl,
+                null,
+                userName = displayName,
+                userAvatarUrl = user.profileImageUrl
+            ).collect { result ->
                 when (result) {
                     is Result.Success -> {
                         val ownerId = _post.value?.userId
@@ -295,8 +316,9 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
             _isLoading.value = true
             _error.value = null
             
-            // Get current user (id, name, profile image) for post attribution
-            val currentUser = authDataSource.getCurrentUser().firstOrNull()
+            // Get current user from UserRepository (includes Firestore profile image); fallback to Auth
+            val currentUser = userRepository.getCurrentUser().firstOrNull()
+                ?: authDataSource.getCurrentUser().firstOrNull()
                 ?: run {
                     _isLoading.value = false
                     _error.value = "User not authenticated"

@@ -25,15 +25,15 @@
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintHeight_percent="0.4">
 
-                <!-- Post Image -->
+                <!-- Post Image - fitCenter so full photo is visible on screen -->
                 <ImageView
                     android:id="@+id/ivPostImage"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:scaleType="centerCrop"
+                    android:scaleType="fitCenter"
                     android:background="@color/background_light" />
 
-                <!-- Overlay Icons -->
+                <!-- Overlay: centered Like (heart) only; back is in toolbar, share removed -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -44,46 +44,11 @@
                     android:paddingTop="16dp"
                     android:paddingBottom="16dp">
 
-                    <!-- Back Arrow (circular white button) -->
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnBack"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
-                        android:insetTop="0dp"
-                        android:insetBottom="0dp"
-                        android:insetLeft="0dp"
-                        android:insetRight="0dp"
-                        android:backgroundTint="@color/background_white"
-                        app:icon="@drawable/ic_arrow_back"
-                        app:iconTint="@color/text_primary"
-                        app:cornerRadius="20dp"
-                        app:iconSize="24dp"
-                        style="@style/Widget.Material3.Button" />
-
-                    <!-- Spacer -->
                     <View
                         android:layout_width="0dp"
                         android:layout_height="0dp"
                         android:layout_weight="1" />
 
-                    <!-- Share Icon (circular white button) -->
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnShare"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
-                        android:insetTop="0dp"
-                        android:insetBottom="0dp"
-                        android:insetLeft="0dp"
-                        android:insetRight="0dp"
-                        android:backgroundTint="@color/background_white"
-                        app:icon="@drawable/ic_paper_airplane"
-                        app:iconTint="@color/text_primary"
-                        app:cornerRadius="20dp"
-                        app:iconSize="24dp"
-                        android:layout_marginEnd="8dp"
-                        style="@style/Widget.Material3.Button" />
-
-                    <!-- Heart Icon (circular white button) -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnLike"
                         android:layout_width="40dp"
@@ -98,6 +63,11 @@
                         app:cornerRadius="20dp"
                         app:iconSize="24dp"
                         style="@style/Widget.Material3.Button" />
+
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:layout_weight="1" />
 
                 </LinearLayout>
             </FrameLayout>

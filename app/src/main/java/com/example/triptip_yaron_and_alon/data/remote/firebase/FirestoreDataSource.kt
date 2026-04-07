@@ -468,10 +468,14 @@ class FirestoreDataSource(
      */
     private fun com.google.firebase.firestore.DocumentSnapshot.toTripItem(dayId: String): TripItem? {
         return try {
+            val postId = getString("postId")
+            val placeId = getString("placeId")
+            if (postId == null && placeId == null) return null
             TripItem(
                 id = id,
                 dayId = dayId,
-                postId = getString("postId") ?: return null,
+                postId = postId,
+                placeId = placeId,
                 order = getLong("order")?.toInt() ?: 0,
                 notes = getString("notes")
             )
@@ -623,6 +627,7 @@ class FirestoreDataSource(
         return mapOf(
             "dayId" to dayId,
             "postId" to postId,
+            "placeId" to placeId,
             "order" to order,
             "notes" to notes
         )

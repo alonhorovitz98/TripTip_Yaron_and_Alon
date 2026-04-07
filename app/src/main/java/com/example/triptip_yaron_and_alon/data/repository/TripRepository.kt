@@ -12,9 +12,11 @@ import com.example.triptip_yaron_and_alon.domain.model.TripDay
 import com.example.triptip_yaron_and_alon.domain.model.TripItem
 import com.example.triptip_yaron_and_alon.util.Result
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -24,6 +26,7 @@ import kotlinx.coroutines.withContext
  * Repository for trip operations.
  * Implements cache-first strategy: Room first, then Firestore.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class TripRepository(
     private val tripDao: TripDao,
     private val tripDayDao: TripDayDao,
@@ -35,61 +38,63 @@ class TripRepository(
      * Get all trips for a user with cache-first strategy.
      * Emits cached trips immediately, then fetches from Firestore and updates cache.
      */
-    fun getTrips(userId: String): Flow<List<Trip>> = flow {
-        // Emit cached trips immediately (without nested data for performance)
-        tripDao.getTripsByUser(userId)
-            .map { entities ->
-                // Load days for each trip
-                val tripsWithDays = entities.map { entity ->
-                    val days = loadDaysForTrip(entity.id)
-                    TripMapper.toDomain(entity, days)
-                }
-                tripsWithDays
+    fun getTrips(userId: String): Flow<List<Trip>> = tripDao.getTripsByUser(userId)
+        .map { entities ->
+            entities.map { entity ->
+                val days = loadDaysForTrip(entity.id)
+                TripMapper.toDomain(entity, days)
             }
-            .catch { emit(emptyList()) }
-            .collect { cachedTrips ->
+        }
+        .catch { emit(emptyList()) }
+        .flowOn(Dispatchers.IO)
+        .flatMapLatest { cachedTrips ->
+            flow {
                 emit(cachedTrips)
-            }
-        
-        // Fetch from Firestore in background and update cache
-        firestoreDataSource.getTrips(userId)
-            .catch { /* Ignore errors, use cache */ }
-            .collect { remoteTrips ->
-                withContext(Dispatchers.IO) {
-                    // Save trips and their nested data
-                    saveTripsWithNestedData(remoteTrips)
+                try {
+                    firestoreDataSource.getTrips(userId)
+                        .catch { /* Ignore errors, keep using cache */ }
+                        .collect { remoteTrips ->
+                            withContext(Dispatchers.IO) {
+                                saveTripsWithNestedData(remoteTrips)
+                            }
+                        }
+                } catch (_: Exception) {
+                    emit(cachedTrips)
                 }
             }
-    }.flowOn(Dispatchers.IO)
+        }
     
     /**
      * Get a single trip by ID with cache-first strategy.
+     * Emits cached trip first, then loads full trip (with days) from Firestore and emits again.
      */
-    fun getTripById(tripId: String): Flow<Trip?> = flow {
-        // Emit cached trip immediately
-        tripDao.getTripById(tripId)
-            .map { entity ->
-                entity?.let {
-                    val days = loadDaysForTrip(tripId)
-                    TripMapper.toDomain(it, days)
-                }
+    fun getTripById(tripId: String): Flow<Trip?> = tripDao.getTripById(tripId)
+        .map { entity ->
+            entity?.let {
+                val days = loadDaysForTrip(tripId)
+                TripMapper.toDomain(it, days)
             }
-            .catch { emit(null) }
-            .collect { cachedTrip ->
+        }
+        .catch { emit(null) }
+        .flowOn(Dispatchers.IO)
+        .flatMapLatest { cachedTrip ->
+            flow {
                 emit(cachedTrip)
-            }
-        
-        // Fetch from Firestore and update cache
-        firestoreDataSource.getTripById(tripId)
-            .catch { /* Ignore errors, use cache */ }
-            .collect { remoteTrip ->
-                remoteTrip?.let {
-                    withContext(Dispatchers.IO) {
-                        saveTripWithNestedData(it)
+                try {
+                    when (val result = firestoreDataSource.loadTripWithNestedData(tripId)) {
+                        is Result.Success -> {
+                            withContext(Dispatchers.IO) {
+                                saveTripWithNestedData(result.data)
+                            }
+                            emit(result.data)
+                        }
+                        is Result.Error, is Result.Loading -> Unit
                     }
+                } catch (_: Exception) {
+                    emit(cachedTrip)
                 }
             }
-    }.flowOn(Dispatchers.IO)
+        }
     
     /**
      * Create a new trip.
@@ -159,7 +164,10 @@ class TripRepository(
                 is Result.Success -> {
                     // Delete from Room cache
                     withContext(Dispatchers.IO) {
-                        tripItemDao.deleteByDayId(tripId) // Delete items for all days
+                        val days = tripDayDao.getDaysByTrip(tripId).firstOrNull().orEmpty()
+                        days.forEach { day ->
+                            tripItemDao.deleteByDayId(day.id)
+                        }
                         tripDayDao.deleteByTripId(tripId) // Delete days
                         tripDao.deleteById(tripId) // Delete trip
                     }
@@ -216,24 +224,12 @@ class TripRepository(
      * Add an item to a trip day.
      * Saves to Firestore and Room cache.
      */
-    fun addItemToDay(dayId: String, item: TripItem): Flow<Result<TripItem>> = flow {
+    fun addItemToDay(tripId: String, dayId: String, item: TripItem): Flow<Result<TripItem>> = flow {
         emit(Result.Loading)
         
         try {
-            // Get the day to find trip ID
-            val dayEntity = withContext(Dispatchers.IO) {
-                tripDayDao.getDayById(dayId)
-                    .catch { emit(null) }
-                    .firstOrNull()
-            }
-            
-            if (dayEntity == null) {
-                emit(Result.Error(Exception("Day not found"), "Day with ID $dayId not found"))
-                return@flow
-            }
-            
             // Get trip and update
-            val tripResult = firestoreDataSource.loadTripWithNestedData(dayEntity.tripId)
+            val tripResult = firestoreDataSource.loadTripWithNestedData(tripId)
             when (tripResult) {
                 is Result.Success -> {
                     val trip = tripResult.data
@@ -252,12 +248,14 @@ class TripRepository(
                     val updateResult = firestoreDataSource.updateTrip(updatedTrip)
                     when (updateResult) {
                         is Result.Success -> {
-                            val savedItem = item.copy(dayId = dayId)
-                            // Cache in Room
-                            withContext(Dispatchers.IO) {
-                                tripItemDao.insert(TripItemMapper.toEntity(savedItem))
+                            // Reload authoritative nested data from Firestore to get generated IDs.
+                            val refreshedTripResult = firestoreDataSource.loadTripWithNestedData(tripId)
+                            if (refreshedTripResult is Result.Success) {
+                                withContext(Dispatchers.IO) {
+                                    saveTripWithNestedData(refreshedTripResult.data)
+                                }
                             }
-                            emit(Result.Success(savedItem))
+                            emit(Result.Success(item.copy(dayId = dayId)))
                         }
                         is Result.Error -> emit(updateResult)
                         is Result.Loading -> emit(updateResult)

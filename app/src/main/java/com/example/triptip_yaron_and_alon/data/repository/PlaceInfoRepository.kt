@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 
@@ -259,6 +260,21 @@ class PlaceInfoRepository(
         throw Exception("Failed to get place details: ${e.message}", e)
     }.flowOn(Dispatchers.IO)
     
+    /**
+     * Get PlaceInfo from Google place_id (for adding to trip day from search).
+     * Fetches full details and maps to PlaceInfo.
+     */
+    fun getPlaceInfoFromGooglePlaceId(placeId: String): Flow<PlaceInfo> = flow {
+        val apiKey = getGooglePlacesApiKey()
+        if (apiKey.isBlank()) {
+            throw IllegalStateException("Google Places API key is not configured")
+        }
+        val dto = getFullPlaceDetails(placeId).first()
+        emit(ApiMapper.toPlaceInfoFromPlaceDetails(dto, apiKey))
+    }.catch { e ->
+        throw Exception("Failed to get place: ${e.message}", e)
+    }.flowOn(Dispatchers.IO)
+
     /**
      * Geocode a location name to get coordinates.
      * Returns Flow<Pair<Double, Double>?> that emits (latitude, longitude) or null if not found.

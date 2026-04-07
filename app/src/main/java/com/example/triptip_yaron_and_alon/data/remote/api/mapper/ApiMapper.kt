@@ -4,6 +4,7 @@ import com.example.triptip_yaron_and_alon.data.remote.api.dto.GeocodingResponseD
 import com.example.triptip_yaron_and_alon.data.remote.api.dto.GooglePlacesAutocompleteResponseDto
 import com.example.triptip_yaron_and_alon.data.remote.api.dto.GooglePlaceDetailsResponseDto
 import com.example.triptip_yaron_and_alon.data.remote.api.dto.GooglePlacesNearbySearchResponseDto
+import com.example.triptip_yaron_and_alon.data.remote.api.dto.PlaceDetailsResultDto
 import com.example.triptip_yaron_and_alon.data.remote.api.dto.NearbyPlacesResponseDto
 import com.example.triptip_yaron_and_alon.data.remote.api.dto.PlaceDetailsDto
 import com.example.triptip_yaron_and_alon.data.remote.api.dto.WeatherResponseDto
@@ -327,6 +328,27 @@ object ApiMapper {
         val c = 2 * kotlin.math.atan2(sqrt(a), sqrt(1 - a))
         
         return earthRadius * c
+    }
+
+    /**
+     * Convert Google Place Details result to PlaceInfo (for adding to trip day from search).
+     */
+    fun toPlaceInfoFromPlaceDetails(dto: PlaceDetailsResultDto, apiKey: String): PlaceInfo {
+        val location = dto.geometry?.location ?: throw IllegalArgumentException("Place has no geometry")
+        val types = dto.types ?: emptyList()
+        val photoUrl = dto.photos?.firstOrNull()?.let { photo ->
+            "https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photo.photoReference}&key=$apiKey"
+        }
+        return PlaceInfo(
+            xid = dto.placeId,
+            name = dto.name,
+            description = dto.editorialSummary?.overview ?: dto.vicinity ?: dto.formattedAddress,
+            latitude = location.lat,
+            longitude = location.lng,
+            imageUrl = photoUrl,
+            categories = types,
+            distance = null
+        )
     }
 }
 

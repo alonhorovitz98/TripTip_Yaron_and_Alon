@@ -10,9 +10,12 @@ import com.example.triptip_yaron_and_alon.domain.model.User
 import com.example.triptip_yaron_and_alon.util.Constants
 import com.example.triptip_yaron_and_alon.util.Result
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -22,6 +25,7 @@ import kotlinx.coroutines.withContext
  * Repository for user operations.
  * Combines Firebase Auth, Firestore, and Room caching.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class UserRepository(
     private val userDao: UserDao,
     private val authDataSource: FirebaseAuthDataSource,
@@ -33,33 +37,35 @@ class UserRepository(
      * Get current user.
      * Checks Room cache first, then Firebase.
      */
-    fun getCurrentUser(): Flow<User?> = flow {
-        // Emit cached user immediately
-        userDao.getAllUsers()
-            .map { users -> users.firstOrNull()?.let { UserMapper.toDomain(it) } }
-            .catch { emit(null) }
-            .collect { cachedUser ->
+    fun getCurrentUser(): Flow<User?> = userDao.getAllUsers()
+        .map { users -> users.firstOrNull()?.let { UserMapper.toDomain(it) } }
+        .catch { emit(null) }
+        .flowOn(Dispatchers.IO)
+        .flatMapLatest { cachedUser ->
+            flow {
                 emit(cachedUser)
-            }
-        
-        // Get from Firebase and update cache
-        authDataSource.getCurrentUser()
-            .catch { /* Ignore errors, use cache */ }
-            .collect { firebaseUser ->
-                if (firebaseUser != null) {
-                    // Try to get full profile from Firestore
-                    firestoreDataSource.getUser(firebaseUser.id)
-                        .catch { emit(null) }
-                        .collect { firestoreUser ->
+                try {
+                    authDataSource.getCurrentUser()
+                        .catch { /* Ignore errors, keep cache */ }
+                        .collect { firebaseUser ->
+                            if (firebaseUser == null) {
+                                emit(null)
+                                return@collect
+                            }
+                            val firestoreUser = firestoreDataSource.getUser(firebaseUser.id)
+                                .catch { emit(null) }
+                                .firstOrNull()
                             val user = firestoreUser ?: firebaseUser
-                            // Update cache
                             withContext(Dispatchers.IO) {
                                 userDao.insert(UserMapper.toEntity(user))
                             }
+                            emit(user)
                         }
+                } catch (_: Exception) {
+                    emit(cachedUser)
                 }
             }
-    }.flowOn(Dispatchers.IO)
+        }
     
     /**
      * Update user profile.

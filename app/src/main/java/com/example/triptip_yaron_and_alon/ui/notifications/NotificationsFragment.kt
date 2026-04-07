@@ -67,13 +67,20 @@ class NotificationsFragment : Fragment() {
     private fun observeViewModel() {
         viewModel.notifications.observe(viewLifecycleOwner) { list ->
             adapter.submitList(list)
-            binding.tvEmpty.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
-            binding.rvNotifications.visibility = if (list.isEmpty()) View.GONE else View.VISIBLE
+            renderNotificationsUi()
         }
         viewModel.isLoading.observe(viewLifecycleOwner) { loading ->
-            binding.rvNotifications.visibility = if (loading && (viewModel.notifications.value?.isEmpty() != false)) View.GONE
-            else View.VISIBLE
+            renderNotificationsUi()
         }
+    }
+
+    private fun renderNotificationsUi() {
+        val notifications = viewModel.notifications.value.orEmpty()
+        val loading = viewModel.isLoading.value == true
+        val hasItems = notifications.isNotEmpty()
+
+        binding.tvEmpty.visibility = if (!loading && !hasItems) View.VISIBLE else View.GONE
+        binding.rvNotifications.visibility = if (hasItems) View.VISIBLE else View.GONE
     }
 
     override fun onDestroyView() {

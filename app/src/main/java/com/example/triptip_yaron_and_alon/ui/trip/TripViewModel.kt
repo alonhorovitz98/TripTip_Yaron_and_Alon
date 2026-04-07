@@ -12,6 +12,7 @@ import com.example.triptip_yaron_and_alon.data.remote.firebase.FirestoreDataSour
 import com.example.triptip_yaron_and_alon.data.repository.PlaceInfoRepository
 import com.example.triptip_yaron_and_alon.data.repository.PostRepository
 import com.example.triptip_yaron_and_alon.data.repository.TripRepository
+import com.example.triptip_yaron_and_alon.domain.model.LocationSuggestion
 import com.example.triptip_yaron_and_alon.domain.model.PlaceInfo
 import com.example.triptip_yaron_and_alon.domain.model.Post
 import com.example.triptip_yaron_and_alon.domain.model.Trip
@@ -72,6 +73,10 @@ class TripViewModel(application: Application) : AndroidViewModel(application) {
     
     private val _placesError = MutableLiveData<String?>()
     val placesError: LiveData<String?> = _placesError
+
+    // Place search (Google Autocomplete) for Day Editor
+    private val _placeSearchSuggestions = MutableLiveData<List<LocationSuggestion>>(emptyList())
+    val placeSearchSuggestions: LiveData<List<LocationSuggestion>> = _placeSearchSuggestions
     
     // Item operation result
     private val _itemOperationResult = MutableLiveData<Result<Unit>>()
@@ -100,10 +105,8 @@ class TripViewModel(application: Application) : AndroidViewModel(application) {
     private var loadAvailablePostsJob: Job? = null
     
     fun loadUserTrips(userId: String? = null) {
-        // Cancel existing job if active to prevent duplicate collectors
-        if (loadUserTripsJob?.isActive == true) {
-            return
-        }
+        // Allow explicit reload requests by cancelling any existing collector.
+        loadUserTripsJob?.cancel()
         
         loadUserTripsJob = viewModelScope.launch {
             // Get current user ID from Firebase Auth if not provided
@@ -244,24 +247,24 @@ class TripViewModel(application: Application) : AndroidViewModel(application) {
         _currentTrip.value = updatedTrip
     }
     
-    fun updateTrip(tripId: String, title: String, description: String?) {
+    fun updateTrip(tripId: String, title: String, description: String?, startDate: Long? = null, endDate: Long? = null) {
         if (title.isBlank()) {
             _error.value = "Trip title cannot be empty"
             return
         }
         
         viewModelScope.launch {
-            // Get current trip
             val currentTrip = tripRepository.getTripById(tripId).firstOrNull()
                 ?: run {
                     _error.value = "Trip not found"
                     return@launch
                 }
             
-            // Create updated Trip object
             val updatedTrip = currentTrip.copy(
                 title = title,
-                description = description
+                description = description,
+                startDate = startDate ?: currentTrip.startDate,
+                endDate = endDate ?: currentTrip.endDate
             )
             
             tripRepository.updateTrip(updatedTrip).collect { result ->
@@ -336,6 +339,36 @@ class TripViewModel(application: Application) : AndroidViewModel(application) {
             
             val updatedTrip = currentTrip.copy(days = updatedDays)
             
+            tripRepository.updateTrip(updatedTrip).collect { result ->
+                when (result) {
+                    is Result.Loading -> _isLoading.value = true
+                    is Result.Success -> {
+                        _isLoading.value = false
+                        _currentTrip.value = result.data
+                    }
+                    is Result.Error -> {
+                        _isLoading.value = false
+                        _error.value = result.message
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Update a day's date.
+     */
+    fun updateDayDate(tripId: String, dayId: String, dateMillis: Long?) {
+        viewModelScope.launch {
+            val currentTrip = tripRepository.getTripById(tripId).firstOrNull()
+                ?: run {
+                    _error.value = "Trip not found"
+                    return@launch
+                }
+            val updatedDays = currentTrip.days.map { day ->
+                if (day.id == dayId) day.copy(date = dateMillis) else day
+            }
+            val updatedTrip = currentTrip.copy(days = updatedDays)
             tripRepository.updateTrip(updatedTrip).collect { result ->
                 when (result) {
                     is Result.Loading -> _isLoading.value = true
@@ -435,10 +468,8 @@ class TripViewModel(application: Application) : AndroidViewModel(application) {
     // ==================== DAY ITEM MANAGEMENT ====================
     
     fun loadDay(tripId: String, dayId: String) {
-        // Cancel existing job if active to prevent duplicate collectors
-        if (loadDayJob?.isActive == true) {
-            return
-        }
+        // Allow explicit reload requests after add/remove actions.
+        loadDayJob?.cancel()
         
         loadDayJob = viewModelScope.launch {
             _isLoading.value = true
@@ -448,18 +479,23 @@ class TripViewModel(application: Application) : AndroidViewModel(application) {
                 if (trip != null) {
                     val day = trip.days.find { it.id == dayId }
                     if (day != null) {
-                        // Load post details for items (only for items with postId)
-                        val itemsWithPosts = day.items.map { item ->
+                        // Load linked data for items (post/place) when possible.
+                        val enrichedItems = day.items.map { item ->
                             if (item.postId != null) {
                                 val post = postRepository.getPostById(item.postId).firstOrNull()
                                 item.copy(post = post)
+                            } else if (!item.placeId.isNullOrBlank()) {
+                                val place = try {
+                                    placeInfoRepository.getPlaceInfoFromGooglePlaceId(item.placeId).firstOrNull()
+                                } catch (_: Exception) {
+                                    null
+                                }
+                                item.copy(place = place)
                             } else {
-                                // Item is a place, keep as is
                                 item
                             }
                         }
-                        val dayWithPosts = day.copy(items = itemsWithPosts)
-                        _currentDay.value = dayWithPosts
+                        _currentDay.value = day.copy(items = enrichedItems)
                     } else {
                         _currentDay.value = null
                     }
@@ -493,7 +529,7 @@ class TripViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
     
-    fun addItemToDay(dayId: String, postId: String) {
+    fun addItemToDay(tripId: String, dayId: String, postId: String) {
         viewModelScope.launch {
             val currentDay = _currentDay.value
             if (currentDay == null) {
@@ -518,7 +554,7 @@ class TripViewModel(application: Application) : AndroidViewModel(application) {
                 notes = null
             )
             
-            tripRepository.addItemToDay(dayId, newItem).collect { result ->
+            tripRepository.addItemToDay(tripId, dayId, newItem).collect { result ->
                 when (result) {
                     is Result.Loading -> _isLoading.value = true
                     is Result.Success -> {
@@ -541,7 +577,7 @@ class TripViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * Add a place to a trip day.
      */
-    fun addPlaceToDay(dayId: String, place: PlaceInfo) {
+    fun addPlaceToDay(tripId: String, dayId: String, place: PlaceInfo) {
         viewModelScope.launch {
             val currentDay = _currentDay.value
             if (currentDay == null) {
@@ -567,7 +603,7 @@ class TripViewModel(application: Application) : AndroidViewModel(application) {
                 place = place
             )
             
-            tripRepository.addItemToDay(dayId, newItem).collect { result ->
+            tripRepository.addItemToDay(tripId, dayId, newItem).collect { result ->
                 when (result) {
                     is Result.Loading -> _isLoading.value = true
                     is Result.Success -> {
@@ -588,21 +624,65 @@ class TripViewModel(application: Application) : AndroidViewModel(application) {
     }
     
     /**
-     * Load nearby places for a location (latitude, longitude).
+     * Search for places by query (Google Places Autocomplete) for adding to day.
+     */
+    fun searchPlaceSuggestions(query: String) {
+        if (query.isBlank()) {
+            _placeSearchSuggestions.value = emptyList()
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val suggestions = placeInfoRepository.searchLocationSuggestions(query).firstOrNull() ?: emptyList()
+                _placeSearchSuggestions.postValue(suggestions)
+            } catch (e: Exception) {
+                _placeSearchSuggestions.postValue(emptyList())
+            }
+        }
+    }
+
+    /**
+     * Add a place to day by Google place_id (from search). Fetches full details then adds.
+     */
+    fun addGooglePlaceToDay(tripId: String, dayId: String, googlePlaceId: String) {
+        viewModelScope.launch {
+            _placesLoading.value = true
+            _placesError.value = null
+            try {
+                placeInfoRepository.getPlaceInfoFromGooglePlaceId(googlePlaceId)
+                    .collect { place ->
+                        _placesLoading.value = false
+                        addPlaceToDay(tripId, dayId, place)
+                    }
+            } catch (e: Exception) {
+                _placesLoading.value = false
+                _placesError.value = "Failed to add place: ${e.message}"
+                _itemOperationResult.value = Result.Error(e, e.message)
+            }
+        }
+    }
+
+    /**
+     * Load nearby places for a location (latitude, longitude). Uses Google Places for better results.
      */
     fun loadNearbyPlaces(latitude: Double, longitude: Double) {
         viewModelScope.launch {
             _placesLoading.value = true
             _placesError.value = null
-            placeInfoRepository.getNearbyPlaces(latitude, longitude)
-                .catch { e ->
-                    _placesLoading.value = false
-                    _placesError.value = "Failed to load places: ${e.message}"
-                }
-                .collect { places ->
-                    _nearbyPlaces.value = places
-                    _placesLoading.value = false
-                }
+            try {
+                placeInfoRepository.getGoogleNearbyPlaces(latitude, longitude, 5000, null)
+                    .catch { e ->
+                        _placesLoading.value = false
+                        _placesError.value = "Failed to load places: ${e.message}"
+                    }
+                    .collect { result ->
+                        _nearbyPlaces.value = result.places
+                        _placesLoading.value = false
+                    }
+            } catch (e: Exception) {
+                _placesLoading.value = false
+                _placesError.value = "Failed to load places: ${e.message}"
+            }
         }
     }
     

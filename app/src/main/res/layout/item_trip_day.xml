@@ -49,6 +49,19 @@
                 android:textColor="@android:color/black"
                 tools:text="Day 1" />
 
+            <!-- Day Date (tappable to set) -->
+            <TextView
+                android:id="@+id/tvDayDate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textSize="12sp"
+                android:textColor="?android:attr/textColorSecondary"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                tools:text="Jan 15, 2026" />
+
             <!-- City Name -->
             <TextView
                 android:id="@+id/tvCityName"

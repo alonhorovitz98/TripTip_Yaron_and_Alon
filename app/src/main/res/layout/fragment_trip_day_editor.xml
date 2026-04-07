@@ -23,6 +23,39 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
+        <!-- Search for a place (Google Places) -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/tilSearchPlace"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:hint="Search for a place or address"
+            android:layout_marginTop="16dp"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+            app:layout_constraintTop_toBottomOf="@id/tvDayTitle"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etSearchPlace"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="text"
+                android:imeOptions="actionSearch" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Place search suggestions -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvPlaceSearchSuggestions"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:nestedScrollingEnabled="false"
+            android:visibility="gone"
+            android:minHeight="0dp"
+            app:layout_constraintTop_toBottomOf="@id/tilSearchPlace"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
         <!-- Current Items Section -->
         <TextView
             android:id="@+id/tvItemsTitle"
@@ -32,7 +65,7 @@
             android:textSize="18sp"
             android:textStyle="bold"
             android:layout_marginTop="24dp"
-            app:layout_constraintTop_toBottomOf="@id/tvDayTitle"
+            app:layout_constraintTop_toBottomOf="@id/rvPlaceSearchSuggestions"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 

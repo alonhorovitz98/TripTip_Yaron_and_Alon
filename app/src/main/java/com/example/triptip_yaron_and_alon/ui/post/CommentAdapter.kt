@@ -7,6 +7,7 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import coil.load
+import coil.transform.CircleCropTransformation
 import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.ItemCommentBinding
 import com.example.triptip_yaron_and_alon.domain.model.Comment
@@ -31,6 +32,7 @@ class CommentAdapter : ListAdapter<Comment, CommentAdapter.ViewHolder>(DiffCallb
                 binding.ivCommentAvatar.load(comment.userAvatarUrl) {
                     placeholder(R.drawable.ic_profile_frame)
                     error(R.drawable.ic_profile_frame)
+                    transformations(CircleCropTransformation())
                 }
             } else {
                 binding.ivCommentAvatar.setImageResource(R.drawable.ic_profile_frame)

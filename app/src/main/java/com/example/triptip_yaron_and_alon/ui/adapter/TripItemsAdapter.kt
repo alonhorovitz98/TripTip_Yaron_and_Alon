@@ -82,8 +82,12 @@ class TripItemsAdapter(
                         ivPostImage.visibility = View.GONE
                     }
                 } else {
-                    // Loading state
-                    tvPostText.text = "Loading..."
+                    // Fallback state: show identifier so the added item is visible even before enrichment.
+                    tvPostText.text = when {
+                        !item.placeId.isNullOrBlank() -> "Place added"
+                        !item.postId.isNullOrBlank() -> "Post added"
+                        else -> "Loading..."
+                    }
                     ivPostImage.visibility = View.GONE
                 }
                 

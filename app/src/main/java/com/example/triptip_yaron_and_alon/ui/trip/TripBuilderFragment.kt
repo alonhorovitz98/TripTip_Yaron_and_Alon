@@ -12,7 +12,11 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.triptip_yaron_and_alon.databinding.FragmentTripBuilderBinding
 import com.example.triptip_yaron_and_alon.ui.adapter.TripDaysAdapter
 import com.example.triptip_yaron_and_alon.util.Result
+import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.android.material.snackbar.Snackbar
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class TripBuilderFragment : Fragment() {
     
@@ -26,6 +30,9 @@ class TripBuilderFragment : Fragment() {
     private var currentTripId: String = "new" // Track the actual trip ID (updates after save)
     private var hasPopulatedFields = false // Track if we've populated fields for existing trip
     private lateinit var daysAdapter: TripDaysAdapter
+    private var startDateMillis: Long? = null
+    private var endDateMillis: Long? = null
+    private val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
     
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -51,6 +58,7 @@ class TripBuilderFragment : Fragment() {
         hasPopulatedFields = false // Reset flag
         
         setupRecyclerView()
+        setupDatePickers()
         setupListeners()
         observeViewModel()
         
@@ -66,22 +74,72 @@ class TripBuilderFragment : Fragment() {
     }
     
     private fun setupRecyclerView() {
-        daysAdapter = TripDaysAdapter { day ->
-            // Navigate to TripDayEditorFragment
-            val action = TripBuilderFragmentDirections
-                .actionTripBuilderFragmentToTripDayEditorFragment(
-                    tripId = currentTripId, // Use current trip ID (not args.tripId)
-                    dayId = day.id
-                )
-            findNavController().navigate(action)
-        }
+        daysAdapter = TripDaysAdapter(
+            onDayClick = { day ->
+                val action = TripBuilderFragmentDirections
+                    .actionTripBuilderFragmentToTripDayEditorFragment(
+                        tripId = currentTripId,
+                        dayId = day.id
+                    )
+                findNavController().navigate(action)
+            },
+            onDayDateClick = { day ->
+                showDayDatePicker(day)
+            }
+        )
         
         binding.rvDays.apply {
             adapter = daysAdapter
             layoutManager = LinearLayoutManager(context)
         }
     }
+
+    private fun showDayDatePicker(day: com.example.triptip_yaron_and_alon.domain.model.TripDay) {
+        val picker = MaterialDatePicker.Builder.datePicker()
+            .setTitleText("Date for Day ${day.dayNumber}")
+            .setSelection(day.date ?: MaterialDatePicker.todayInUtcMilliseconds())
+            .build()
+        picker.addOnPositiveButtonClickListener { selection ->
+            selection?.let {
+                viewModel.updateDayDate(currentTripId, day.id, it)
+            }
+        }
+        picker.show(parentFragmentManager, "DAY_DATE_${day.id}")
+    }
     
+    private fun setupDatePickers() {
+        binding.etStartDate.setOnClickListener { showStartDatePicker() }
+        binding.etEndDate.setOnClickListener { showEndDatePicker() }
+    }
+
+    private fun showStartDatePicker() {
+        val picker = MaterialDatePicker.Builder.datePicker()
+            .setTitleText("Select start date")
+            .setSelection(startDateMillis ?: MaterialDatePicker.todayInUtcMilliseconds())
+            .build()
+        picker.addOnPositiveButtonClickListener { selection ->
+            selection?.let {
+                startDateMillis = it
+                binding.etStartDate.setText(dateFormat.format(Date(it)))
+            }
+        }
+        picker.show(parentFragmentManager, "START_DATE")
+    }
+
+    private fun showEndDatePicker() {
+        val picker = MaterialDatePicker.Builder.datePicker()
+            .setTitleText("Select end date")
+            .setSelection(endDateMillis ?: startDateMillis ?: MaterialDatePicker.todayInUtcMilliseconds())
+            .build()
+        picker.addOnPositiveButtonClickListener { selection ->
+            selection?.let {
+                endDateMillis = it
+                binding.etEndDate.setText(dateFormat.format(Date(it)))
+            }
+        }
+        picker.show(parentFragmentManager, "END_DATE")
+    }
+
     private fun setupListeners() {
         binding.btnSaveTrip.setOnClickListener {
             val title = binding.etTripTitle.text.toString().trim()
@@ -93,16 +151,19 @@ class TripBuilderFragment : Fragment() {
             }
             
             if (isNewTrip) {
-                // ViewModel will automatically get the current user ID from Firebase Auth
                 viewModel.createTrip(
                     title = title,
-                    description = description.ifEmpty { null }
+                    description = description.ifEmpty { null },
+                    startDate = startDateMillis,
+                    endDate = endDateMillis
                 )
             } else {
                 viewModel.updateTrip(
-                    tripId = currentTripId, // Use current trip ID (not args.tripId)
+                    tripId = currentTripId,
                     title = title,
-                    description = description.ifEmpty { null }
+                    description = description.ifEmpty { null },
+                    startDate = startDateMillis,
+                    endDate = endDateMillis
                 )
             }
         }
@@ -148,10 +209,13 @@ class TripBuilderFragment : Fragment() {
                 // Always populate fields for existing trips (only once when first loaded)
                 // For new trips, don't overwrite user input
                 if (!isNewTrip && !hasPopulatedFields) {
-                    // Populate fields only once when trip is first loaded
                     android.util.Log.d("TripBuilder", "Populating fields for trip: ${trip.title}")
                     binding.etTripTitle.setText(trip.title)
                     binding.etTripDescription.setText(trip.description ?: "")
+                    startDateMillis = trip.startDate
+                    endDateMillis = trip.endDate
+                    trip.startDate?.let { binding.etStartDate.setText(dateFormat.format(Date(it))) }
+                    trip.endDate?.let { binding.etEndDate.setText(dateFormat.format(Date(it))) }
                     hasPopulatedFields = true
                 }
                 

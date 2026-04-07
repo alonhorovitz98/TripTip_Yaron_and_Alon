@@ -11,10 +11,12 @@ import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
 import coil.load
+import coil.transform.CircleCropTransformation
 import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.FragmentPostDetailsBinding
 import com.example.triptip_yaron_and_alon.ui.adapter.NearbyPlaceAdapter
 import com.example.triptip_yaron_and_alon.ui.post.CommentAdapter
+import com.example.triptip_yaron_and_alon.ui.util.WrapContentLinearLayoutManager
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.MapView
 import com.google.android.gms.maps.model.LatLng
@@ -34,6 +36,8 @@ class PostDetailsFragment : Fragment() {
     private val args: PostDetailsFragmentArgs by navArgs()
     private lateinit var placesAdapter: NearbyPlaceAdapter
     private lateinit var commentAdapter: CommentAdapter
+    private var hasLoadedWeatherAndPlaces = false
+    private var hasShownPostNotFound = false
     
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -72,6 +76,7 @@ class PostDetailsFragment : Fragment() {
     }
     
     override fun onDestroyView() {
+        hasLoadedWeatherAndPlaces = false
         binding.mapView.onDestroy()
         super.onDestroyView()
         _binding = null
@@ -79,7 +84,7 @@ class PostDetailsFragment : Fragment() {
     
     override fun onLowMemory() {
         super.onLowMemory()
-        binding.mapView.onLowMemory()
+        _binding?.mapView?.onLowMemory()
     }
     
     private val commentImagePicker = registerForActivityResult(
@@ -118,24 +123,14 @@ class PostDetailsFragment : Fragment() {
     private fun setupCommentsList() {
         commentAdapter = CommentAdapter()
         binding.rvComments.apply {
+            setHasFixedSize(false)
             adapter = commentAdapter
-            layoutManager = androidx.recyclerview.widget.LinearLayoutManager(requireContext())
+            layoutManager = WrapContentLinearLayoutManager(requireContext())
         }
     }
     
     private fun setupListeners() {
-        // Back button
-        binding.btnBack.setOnClickListener {
-            requireActivity().onBackPressedDispatcher.onBackPressed()
-        }
-        
-        // Share button (placeholder)
-        binding.btnShare.setOnClickListener {
-            // TODO: Implement share functionality
-            Snackbar.make(binding.root, "Share functionality coming soon", Snackbar.LENGTH_SHORT).show()
-        }
-        
-        // Like button (real like/unlike)
+        // Back is handled by toolbar (NavController). Share removed (not implemented).
         binding.btnLike.setOnClickListener { viewModel.toggleLike(args.postId) }
         
         // Send comment
@@ -165,20 +160,26 @@ class PostDetailsFragment : Fragment() {
     private fun observeViewModel() {
         viewModel.post.observe(viewLifecycleOwner) { post ->
             if (post != null) {
+                hasShownPostNotFound = false
                 displayPost(post)
                 
-                // Load weather and places if coordinates are available
-                if (post.latitude != null && post.longitude != null) {
-                    // Use coordinates directly
-                    viewModel.loadWeather(post.latitude, post.longitude)
-                    viewModel.loadNearbyPlaces(post.latitude, post.longitude)
-                } else if (post.location != null && post.location.isNotBlank()) {
-                    // Geocode location name to get coordinates, then load weather/places
-                    viewModel.loadWeatherForLocation(post.location)
-                    viewModel.loadNearbyPlacesForLocation(post.location)
+                // Load weather and places once per screen open
+                if (!hasLoadedWeatherAndPlaces) {
+                    if (post.latitude != null && post.longitude != null) {
+                        viewModel.loadWeather(post.latitude, post.longitude)
+                        viewModel.loadNearbyPlaces(post.latitude, post.longitude)
+                        hasLoadedWeatherAndPlaces = true
+                    } else if (post.location != null && post.location.isNotBlank()) {
+                        viewModel.loadWeatherForLocation(post.location)
+                        viewModel.loadNearbyPlacesForLocation(post.location)
+                        hasLoadedWeatherAndPlaces = true
+                    }
                 }
             } else {
-                Snackbar.make(binding.root, "Post not found", Snackbar.LENGTH_LONG).show()
+                if (viewModel.isLoading.value != true && !hasShownPostNotFound) {
+                    hasShownPostNotFound = true
+                    Snackbar.make(binding.root, "Post not found", Snackbar.LENGTH_LONG).show()
+                }
             }
         }
         
@@ -244,7 +245,10 @@ class PostDetailsFragment : Fragment() {
         }
         
         viewModel.comments.observe(viewLifecycleOwner) { comments ->
-            commentAdapter.submitList(comments)
+            commentAdapter.submitList(comments) {
+                // Remeasure so wrap_content RecyclerView updates height after list changes
+                binding.rvComments.requestLayout()
+            }
         }
     }
     
@@ -267,11 +271,12 @@ class PostDetailsFragment : Fragment() {
         }
         binding.tvLocationTime.text = locationTime
         
-        // User profile image
-        if (post.userImageUrl != null) {
+        // User profile photo (circle) in the small icon
+        if (!post.userImageUrl.isNullOrBlank()) {
             binding.ivUserProfile.load(post.userImageUrl) {
                 placeholder(R.drawable.ic_profile_frame)
                 error(R.drawable.ic_profile_frame)
+                transformations(CircleCropTransformation())
             }
         } else {
             binding.ivUserProfile.setImageResource(R.drawable.ic_profile_frame)
@@ -281,16 +286,16 @@ class PostDetailsFragment : Fragment() {
         binding.tvPostText.text = post.text
         
         // Post image - Coil handles file errors gracefully (URL or file path)
-        if (post.imageUrl != null) {
+        if (!post.imageUrl.isNullOrBlank()) {
             binding.ivPostImage.visibility = View.VISIBLE
-            if (post.imageUrl!!.startsWith("http", ignoreCase = true)) {
+            if (post.imageUrl.startsWith("http", ignoreCase = true)) {
                 binding.ivPostImage.load(post.imageUrl) {
                     placeholder(R.drawable.ic_launcher_background)
                     error(R.drawable.ic_launcher_background)
                 }
             } else {
                 try {
-                    binding.ivPostImage.load(java.io.File(post.imageUrl)) {
+                    binding.ivPostImage.load(File(post.imageUrl)) {
                         placeholder(R.drawable.ic_launcher_background)
                         error(R.drawable.ic_launcher_background)
                     }

@@ -2,16 +2,22 @@ package com.example.triptip_yaron_and_alon.ui.trip
 
 import android.app.AlertDialog
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.FragmentTripDayEditorBinding
+import com.example.triptip_yaron_and_alon.domain.model.LocationSuggestion
 import com.example.triptip_yaron_and_alon.domain.model.Post
 import com.example.triptip_yaron_and_alon.domain.model.TripItem
 import com.example.triptip_yaron_and_alon.ui.adapter.AvailablePostsAdapter
@@ -19,6 +25,7 @@ import com.example.triptip_yaron_and_alon.ui.adapter.TripItemsAdapter
 import com.example.triptip_yaron_and_alon.util.Result
 import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.launch
+import android.widget.TextView
 
 class TripDayEditorFragment : Fragment() {
     
@@ -31,6 +38,7 @@ class TripDayEditorFragment : Fragment() {
     private lateinit var itemsAdapter: TripItemsAdapter
     private lateinit var availablePostsAdapter: AvailablePostsAdapter
     private lateinit var nearbyPlacesAdapter: com.example.triptip_yaron_and_alon.ui.adapter.NearbyPlaceAdapter
+    private lateinit var placeSearchAdapter: PlaceSearchSuggestionsAdapter
     
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -47,6 +55,7 @@ class TripDayEditorFragment : Fragment() {
         viewModel = ViewModelProvider(this)[TripViewModel::class.java]
         
         setupRecyclerViews()
+        setupPlaceSearch()
         setupListeners()
         observeViewModel()
         
@@ -92,7 +101,7 @@ class TripDayEditorFragment : Fragment() {
         availablePostsAdapter = AvailablePostsAdapter(
             onAddClick = { post ->
                 android.util.Log.d("TripDayEditor", "Add post clicked: ${post.id}")
-                viewModel.addItemToDay(args.dayId, post.id)
+                viewModel.addItemToDay(args.tripId, args.dayId, post.id)
             },
             excludedPostIds = emptySet() // Will be updated when day loads
         )
@@ -106,7 +115,7 @@ class TripDayEditorFragment : Fragment() {
         nearbyPlacesAdapter = com.example.triptip_yaron_and_alon.ui.adapter.NearbyPlaceAdapter(
             onAddToTripClick = { place ->
                 android.util.Log.d("TripDayEditor", "Add place clicked: ${place.xid}")
-                viewModel.addPlaceToDay(args.dayId, place)
+                viewModel.addPlaceToDay(args.tripId, args.dayId, place)
             },
             onPlaceClick = { place ->
                 // Navigate to place details if needed
@@ -118,6 +127,43 @@ class TripDayEditorFragment : Fragment() {
             adapter = nearbyPlacesAdapter
             layoutManager = LinearLayoutManager(context)
         }
+
+        placeSearchAdapter = PlaceSearchSuggestionsAdapter { suggestion ->
+            val placeId = suggestion.googlePlaceId
+            if (!placeId.isNullOrBlank()) {
+                viewModel.addGooglePlaceToDay(args.tripId, args.dayId, placeId)
+                binding.etSearchPlace.text?.clear()
+                binding.rvPlaceSearchSuggestions.visibility = View.GONE
+            } else {
+                Snackbar.make(binding.root, "This place cannot be added", Snackbar.LENGTH_SHORT).show()
+            }
+        }
+        binding.rvPlaceSearchSuggestions.apply {
+            adapter = placeSearchAdapter
+            layoutManager = LinearLayoutManager(context)
+        }
+    }
+
+    private fun setupPlaceSearch() {
+        binding.etSearchPlace.addTextChangedListener(object : TextWatcher {
+            private var searchRunnable: Runnable? = null
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                binding.etSearchPlace.removeCallbacks(searchRunnable ?: Runnable {})
+                searchRunnable = Runnable {
+                    val query = s?.toString()?.trim()
+                    if (!query.isNullOrBlank() && query.length >= 2) {
+                        viewModel.searchPlaceSuggestions(query)
+                    } else {
+                        viewModel.searchPlaceSuggestions("")
+                        placeSearchAdapter.submit(emptyList())
+                        binding.rvPlaceSearchSuggestions.visibility = View.GONE
+                    }
+                }
+                binding.etSearchPlace.postDelayed(searchRunnable!!, 300)
+            }
+            override fun afterTextChanged(editable: Editable?) {}
+        })
     }
     
     private fun observeViewModel() {
@@ -235,6 +281,37 @@ class TripDayEditorFragment : Fragment() {
                 Snackbar.make(binding.root, error, Snackbar.LENGTH_LONG).show()
             } else {
                 binding.tvError.visibility = View.GONE
+            }
+        }
+
+        viewModel.placeSearchSuggestions.observe(viewLifecycleOwner) { suggestions ->
+            val withGoogleId = suggestions.filter { !it.googlePlaceId.isNullOrBlank() }
+            placeSearchAdapter.submit(withGoogleId)
+            binding.rvPlaceSearchSuggestions.visibility = if (withGoogleId.isEmpty()) View.GONE else View.VISIBLE
+        }
+    }
+
+    private inner class PlaceSearchSuggestionsAdapter(
+        private val onSuggestionClick: (LocationSuggestion) -> Unit
+    ) : RecyclerView.Adapter<PlaceSearchSuggestionsAdapter.VH>() {
+        private val items = mutableListOf<LocationSuggestion>()
+        fun submit(newItems: List<LocationSuggestion>) {
+            items.clear()
+            items.addAll(newItems)
+            notifyDataSetChanged()
+        }
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
+            val view = layoutInflater.inflate(android.R.layout.simple_list_item_1, parent, false)
+            return VH(view)
+        }
+        override fun onBindViewHolder(holder: VH, position: Int) { holder.bind(items[position]) }
+        override fun getItemCount(): Int = items.size
+        inner class VH(itemView: View) : RecyclerView.ViewHolder(itemView) {
+            private val textView: TextView = itemView.findViewById(android.R.id.text1)
+            fun bind(item: LocationSuggestion) {
+                textView.text = item.displayName
+                textView.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_primary))
+                itemView.setOnClickListener { onSuggestionClick(item) }
             }
         }
     }
