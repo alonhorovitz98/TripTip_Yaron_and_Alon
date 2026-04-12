@@ -108,12 +108,24 @@ class TripRepository(
             val firestoreResult = firestoreDataSource.createTrip(trip)
             when (firestoreResult) {
                 is Result.Success -> {
-                    val createdTrip = firestoreResult.data
-                    // Cache in Room
-                    withContext(Dispatchers.IO) {
-                        saveTripWithNestedData(createdTrip)
+                    val tripId = firestoreResult.data.id
+                    // createTrip() writes days with generated doc IDs; returned Trip still has empty day ids — reload nested data.
+                    val refreshed = firestoreDataSource.loadTripWithNestedData(tripId)
+                    when (refreshed) {
+                        is Result.Success -> {
+                            withContext(Dispatchers.IO) {
+                                saveTripWithNestedData(refreshed.data)
+                            }
+                            emit(Result.Success(refreshed.data))
+                        }
+                        is Result.Error -> emit(
+                            Result.Error(
+                                refreshed.exception,
+                                refreshed.message ?: "Trip created but failed to load details"
+                            )
+                        )
+                        is Result.Loading -> emit(Result.Loading)
                     }
-                    emit(Result.Success(createdTrip))
                 }
                 is Result.Error -> emit(firestoreResult)
                 is Result.Loading -> emit(firestoreResult)
@@ -201,12 +213,32 @@ class TripRepository(
                     val updateResult = firestoreDataSource.updateTrip(updatedTrip)
                     when (updateResult) {
                         is Result.Success -> {
-                            val savedDay = day.copy(tripId = tripId)
-                            // Cache in Room
-                            withContext(Dispatchers.IO) {
-                                tripDayDao.insert(TripDayMapper.toEntity(savedDay))
+                            // Firestore assigns real day IDs in saveTripDay; never cache "" id in Room (PRIMARY KEY collision).
+                            val refreshed = firestoreDataSource.loadTripWithNestedData(tripId)
+                            when (refreshed) {
+                                is Result.Success -> {
+                                    withContext(Dispatchers.IO) {
+                                        saveTripWithNestedData(refreshed.data)
+                                    }
+                                    val savedDay = refreshed.data.days
+                                        .find { it.dayNumber == day.dayNumber && it.tripId == tripId }
+                                        ?: refreshed.data.days.lastOrNull()
+                                    if (savedDay != null) {
+                                        emit(Result.Success(savedDay))
+                                    } else {
+                                        emit(
+                                            Result.Error(
+                                                IllegalStateException("Day missing after save"),
+                                                "Could not refresh trip after adding day"
+                                            )
+                                        )
+                                    }
+                                }
+                                is Result.Error -> emit(
+                                    Result.Error(refreshed.exception, refreshed.message)
+                                )
+                                is Result.Loading -> emit(Result.Loading)
                             }
-                            emit(Result.Success(savedDay))
                         }
                         is Result.Error -> emit(updateResult)
                         is Result.Loading -> emit(updateResult)

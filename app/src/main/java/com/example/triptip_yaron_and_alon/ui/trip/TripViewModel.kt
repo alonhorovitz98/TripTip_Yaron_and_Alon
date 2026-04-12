@@ -19,6 +19,7 @@ import com.example.triptip_yaron_and_alon.domain.model.Trip
 import com.example.triptip_yaron_and_alon.domain.model.TripDay
 import com.example.triptip_yaron_and_alon.domain.model.TripItem
 import com.example.triptip_yaron_and_alon.util.Result
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.firstOrNull
@@ -204,16 +205,29 @@ class TripViewModel(application: Application) : AndroidViewModel(application) {
     
     /**
      * Initialize a new trip object (for adding days before saving).
+     * Uses [FirebaseAuth.getInstance].currentUser when available so the trip is ready immediately
+     * (avoids "Add Day" before the auth Flow emits).
      */
     fun initializeNewTrip() {
+        val uidImmediate = FirebaseAuth.getInstance().currentUser?.uid
+        if (uidImmediate != null) {
+            _currentTrip.value = Trip(
+                id = "new",
+                userId = uidImmediate,
+                title = "",
+                description = null,
+                createdAt = System.currentTimeMillis(),
+                days = emptyList()
+            )
+            return
+        }
         viewModelScope.launch {
             val userId = authDataSource.getCurrentUser().firstOrNull()?.id
                 ?: run {
                     _error.value = "User not authenticated"
                     return@launch
                 }
-            
-            val newTrip = Trip(
+            _currentTrip.value = Trip(
                 id = "new",
                 userId = userId,
                 title = "",
@@ -221,7 +235,6 @@ class TripViewModel(application: Application) : AndroidViewModel(application) {
                 createdAt = System.currentTimeMillis(),
                 days = emptyList()
             )
-            _currentTrip.value = newTrip
         }
     }
     

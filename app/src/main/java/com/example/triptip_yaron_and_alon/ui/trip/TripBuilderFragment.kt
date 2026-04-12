@@ -76,21 +76,38 @@ class TripBuilderFragment : Fragment() {
     private fun setupRecyclerView() {
         daysAdapter = TripDaysAdapter(
             onDayClick = { day ->
-                val action = TripBuilderFragmentDirections
-                    .actionTripBuilderFragmentToTripDayEditorFragment(
-                        tripId = currentTripId,
-                        dayId = day.id
-                    )
-                findNavController().navigate(action)
+                if (day.id.isBlank() || day.id.startsWith("temp_")) {
+                    Snackbar.make(
+                        binding.root,
+                        "Save the trip first to edit this day.",
+                        Snackbar.LENGTH_SHORT
+                    ).show()
+                } else {
+                    val action = TripBuilderFragmentDirections
+                        .actionTripBuilderFragmentToTripDayEditorFragment(
+                            tripId = currentTripId,
+                            dayId = day.id
+                        )
+                    findNavController().navigate(action)
+                }
             },
             onDayDateClick = { day ->
-                showDayDatePicker(day)
+                if (isNewTrip || day.id.startsWith("temp_")) {
+                    Snackbar.make(
+                        binding.root,
+                        "Save the trip first, then you can set a date for each day.",
+                        Snackbar.LENGTH_SHORT
+                    ).show()
+                } else {
+                    showDayDatePicker(day)
+                }
             }
         )
         
         binding.rvDays.apply {
             adapter = daysAdapter
             layoutManager = LinearLayoutManager(context)
+            isNestedScrollingEnabled = false
         }
     }
 
@@ -219,11 +236,14 @@ class TripBuilderFragment : Fragment() {
                     hasPopulatedFields = true
                 }
                 
-                // Display days in RecyclerView
-                daysAdapter.submitList(trip.days.sortedBy { it.dayNumber })
+                val sortedDays = trip.days.sortedBy { it.dayNumber }
+                daysAdapter.submitList(sortedDays)
+                binding.tvDaysEmpty.visibility =
+                    if (sortedDays.isEmpty()) View.VISIBLE else View.GONE
+                binding.rvDays.visibility =
+                    if (sortedDays.isEmpty()) View.GONE else View.VISIBLE
                 
-                // Always enable add day button (no restriction)
-                binding.btnAddDay.isEnabled = true
+                binding.btnAddDay.isEnabled = viewModel.isLoading.value != true
             } else {
                 // Trip is null - might be loading or failed to load
                 if (!isNewTrip && !hasPopulatedFields) {
@@ -237,6 +257,8 @@ class TripBuilderFragment : Fragment() {
                     ).show()
                 }
                 daysAdapter.submitList(emptyList())
+                binding.tvDaysEmpty.visibility = View.GONE
+                binding.rvDays.visibility = View.GONE
                 binding.btnAddDay.isEnabled = false
             }
         }
@@ -244,6 +266,9 @@ class TripBuilderFragment : Fragment() {
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
             binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
             binding.btnSaveTrip.isEnabled = !isLoading
+            // Avoid double "Add Day" while Firestore/Room work is in progress
+            val trip = viewModel.currentTrip.value
+            binding.btnAddDay.isEnabled = !isLoading && trip != null
         }
         
         viewModel.operationResult.observe(viewLifecycleOwner) { result ->
