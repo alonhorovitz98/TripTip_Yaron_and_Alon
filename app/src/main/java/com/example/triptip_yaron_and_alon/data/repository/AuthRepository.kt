@@ -35,16 +35,26 @@ class AuthRepository(
      * Sign up a new user.
      * Creates user in Firebase Auth, saves to Firestore, and caches in Room.
      */
-    fun signUp(email: String, password: String): Flow<Result<User>> = flow {
+    fun signUp(email: String, password: String, name: String): Flow<Result<User>> = flow {
         authDataSource.signUp(email, password)
             .collect { result ->
                 when (result) {
                     is Result.Success -> {
-                        val user = result.data
+                        val user = result.data.copy(name = name)
                         // Save to Firestore
                         firestoreDataSource.saveUser(user)
                         // Cache in Room
                         userDao.insert(UserMapper.toEntity(user))
+                        
+                        try {
+                            com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.let { fbUser ->
+                                val updates = com.google.firebase.auth.UserProfileChangeRequest.Builder()
+                                    .setDisplayName(name)
+                                    .build()
+                                fbUser.updateProfile(updates)
+                            }
+                        } catch (e: Exception) { /* ignore auth profile failure */ }
+
                         emit(Result.Success(user))
                     }
                     is Result.Error -> emit(result)

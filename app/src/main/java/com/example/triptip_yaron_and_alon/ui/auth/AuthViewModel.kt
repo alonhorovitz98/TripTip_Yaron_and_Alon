@@ -139,7 +139,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
         
         viewModelScope.launch {
-            authRepository.signUp(email, password).collect { result ->
+            authRepository.signUp(email, password, name).collect { result ->
                 when (result) {
                     is Result.Loading -> {
                         _isLoading.value = true
@@ -147,9 +147,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     is Result.Success -> {
                         _isLoading.value = false
-                        // Update user name after signup
-                        val updatedUser = result.data.copy(name = name)
-                        _registerResult.value = Result.Success(updatedUser)
+                        _registerResult.value = Result.Success(result.data)
                         _isLoggedIn.value = true
                         _error.value = null
                     }

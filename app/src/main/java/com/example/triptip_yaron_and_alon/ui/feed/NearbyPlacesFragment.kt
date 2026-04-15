@@ -173,6 +173,25 @@ class NearbyPlacesFragment : Fragment() {
         }
     }
     
+    private val locationPermissionRequest = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        when {
+            permissions.getOrDefault(Manifest.permission.ACCESS_FINE_LOCATION, false) ||
+            permissions.getOrDefault(Manifest.permission.ACCESS_COARSE_LOCATION, false) -> {
+                // Location access granted.
+                requestLocationAndLoadPlaces()
+            }
+            else -> {
+                // No location access granted.
+                binding.tvError.text = "Location permission is required to show nearby places."
+                binding.tvError.visibility = View.VISIBLE
+                binding.progressBar.visibility = View.GONE
+                binding.swipeRefresh.isRefreshing = false
+            }
+        }
+    }
+
     private fun requestLocationAndLoadPlaces() {
         // Check location permissions
         if (ActivityCompat.checkSelfPermission(
@@ -185,12 +204,11 @@ class NearbyPlacesFragment : Fragment() {
             ) != PackageManager.PERMISSION_GRANTED
         ) {
             // Request permissions
-            requestPermissions(
+            locationPermissionRequest.launch(
                 arrayOf(
                     Manifest.permission.ACCESS_FINE_LOCATION,
                     Manifest.permission.ACCESS_COARSE_LOCATION
-                ),
-                LOCATION_PERMISSION_REQUEST_CODE
+                )
             )
             return
         }
@@ -222,6 +240,18 @@ class NearbyPlacesFragment : Fragment() {
     }
 
     private fun loadFromLastKnownLocation(errorMessage: String? = null) {
+        if (ActivityCompat.checkSelfPermission(
+                requireContext(),
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED &&
+            ActivityCompat.checkSelfPermission(
+                requireContext(),
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+
         fusedLocationClient.lastLocation.addOnSuccessListener { lastLocation: Location? ->
             if (lastLocation != null) {
                 android.util.Log.d(
@@ -242,27 +272,6 @@ class NearbyPlacesFragment : Fragment() {
             binding.tvError.visibility = View.VISIBLE
             binding.progressBar.visibility = View.GONE
             binding.swipeRefresh.isRefreshing = false
-        }
-    }
-    
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        
-        if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
-            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // Permission granted, load places
-                requestLocationAndLoadPlaces()
-            } else {
-                // Permission denied
-                binding.tvError.text = "Location permission is required to show nearby places."
-                binding.tvError.visibility = View.VISIBLE
-                binding.progressBar.visibility = View.GONE
-                binding.swipeRefresh.isRefreshing = false
-            }
         }
     }
     
