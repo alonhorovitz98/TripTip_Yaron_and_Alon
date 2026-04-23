@@ -205,10 +205,6 @@ object ApiMapper {
         referenceLon: Double,
         apiKey: String
     ): List<PlaceInfo> {
-        // Travel-relevant place types (what we WANT to show)
-        // Priority types (will be sorted first): park, museum, tourist_attraction
-        val priorityTypes = setOf("park", "museum", "tourist_attraction", "art_gallery", "zoo", "aquarium")
-        
         val travelRelevantTypes = setOf(
             // Priority: Parks, Museums, Tourist Attractions (shown first)
             "park", "museum", "tourist_attraction", "art_gallery", "zoo", "aquarium",

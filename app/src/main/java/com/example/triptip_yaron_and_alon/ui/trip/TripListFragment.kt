@@ -47,19 +47,12 @@ class TripListFragment : Fragment() {
     private fun setupRecyclerView() {
         tripAdapter = TripAdapter(
             onTripClick = { trip ->
-                // Debug: Log trip details
-                android.util.Log.d("TripList", "Trip clicked - ID: '${trip.id}', Title: '${trip.title}', isEmpty: ${trip.id.isEmpty()}, isBlank: ${trip.id.isBlank()}")
-                
-                // Ensure we have a valid trip ID
-                val tripId = if (trip.id.isBlank() || trip.id.isEmpty()) {
-                    android.util.Log.e("TripList", "ERROR: Trip ID is empty or blank! Using 'new' as fallback")
-                    "new"
-                } else {
-                    trip.id
+                if (trip.id.isBlank()) {
+                    Snackbar.make(binding.root, "Unable to open trip: missing ID", Snackbar.LENGTH_SHORT).show()
+                    return@TripAdapter
                 }
-                
                 val action = TripListFragmentDirections
-                    .actionTripListFragmentToTripBuilderFragment(tripId, null)
+                    .actionTripListFragmentToTripBuilderFragment(trip.id, null)
                 findNavController().navigate(action)
             },
             onTripLongClick = { trip ->

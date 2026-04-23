@@ -255,9 +255,6 @@ class GooglePlaceDetailsFragment : Fragment() {
     }
     
     private fun updateTabFragments(details: com.example.triptip_yaron_and_alon.data.remote.api.dto.PlaceDetailsResultDto) {
-        android.util.Log.d("PlaceDetails", "Updating tab fragments. Reviews count: ${details.reviews?.size ?: 0}")
-        
-        // Update adapter which will update existing fragments and store for future fragments
         tabsAdapter.updatePlaceDetails(details)
         
         // Also update directly if fragments exist

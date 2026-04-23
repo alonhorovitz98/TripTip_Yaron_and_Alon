@@ -41,8 +41,6 @@ class GooglePlaceDetailsViewModel(application: Application) : AndroidViewModel(a
         // Cancel existing job if active
         loadDetailsJob?.cancel()
         
-        android.util.Log.d("PlaceDetailsVM", "Loading details for placeId=$placeId")
-        
         loadDetailsJob = viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
@@ -50,12 +48,10 @@ class GooglePlaceDetailsViewModel(application: Application) : AndroidViewModel(a
             
             placeInfoRepository.getFullPlaceDetails(placeId)
                 .catch { e ->
-                    android.util.Log.e("PlaceDetailsVM", "Error loading place details: ${e.message}", e)
                     _error.value = "Failed to load place details: ${e.message}"
                     _isLoading.value = false
                 }
                 .collect { details ->
-                    android.util.Log.d("PlaceDetailsVM", "Loaded place details: ${details.name}")
                     _placeDetails.value = details
                     _isLoading.value = false
                 }

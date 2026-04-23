@@ -48,14 +48,10 @@ class TripBuilderFragment : Fragment() {
         
         viewModel = ViewModelProvider(this)[TripViewModel::class.java]
         
-        // Validate trip ID from args
         val tripIdFromArgs = args.tripId
-        android.util.Log.d("TripBuilder", "Trip ID from args: '$tripIdFromArgs', isEmpty: ${tripIdFromArgs.isEmpty()}, isBlank: ${tripIdFromArgs.isBlank()}")
-        
-        // If trip ID is empty/blank, treat as new trip
-        isNewTrip = tripIdFromArgs == "new" || tripIdFromArgs.isBlank() || tripIdFromArgs.isEmpty()
+        isNewTrip = tripIdFromArgs == "new" || tripIdFromArgs.isBlank()
         currentTripId = if (isNewTrip) "new" else tripIdFromArgs
-        hasPopulatedFields = false // Reset flag
+        hasPopulatedFields = false
         
         setupRecyclerView()
         setupDatePickers()
@@ -63,12 +59,8 @@ class TripBuilderFragment : Fragment() {
         observeViewModel()
         
         if (!isNewTrip) {
-            // Load existing trip
-            android.util.Log.d("TripBuilder", "Loading trip with ID: '$currentTripId'")
             viewModel.loadTrip(currentTripId)
         } else {
-            // Initialize empty trip for new trips (allows adding days before saving)
-            android.util.Log.d("TripBuilder", "Initializing new trip")
             viewModel.initializeNewTrip()
         }
     }
@@ -190,26 +182,18 @@ class TripBuilderFragment : Fragment() {
             android.util.Log.d("TripBuilder", "Add Day clicked - currentTrip: ${currentTrip != null}, currentTripId: $currentTripId, isNewTrip: $isNewTrip")
             
             if (currentTrip != null) {
-                // Allow adding days even for new trips (they're stored locally)
                 val dayNumber = currentTrip.days.size + 1
-                android.util.Log.d("TripBuilder", "Adding day $dayNumber to trip ${currentTrip.id}")
-                
                 if (isNewTrip) {
-                    // Add day to local trip (not saved yet)
-                    android.util.Log.d("TripBuilder", "Adding day to local trip (new trip)")
                     viewModel.addDayToLocalTrip(dayNumber, "Day $dayNumber")
                 } else {
-                    // Use currentTripId as fallback if currentTrip.id is invalid
                     val tripIdToUse = if (currentTrip.id.isNotBlank() && currentTrip.id != "new") {
                         currentTrip.id
                     } else {
                         currentTripId
                     }
-                    android.util.Log.d("TripBuilder", "Calling addDay with tripId: $tripIdToUse")
                     viewModel.addDay(tripIdToUse, dayNumber, "Day $dayNumber")
                 }
             } else {
-                android.util.Log.w("TripBuilder", "Cannot add day - currentTrip is null")
                 Snackbar.make(binding.root, "Trip not loaded yet. Please wait...", Snackbar.LENGTH_SHORT).show()
             }
         }
@@ -226,7 +210,6 @@ class TripBuilderFragment : Fragment() {
                 // Always populate fields for existing trips (only once when first loaded)
                 // For new trips, don't overwrite user input
                 if (!isNewTrip && !hasPopulatedFields) {
-                    android.util.Log.d("TripBuilder", "Populating fields for trip: ${trip.title}")
                     binding.etTripTitle.setText(trip.title)
                     binding.etTripDescription.setText(trip.description ?: "")
                     startDateMillis = trip.startDate
@@ -245,11 +228,9 @@ class TripBuilderFragment : Fragment() {
                 
                 binding.btnAddDay.isEnabled = viewModel.isLoading.value != true
             } else {
-                // Trip is null - might be loading or failed to load
-                if (!isNewTrip && !hasPopulatedFields) {
-                    // If we're trying to edit an existing trip but it's null,
-                    // show an error message
-                    android.util.Log.w("TripBuilder", "Trip is null for ID: ${args.tripId}")
+                // Trip is null - only show an error when we're NOT currently loading
+                // (first emission from Room can be null while Firestore fetch is still in-flight)
+                if (!isNewTrip && !hasPopulatedFields && viewModel.isLoading.value != true) {
                     Snackbar.make(
                         binding.root,
                         "Failed to load trip. Please try again.",

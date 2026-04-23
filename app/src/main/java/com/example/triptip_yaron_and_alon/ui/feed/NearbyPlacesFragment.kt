@@ -102,7 +102,6 @@ class NearbyPlacesFragment : Fragment() {
                         && viewModel.hasMorePages()
                         && viewModel.isLoadingMore.value != true
                     ) {
-                        android.util.Log.d("NearbyPlaces", "Loading more places...")
                         viewModel.loadMorePlaces()
                     }
                 }
@@ -219,22 +218,11 @@ class NearbyPlacesFragment : Fragment() {
             null // no cancellation token
         ).addOnSuccessListener { location: Location? ->
             if (location != null) {
-                android.util.Log.d(
-                    "NearbyPlaces",
-                    "Current location: lat=${location.latitude}, lon=${location.longitude}"
-                )
                 viewModel.loadNearbyPlaces(location.latitude, location.longitude)
             } else {
-                android.util.Log.d(
-                    "NearbyPlaces",
-                    "Current location unavailable, falling back to last known location"
-                )
-                // Fallback to last known location if current location is not available
                 loadFromLastKnownLocation()
             }
         }.addOnFailureListener { e ->
-            android.util.Log.e("NearbyPlaces", "Failed to get current location: ${e.message}")
-            // Fallback to last known location on failure
             loadFromLastKnownLocation(errorMessage = e.message)
         }
     }
@@ -254,10 +242,6 @@ class NearbyPlacesFragment : Fragment() {
 
         fusedLocationClient.lastLocation.addOnSuccessListener { lastLocation: Location? ->
             if (lastLocation != null) {
-                android.util.Log.d(
-                    "NearbyPlaces",
-                    "Using last known location: lat=${lastLocation.latitude}, lon=${lastLocation.longitude}"
-                )
                 viewModel.loadNearbyPlaces(lastLocation.latitude, lastLocation.longitude)
             } else {
                 binding.tvError.text = errorMessage?.let {

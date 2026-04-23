@@ -9,9 +9,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.triptip_yaron_and_alon.databinding.FragmentNotificationsBinding
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 class NotificationsFragment : Fragment() {
 

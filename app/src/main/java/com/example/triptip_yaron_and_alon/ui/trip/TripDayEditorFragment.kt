@@ -39,6 +39,12 @@ class TripDayEditorFragment : Fragment() {
     private lateinit var availablePostsAdapter: AvailablePostsAdapter
     private lateinit var nearbyPlacesAdapter: com.example.triptip_yaron_and_alon.ui.adapter.NearbyPlaceAdapter
     private lateinit var placeSearchAdapter: PlaceSearchSuggestionsAdapter
+    private var searchRunnable: Runnable? = null
+
+    // Track last location used for nearby places to avoid duplicate API calls
+    private var lastNearbyLat: Double? = null
+    private var lastNearbyLon: Double? = null
+    private var lastNearbyLocationName: String? = null
     
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -100,7 +106,6 @@ class TripDayEditorFragment : Fragment() {
         // Available posts adapter - create once and update excluded IDs
         availablePostsAdapter = AvailablePostsAdapter(
             onAddClick = { post ->
-                android.util.Log.d("TripDayEditor", "Add post clicked: ${post.id}")
                 viewModel.addItemToDay(args.tripId, args.dayId, post.id)
             },
             excludedPostIds = emptySet() // Will be updated when day loads
@@ -114,7 +119,6 @@ class TripDayEditorFragment : Fragment() {
         // Nearby places adapter
         nearbyPlacesAdapter = com.example.triptip_yaron_and_alon.ui.adapter.NearbyPlaceAdapter(
             onAddToTripClick = { place ->
-                android.util.Log.d("TripDayEditor", "Add place clicked: ${place.xid}")
                 viewModel.addPlaceToDay(args.tripId, args.dayId, place)
             },
             onPlaceClick = { place ->
@@ -146,10 +150,9 @@ class TripDayEditorFragment : Fragment() {
 
     private fun setupPlaceSearch() {
         binding.etSearchPlace.addTextChangedListener(object : TextWatcher {
-            private var searchRunnable: Runnable? = null
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                binding.etSearchPlace.removeCallbacks(searchRunnable ?: Runnable {})
+                binding.etSearchPlace.removeCallbacks(searchRunnable)
                 searchRunnable = Runnable {
                     val query = s?.toString()?.trim()
                     if (!query.isNullOrBlank() && query.length >= 2) {
@@ -195,25 +198,32 @@ class TripDayEditorFragment : Fragment() {
                     availablePostsAdapter.submitList(filteredPosts)
                 }
                 
-                // Load nearby places if we have location from items
-                // Try to get location from first item with coordinates
+                // Load nearby places only when the location actually changes
                 val itemWithLocation = sortedItems.firstOrNull { item ->
                     item.post?.latitude != null && item.post?.longitude != null
                 }
-                
+
                 if (itemWithLocation != null) {
                     val lat = itemWithLocation.post?.latitude ?: return@observe
                     val lon = itemWithLocation.post?.longitude ?: return@observe
-                    viewModel.loadNearbyPlaces(lat, lon)
-                } else {
-                    // Try to get location from post location name
-                    val itemWithLocationName = sortedItems.firstOrNull { item ->
-                        item.post?.location != null && item.post?.location?.isNotBlank() == true
+                    if (lat != lastNearbyLat || lon != lastNearbyLon) {
+                        lastNearbyLat = lat
+                        lastNearbyLon = lon
+                        lastNearbyLocationName = null
+                        viewModel.loadNearbyPlaces(lat, lon)
                     }
-                    
+                } else {
+                    val itemWithLocationName = sortedItems.firstOrNull { item ->
+                        item.post?.location?.isNotBlank() == true
+                    }
                     if (itemWithLocationName != null) {
                         val locationName = itemWithLocationName.post?.location ?: return@observe
-                        viewModel.loadNearbyPlacesForLocation(locationName)
+                        if (locationName != lastNearbyLocationName) {
+                            lastNearbyLocationName = locationName
+                            lastNearbyLat = null
+                            lastNearbyLon = null
+                            viewModel.loadNearbyPlacesForLocation(locationName)
+                        }
                     }
                 }
             }
@@ -264,10 +274,21 @@ class TripDayEditorFragment : Fragment() {
         viewModel.itemOperationResult.observe(viewLifecycleOwner) { result ->
             when (result) {
                 is Result.Success -> {
-                    Snackbar.make(binding.root, "Item added successfully", Snackbar.LENGTH_SHORT).show()
+                    val message = when (viewModel.lastItemOperation.value) {
+                        TripViewModel.ItemOperation.ADD -> "Item added"
+                        TripViewModel.ItemOperation.REMOVE -> "Item removed"
+                        TripViewModel.ItemOperation.REORDER, TripViewModel.ItemOperation.UPDATE_NOTES, null -> null
+                    }
+                    message?.let { Snackbar.make(binding.root, it, Snackbar.LENGTH_SHORT).show() }
                 }
                 is Result.Error -> {
-                    Snackbar.make(binding.root, result.message ?: "Failed to add item", Snackbar.LENGTH_LONG).show()
+                    val fallback = when (viewModel.lastItemOperation.value) {
+                        TripViewModel.ItemOperation.REMOVE -> "Failed to remove item"
+                        TripViewModel.ItemOperation.REORDER -> "Failed to reorder items"
+                        TripViewModel.ItemOperation.UPDATE_NOTES -> "Failed to save notes"
+                        else -> "Failed to add item"
+                    }
+                    Snackbar.make(binding.root, result.message ?: fallback, Snackbar.LENGTH_LONG).show()
                 }
                 else -> {}
             }
@@ -358,6 +379,11 @@ class TripDayEditorFragment : Fragment() {
     }
     
     override fun onDestroyView() {
+        binding.etSearchPlace.removeCallbacks(searchRunnable)
+        searchRunnable = null
+        lastNearbyLat = null
+        lastNearbyLon = null
+        lastNearbyLocationName = null
         super.onDestroyView()
         _binding = null
     }

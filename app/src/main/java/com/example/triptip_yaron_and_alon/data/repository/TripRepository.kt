@@ -52,14 +52,19 @@ class TripRepository(
                 emit(cachedTrips)
                 try {
                     firestoreDataSource.getTrips(userId)
-                        .catch { /* Ignore errors, keep using cache */ }
+                        .catch { e ->
+                            // Re-emit cached data on Firestore error so the UI stays populated;
+                            // the error will surface via the error channel in the ViewModel.
+                            emit(cachedTrips)
+                            throw e
+                        }
                         .collect { remoteTrips ->
                             withContext(Dispatchers.IO) {
                                 saveTripsWithNestedData(remoteTrips)
                             }
                         }
                 } catch (_: Exception) {
-                    emit(cachedTrips)
+                    // Already emitted cachedTrips in the catch block above; nothing more to do.
                 }
             }
         }
@@ -88,10 +93,15 @@ class TripRepository(
                             }
                             emit(result.data)
                         }
-                        is Result.Error, is Result.Loading -> Unit
+                        is Result.Error -> throw result.exception
+                            ?: Exception(result.message ?: "Failed to load trip")
+                        is Result.Loading -> Unit
                     }
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    // Keep showing the cached trip so the UI doesn't go blank;
+                    // re-throw so the outer .catch in the ViewModel can log/show the error.
                     emit(cachedTrip)
+                    throw e
                 }
             }
         }
@@ -280,14 +290,24 @@ class TripRepository(
                     val updateResult = firestoreDataSource.updateTrip(updatedTrip)
                     when (updateResult) {
                         is Result.Success -> {
-                            // Reload authoritative nested data from Firestore to get generated IDs.
+                            // Reload to get the server-assigned item ID (Firestore generates it).
                             val refreshedTripResult = firestoreDataSource.loadTripWithNestedData(tripId)
                             if (refreshedTripResult is Result.Success) {
                                 withContext(Dispatchers.IO) {
                                     saveTripWithNestedData(refreshedTripResult.data)
                                 }
+                                // Find the saved item by matching on postId/placeId so we emit its real id.
+                                val savedItem = refreshedTripResult.data.days
+                                    .find { it.id == dayId }
+                                    ?.items
+                                    ?.lastOrNull {
+                                        (item.postId != null && it.postId == item.postId) ||
+                                        (item.placeId != null && it.placeId == item.placeId)
+                                    }
+                                emit(Result.Success(savedItem ?: item.copy(dayId = dayId)))
+                            } else {
+                                emit(Result.Success(item.copy(dayId = dayId)))
                             }
-                            emit(Result.Success(item.copy(dayId = dayId)))
                         }
                         is Result.Error -> emit(updateResult)
                         is Result.Loading -> emit(updateResult)
@@ -392,16 +412,39 @@ class TripRepository(
     
     /**
      * Save a trip with all nested data to Room cache.
+     * Removes stale day and item rows that are no longer present in [trip].
      */
     private suspend fun saveTripWithNestedData(trip: Trip) {
-        // Save trip
         tripDao.insert(TripMapper.toEntity(trip))
-        
-        // Save days
+
+        val currentDayIds = trip.days.map { it.id }.toSet()
+
+        // Remove days that are no longer in the trip
+        val cachedDays = tripDayDao.getDaysByTrip(trip.id)
+            .catch { emit(emptyList()) }
+            .firstOrNull() ?: emptyList()
+        cachedDays.forEach { dayEntity ->
+            if (dayEntity.id !in currentDayIds) {
+                tripItemDao.deleteByDayId(dayEntity.id)
+                tripDayDao.deleteById(dayEntity.id)
+            }
+        }
+
         trip.days.forEach { day ->
             tripDayDao.insert(TripDayMapper.toEntity(day))
-            
-            // Save items
+
+            val currentItemIds = day.items.map { it.id }.toSet()
+
+            // Remove items that are no longer in this day
+            val cachedItems = tripItemDao.getItemsByDay(day.id)
+                .catch { emit(emptyList()) }
+                .firstOrNull() ?: emptyList()
+            cachedItems.forEach { itemEntity ->
+                if (itemEntity.id !in currentItemIds) {
+                    tripItemDao.deleteById(itemEntity.id)
+                }
+            }
+
             tripItemDao.insertAll(TripItemMapper.toEntityList(day.items))
         }
     }

@@ -21,8 +21,8 @@ import com.example.triptip_yaron_and_alon.data.local.database.entities.*
         NotificationEntity::class,
         SearchHistoryEntity::class
     ],
-    version = 6, // Added priceLevel to posts
-    exportSchema = false
+    version = 6,
+    exportSchema = true
 )
 abstract class TripTipDatabase : RoomDatabase() {
     
@@ -110,7 +110,6 @@ abstract class TripTipDatabase : RoomDatabase() {
                     "triptip_database"
                 )
                     .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
-                    .fallbackToDestructiveMigration() // Fallback if migration fails
                     .build()
                 INSTANCE = instance
                 instance

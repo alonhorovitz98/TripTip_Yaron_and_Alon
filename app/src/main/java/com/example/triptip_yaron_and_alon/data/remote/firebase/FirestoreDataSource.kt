@@ -296,20 +296,33 @@ class FirestoreDataSource(
     
     /**
      * Update an existing trip in Firestore.
+     * Removes day/item documents that are no longer present in [trip], writes current ones.
      * Returns Result<Trip> with the updated trip.
      */
     suspend fun updateTrip(trip: Trip): Result<Trip> {
         return try {
-            firestore.collection(Constants.COLLECTION_TRIPS)
-                .document(trip.id)
-                .set(trip.toMap())
-                .await()
-            
-            // Update trip days
+            val tripRef = firestore.collection(Constants.COLLECTION_TRIPS).document(trip.id)
+
+            tripRef.set(trip.toMap()).await()
+
+            // Determine which day IDs should remain
+            val currentDayIds = trip.days.map { it.id }.toSet()
+
+            // Delete days (and their items) that were removed from the trip
+            val existingDaysSnapshot = tripRef.collection("days").get().await()
+            existingDaysSnapshot.documents.forEach { dayDoc ->
+                if (dayDoc.id !in currentDayIds) {
+                    val itemsSnapshot = dayDoc.reference.collection("items").get().await()
+                    itemsSnapshot.documents.forEach { it.reference.delete().await() }
+                    dayDoc.reference.delete().await()
+                }
+            }
+
+            // Write / update remaining days (saveTripDay handles items internally)
             trip.days.forEach { day ->
                 saveTripDay(trip.id, day)
             }
-            
+
             Result.Success(trip)
         } catch (e: Exception) {
             Result.Error(e, e.message)
@@ -318,27 +331,26 @@ class FirestoreDataSource(
     
     /**
      * Delete a trip from Firestore.
+     * Recursively deletes days and their items subcollections, then the trip itself.
      * Returns Result<Unit> indicating success or failure.
      */
     suspend fun deleteTrip(tripId: String): Result<Unit> {
         return try {
-            // Delete trip days subcollection first
-            val daysSnapshot = firestore.collection(Constants.COLLECTION_TRIPS)
-                .document(tripId)
-                .collection("days")
-                .get()
-                .await()
-            
+            val tripRef = firestore.collection(Constants.COLLECTION_TRIPS).document(tripId)
+
+            // Delete items subcollection under each day, then the day itself
+            val daysSnapshot = tripRef.collection("days").get().await()
             daysSnapshot.documents.forEach { dayDoc ->
+                val itemsSnapshot = dayDoc.reference.collection("items").get().await()
+                itemsSnapshot.documents.forEach { itemDoc ->
+                    itemDoc.reference.delete().await()
+                }
                 dayDoc.reference.delete().await()
             }
-            
-            // Delete the trip
-            firestore.collection(Constants.COLLECTION_TRIPS)
-                .document(tripId)
-                .delete()
-                .await()
-            
+
+            // Delete the trip document
+            tripRef.delete().await()
+
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error(e, e.message)
@@ -347,19 +359,29 @@ class FirestoreDataSource(
     
     /**
      * Save a trip day as a subcollection under the trip.
+     * Removes item documents that are no longer present in [day].
      */
     private suspend fun saveTripDay(tripId: String, day: TripDay) {
         val dayId = day.id.ifEmpty { UUID.randomUUID().toString() }
         val dayWithId = day.copy(id = dayId, tripId = tripId)
-        
-        firestore.collection(Constants.COLLECTION_TRIPS)
+
+        val dayRef = firestore.collection(Constants.COLLECTION_TRIPS)
             .document(tripId)
             .collection("days")
             .document(dayId)
-            .set(dayWithId.toMap())
-            .await()
-        
-        // Save trip items as subcollection under the day
+
+        dayRef.set(dayWithId.toMap()).await()
+
+        // Delete items that were removed from this day
+        val currentItemIds = dayWithId.items.map { it.id }.toSet()
+        val existingItemsSnapshot = dayRef.collection("items").get().await()
+        existingItemsSnapshot.documents.forEach { itemDoc ->
+            if (itemDoc.id !in currentItemIds) {
+                itemDoc.reference.delete().await()
+            }
+        }
+
+        // Write / update remaining items
         dayWithId.items.forEach { item ->
             saveTripItem(tripId, dayId, item)
         }
