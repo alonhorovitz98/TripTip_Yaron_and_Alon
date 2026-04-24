@@ -29,11 +29,14 @@ class NotificationsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        viewModel = ViewModelProvider(this)[NotificationsViewModel::class.java]
+        // Activity scope so SocialFeedFragment shares the same instance and badge stays in sync
+        viewModel = ViewModelProvider(requireActivity())[NotificationsViewModel::class.java]
         setupToolbar()
         setupRecyclerView()
         observeViewModel()
         viewModel.loadNotifications()
+        // Mark everything read as soon as the screen is opened
+        viewModel.markAllAsRead()
     }
 
     private fun setupToolbar() {
@@ -45,7 +48,7 @@ class NotificationsFragment : Fragment() {
     private fun setupRecyclerView() {
         adapter = NotificationsAdapter(
             onNotificationClick = { notification ->
-                viewModel.markAsRead(notification.id)
+                if (!notification.isRead) viewModel.markAsRead(notification.id)
                 notification.targetPostId?.let { postId ->
                     val bundle = android.os.Bundle().apply { putString("postId", postId) }
                     findNavController().navigate(

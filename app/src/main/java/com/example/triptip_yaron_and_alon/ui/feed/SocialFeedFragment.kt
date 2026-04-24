@@ -5,12 +5,13 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
 import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.FragmentSocialFeedBinding
-import com.google.android.material.snackbar.Snackbar
+import com.example.triptip_yaron_and_alon.ui.notifications.NotificationsViewModel
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 
@@ -33,9 +34,27 @@ class SocialFeedFragment : Fragment() {
     
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        
+
         setupViewPager()
         setupListeners()
+        setupNotificationBadge()
+    }
+
+    private fun setupNotificationBadge() {
+        val notificationsViewModel =
+            ViewModelProvider(requireActivity())[NotificationsViewModel::class.java]
+
+        notificationsViewModel.loadNotifications()
+
+        notificationsViewModel.unreadCount.observe(viewLifecycleOwner) { count ->
+            val badge = binding.tvNotificationBadge
+            if (count > 0) {
+                badge.visibility = View.VISIBLE
+                badge.text = if (count > 99) "99+" else count.toString()
+            } else {
+                badge.visibility = View.GONE
+            }
+        }
     }
     
     private fun setupViewPager() {

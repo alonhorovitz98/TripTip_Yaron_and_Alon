@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.Transformations
 import androidx.lifecycle.viewModelScope
 import com.example.triptip_yaron_and_alon.data.remote.firebase.FirebaseAuthDataSource
 import com.example.triptip_yaron_and_alon.data.remote.firebase.NotificationsDataSource
@@ -12,16 +13,24 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
 class NotificationsViewModel(application: Application) : AndroidViewModel(application) {
+
     private val authDataSource by lazy { FirebaseAuthDataSource() }
     private val notificationsDataSource by lazy { NotificationsDataSource() }
 
-    private val _notifications = MutableLiveData<List<NotificationsDataSource.NotificationDoc>>(emptyList())
+    private val _notifications =
+        MutableLiveData<List<NotificationsDataSource.NotificationDoc>>(emptyList())
     val notifications: LiveData<List<NotificationsDataSource.NotificationDoc>> = _notifications
 
-    private val _isLoading = MutableLiveData<Boolean>(true)
+    /** Live count of unread notifications — drives the badge in the toolbar. */
+    val unreadCount: LiveData<Int> = Transformations.map(_notifications) { list ->
+        list.count { !it.isRead }
+    }
+
+    private val _isLoading = MutableLiveData(true)
     val isLoading: LiveData<Boolean> = _isLoading
 
     private var loadJob: Job? = null
+    private var currentUserId: String? = null
 
     fun loadNotifications() {
         loadJob?.cancel()
@@ -33,6 +42,7 @@ class NotificationsViewModel(application: Application) : AndroidViewModel(applic
                 _isLoading.value = false
                 return@launch
             }
+            currentUserId = userId
             notificationsDataSource.getNotificationsForUser(userId).collect { list ->
                 _notifications.value = list
                 _isLoading.value = false
@@ -40,9 +50,28 @@ class NotificationsViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
+    /**
+     * Mark a single notification as read (called on item tap).
+     * Updates Firestore and optimistically updates the local list.
+     */
     fun markAsRead(notificationId: String) {
         viewModelScope.launch {
             notificationsDataSource.markAsRead(notificationId)
+            _notifications.value = _notifications.value?.map { n ->
+                if (n.id == notificationId) n.copy(isRead = true) else n
+            }
+        }
+    }
+
+    /**
+     * Mark every notification for the current user as read.
+     * Called when the notifications screen is opened.
+     */
+    fun markAllAsRead() {
+        val userId = currentUserId ?: return
+        viewModelScope.launch {
+            notificationsDataSource.markAllAsRead(userId)
+            _notifications.value = _notifications.value?.map { it.copy(isRead = true) }
         }
     }
 }

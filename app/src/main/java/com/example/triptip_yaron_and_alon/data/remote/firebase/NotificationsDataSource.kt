@@ -85,6 +85,24 @@ class NotificationsDataSource(
         }
     }
 
+    suspend fun markAllAsRead(userId: String): Result<Unit> {
+        return try {
+            val unread = collection
+                .whereEqualTo("userId", userId)
+                .whereEqualTo("isRead", false)
+                .get()
+                .await()
+            if (unread.documents.isNotEmpty()) {
+                val batch = firestore.batch()
+                unread.documents.forEach { batch.update(it.reference, "isRead", true) }
+                batch.commit().await()
+            }
+            Result.Success(Unit)
+        } catch (e: Exception) {
+            Result.Error(e, e.message)
+        }
+    }
+
     data class NotificationDoc(
         val id: String,
         val userId: String,
