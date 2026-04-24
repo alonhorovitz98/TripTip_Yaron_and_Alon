@@ -46,7 +46,7 @@ class SocialFeedFragment : Fragment() {
         TabLayoutMediator(binding.tabLayout, binding.viewPager) { tab, position ->
             tab.text = when (position) {
                 0 -> "Trending"
-                1 -> "Following"
+                1 -> "My Posts"
                 2 -> "Nearby"
                 else -> ""
             }

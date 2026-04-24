@@ -64,6 +64,31 @@ class PostRepository(
         }
     
     /**
+     * Get posts for a specific user (cache-first, filtered by userId).
+     */
+    fun getMyPosts(userId: String): Flow<List<Post>> = postDao.getPostsByUser(userId)
+        .map { entities -> PostMapper.toDomainList(entities) }
+        .catch { emit(emptyList()) }
+        .flowOn(Dispatchers.IO)
+        .flatMapLatest { cached ->
+            flow {
+                emit(cached)
+                try {
+                    firestoreDataSource.getPostsByUser(userId)
+                        .catch { /* keep cache */ }
+                        .collect { remote ->
+                            withContext(Dispatchers.IO) {
+                                postDao.insertAll(PostMapper.toEntityList(remote))
+                            }
+                            emit(remote)
+                        }
+                } catch (_: Exception) {
+                    emit(cached)
+                }
+            }
+        }
+
+    /**
      * Get posts with pagination (lazy loading).
      * Returns posts from cache first, then fetches from Firestore.
      */

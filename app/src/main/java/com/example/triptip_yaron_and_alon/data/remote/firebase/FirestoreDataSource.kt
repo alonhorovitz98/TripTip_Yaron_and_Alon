@@ -53,6 +53,24 @@ class FirestoreDataSource(
     }
     
     /**
+     * Get posts by a specific user from Firestore.
+     */
+    fun getPostsByUser(userId: String): Flow<List<Post>> = callbackFlow {
+        val listenerRegistration = firestore.collection(Constants.COLLECTION_POSTS)
+            .whereEqualTo("userId", userId)
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                val posts = snapshot?.documents?.mapNotNull { it.toPost() } ?: emptyList()
+                trySend(posts)
+            }
+        awaitClose { listenerRegistration.remove() }
+    }
+
+    /**
      * Get a single post by ID.
      * Returns Flow<Post?> that emits updates when the post changes.
      */
