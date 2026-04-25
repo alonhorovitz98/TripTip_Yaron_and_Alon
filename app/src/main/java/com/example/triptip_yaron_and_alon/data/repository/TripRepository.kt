@@ -52,19 +52,25 @@ class TripRepository(
                 emit(cachedTrips)
                 try {
                     firestoreDataSource.getTrips(userId)
-                        .catch { e ->
-                            // Re-emit cached data on Firestore error so the UI stays populated;
-                            // the error will surface via the error channel in the ViewModel.
-                            emit(cachedTrips)
-                            throw e
+                        .catch {
+                            // Keep showing cached data on Firestore error.
                         }
                         .collect { remoteTrips ->
-                            withContext(Dispatchers.IO) {
-                                saveTripsWithNestedData(remoteTrips)
+                            if (remoteTrips.isNotEmpty()) {
+                                withContext(Dispatchers.IO) {
+                                    // Only sync trip-level metadata (title, dates, etc.).
+                                    // getTrips() returns trips with days = emptyList() for performance
+                                    // (basic documents only). Calling saveTripsWithNestedData() here
+                                    // would treat the empty days list as "all days deleted" and wipe
+                                    // every day row from Room. Use saveTripMetadataOnly() instead.
+                                    remoteTrips.forEach { trip ->
+                                        tripDao.insert(TripMapper.toEntity(trip))
+                                    }
+                                }
                             }
                         }
                 } catch (_: Exception) {
-                    // Already emitted cachedTrips in the catch block above; nothing more to do.
+                    // Firestore error already handled by the catch operator above.
                 }
             }
         }

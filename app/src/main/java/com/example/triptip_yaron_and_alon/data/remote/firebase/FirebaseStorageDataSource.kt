@@ -3,18 +3,20 @@ package com.example.triptip_yaron_and_alon.data.remote.firebase
 import android.content.Context
 import android.net.Uri
 import com.example.triptip_yaron_and_alon.util.Result
-import com.google.firebase.ktx.Firebase
-import com.google.firebase.storage.ktx.storage
+import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
+import java.io.ByteArrayOutputStream
 import java.util.UUID
 
 class FirebaseStorageDataSource(
-    @Suppress("UnusedPrivateMember") private val context: Context
+    private val context: Context
 ) {
 
-    private val storage = Firebase.storage
+    // Explicitly reference the storage bucket to avoid SDK auto-detection issues
+    // with the newer .firebasestorage.app domain.
+    private val storage = FirebaseStorage.getInstance("gs://triptip-97085.firebasestorage.app")
 
     /**
      * Upload an image to Firebase Storage.
@@ -52,8 +54,8 @@ class FirebaseStorageDataSource(
         return try {
             storage.getReferenceFromUrl(imageUrl).delete().await()
             Result.Success(Unit)
-        } catch (e: Exception) {
-            // Treat delete failures as non-fatal (the old URL may already be gone)
+        } catch (_: Exception) {
+            // Treat delete failures as non-fatal (old URL may already be gone or not a Storage URL)
             Result.Success(Unit)
         }
     }
@@ -61,7 +63,16 @@ class FirebaseStorageDataSource(
     private suspend fun uploadToFirebase(uri: Uri, storagePath: String): String {
         val fileName = "${UUID.randomUUID()}.jpg"
         val ref = storage.reference.child("$storagePath/$fileName")
-        ref.putFile(uri).await()
+
+        // Read the image bytes through ContentResolver so it works for
+        // both content:// URIs (PickVisualMedia) and file:// URIs.
+        val bytes = context.contentResolver.openInputStream(uri)?.use { stream ->
+            val buffer = ByteArrayOutputStream()
+            stream.copyTo(buffer)
+            buffer.toByteArray()
+        } ?: throw IllegalStateException("Could not read image from URI: $uri")
+
+        ref.putBytes(bytes).await()
         return ref.downloadUrl.await().toString()
     }
 }

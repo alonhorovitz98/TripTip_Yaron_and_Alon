@@ -14,6 +14,7 @@ object TripDayMapper {
             tripId = entity.tripId,
             dayNumber = entity.dayNumber,
             date = entity.date,
+            description = entity.description,
             items = items
         )
     }
@@ -28,6 +29,7 @@ object TripDayMapper {
             tripId = domain.tripId,
             dayNumber = domain.dayNumber,
             date = domain.date,
+            description = domain.description,
             cachedAt = System.currentTimeMillis()
         )
     }

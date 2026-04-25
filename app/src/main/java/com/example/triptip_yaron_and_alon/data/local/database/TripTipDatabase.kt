@@ -21,7 +21,7 @@ import com.example.triptip_yaron_and_alon.data.local.database.entities.*
         NotificationEntity::class,
         SearchHistoryEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = true
 )
 abstract class TripTipDatabase : RoomDatabase() {
@@ -101,6 +101,12 @@ abstract class TripTipDatabase : RoomDatabase() {
                 database.execSQL("ALTER TABLE posts ADD COLUMN priceLevel INTEGER")
             }
         }
+
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE trip_days ADD COLUMN description TEXT")
+            }
+        }
         
         fun getDatabase(context: Context): TripTipDatabase {
             return INSTANCE ?: synchronized(this) {
@@ -109,7 +115,7 @@ abstract class TripTipDatabase : RoomDatabase() {
                     TripTipDatabase::class.java,
                     "triptip_database"
                 )
-                    .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                    .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                     .build()
                 INSTANCE = instance
                 instance

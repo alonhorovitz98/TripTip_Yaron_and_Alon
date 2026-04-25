@@ -10,7 +10,6 @@ import coil.load
 import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.ItemTripDayBinding
 import com.example.triptip_yaron_and_alon.domain.model.TripDay
-import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -60,16 +59,11 @@ class TripDaysAdapter(
                 
                 // Load thumbnail (first item's image)
                 val firstItemImage = day.items.firstOrNull()?.post?.imageUrl
-                if (firstItemImage != null) {
+                if (!firstItemImage.isNullOrBlank()) {
                     ivDayThumbnail.visibility = View.VISIBLE
-                    try {
-                        val imageFile = File(firstItemImage)
-                        ivDayThumbnail.load(imageFile) {
-                            placeholder(R.drawable.ic_placeholder_image)
-                            error(R.drawable.ic_placeholder_image)
-                        }
-                    } catch (e: Exception) {
-                        ivDayThumbnail.visibility = View.GONE
+                    ivDayThumbnail.load(firstItemImage) {
+                        placeholder(R.drawable.ic_placeholder_image)
+                        error(R.drawable.ic_placeholder_image)
                     }
                 } else {
                     ivDayThumbnail.visibility = View.GONE

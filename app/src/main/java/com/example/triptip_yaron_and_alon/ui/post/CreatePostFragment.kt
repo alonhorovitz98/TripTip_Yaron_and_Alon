@@ -16,6 +16,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -57,9 +58,10 @@ class CreatePostFragment : Fragment() {
     private var selectedGooglePlaceId: String? = null
     private var isProgrammaticLocationUpdate: Boolean = false
     
-    // Image picker launcher (storage / gallery)
+    // Image picker launcher — uses the modern Photo Picker (Android 13+) with
+    // automatic fallback to the system file picker on older devices.
     private val imagePickerLauncher = registerForActivityResult(
-        ActivityResultContracts.GetContent()
+        ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         uri?.let {
             selectedImageUri = it
@@ -156,27 +158,24 @@ class CreatePostFragment : Fragment() {
     }
     
     private fun setupLocationAutocomplete() {
-        // Handle text changes to trigger search
         binding.etLocation.addTextChangedListener(object : TextWatcher {
             private var searchRunnable: Runnable? = null
-            
+
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            
+
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 if (isProgrammaticLocationUpdate) return
-                
-                // User is typing manually: clear cached coordinates/place id
+
                 selectedLatitude = null
                 selectedLongitude = null
                 selectedGooglePlaceId = null
-                
-                // Cancel previous search
-                binding.etLocation.removeCallbacks(searchRunnable)
-                
-                // Debounce search (wait 300ms after user stops typing - Google Places is fast!)
+
+                // Cancel the previous pending search before scheduling a new one
+                searchRunnable?.let { binding.etLocation.removeCallbacks(it) }
+
                 searchRunnable = Runnable {
                     val query = s?.toString()?.trim()
-                    if (!query.isNullOrBlank() && query.length >= 1) {
+                    if (!query.isNullOrBlank()) {
                         viewModel.searchLocationSuggestions(query)
                     } else {
                         currentLocationSuggestions.clear()
@@ -184,14 +183,12 @@ class CreatePostFragment : Fragment() {
                         binding.rvLocationSuggestions.visibility = View.GONE
                     }
                 }
-                binding.etLocation.postDelayed(searchRunnable, 300)
-                
+                binding.etLocation.postDelayed(searchRunnable, 350)
             }
-            
+
             override fun afterTextChanged(s: Editable?) {}
         })
-        
-        // On focus/click, select current text so typing replaces default location (e.g. current city)
+
         binding.etLocation.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) {
                 binding.etLocation.selectAll()
@@ -200,9 +197,13 @@ class CreatePostFragment : Fragment() {
                     viewModel.searchLocationSuggestions(query)
                 }
             } else {
-                binding.rvLocationSuggestions.visibility = View.GONE
+                // Delay hiding so that a tap on a suggestion item registers before the list disappears
+                binding.root.postDelayed({
+                    binding.rvLocationSuggestions.visibility = View.GONE
+                }, 200)
             }
         }
+
         binding.etLocation.setOnClickListener {
             binding.etLocation.selectAll()
             val query = binding.etLocation.text?.toString()?.trim()
@@ -333,7 +334,9 @@ class CreatePostFragment : Fragment() {
      * Open gallery to pick an existing image.
      */
     private fun openImagePicker() {
-        imagePickerLauncher.launch("image/*")
+        imagePickerLauncher.launch(
+            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+        )
     }
     
     private fun requestLocationPermissionAndAutofill() {
@@ -393,7 +396,7 @@ class CreatePostFragment : Fragment() {
                     }
                 }
                 isProgrammaticLocationUpdate = true
-                binding.etLocation.setText(locationText, false)
+                binding.etLocation.setText(locationText)
                 isProgrammaticLocationUpdate = false
                 binding.etLocation.clearFocus()
                 binding.scrollView.post {
@@ -426,12 +429,7 @@ class CreatePostFragment : Fragment() {
         } else {
             locationText
         }
-        
-        if (text.isBlank()) {
-            Snackbar.make(binding.root, "Please enter post text", Snackbar.LENGTH_SHORT).show()
-            return
-        }
-        
+
         viewModel.createPost(
             text = text,
             imageUri = selectedImageUri,
@@ -469,14 +467,14 @@ class CreatePostFragment : Fragment() {
             }
         }
         
-        // Observe location suggestions
         viewModel.locationSuggestions.observe(viewLifecycleOwner) { suggestions ->
-            Log.d("CreatePostFragment", "Location suggestions count=${suggestions.size}")
             currentLocationSuggestions.clear()
             currentLocationSuggestions.addAll(suggestions)
             locationSuggestionsAdapter.submit(suggestions)
+            // Show when there are results; hide only when the list is empty.
+            // The focus-loss handler (with its 200 ms delay) takes care of hiding on dismiss.
             binding.rvLocationSuggestions.visibility =
-                if (suggestions.isNotEmpty() && binding.etLocation.hasFocus()) View.VISIBLE else View.GONE
+                if (suggestions.isNotEmpty()) View.VISIBLE else View.GONE
         }
         
         viewModel.locationSuggestionsLoading.observe(viewLifecycleOwner) { isLoading ->

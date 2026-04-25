@@ -23,6 +23,7 @@ data class TripDayEntity(
     val tripId: String,
     val dayNumber: Int,
     val date: Long? = null,
+    val description: String? = null,
     val cachedAt: Long = System.currentTimeMillis()
 )
 

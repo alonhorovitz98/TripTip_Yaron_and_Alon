@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
@@ -88,7 +89,7 @@ class PostDetailsFragment : Fragment() {
     }
     
     private val commentImagePicker = registerForActivityResult(
-        ActivityResultContracts.GetContent()
+        ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         uri?.let {
             val text = binding.etComment.text?.toString()?.trim() ?: ""
@@ -142,17 +143,15 @@ class PostDetailsFragment : Fragment() {
         
         // Add photo to comment (camera icon)
         binding.btnCommentPhoto.setOnClickListener {
-            commentImagePicker.launch("image/*")
+            commentImagePicker.launch(
+                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+            )
         }
         
         // Add to Trip button
         binding.btnAddToTrip.setOnClickListener {
-            // Navigate to TripBuilderFragment with postId
             val action = PostDetailsFragmentDirections
-                .actionPostDetailsFragmentToTripBuilderFragment(
-                    tripId = "new",
-                    postId = args.postId
-                )
+                .actionPostDetailsFragmentToCreateEditTripFragment(tripId = "new")
             findNavController().navigate(action)
         }
     }

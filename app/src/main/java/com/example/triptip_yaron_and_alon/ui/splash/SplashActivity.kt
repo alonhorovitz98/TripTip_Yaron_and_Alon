@@ -17,7 +17,7 @@ class SplashActivity : AppCompatActivity() {
         setContentView(R.layout.activity_splash)
         
         lifecycleScope.launch {
-            delay(1000) // 1 second splash screen
+            delay(1500) // 1.5 second splash screen
             checkAuthAndNavigate()
         }
     }

@@ -54,17 +54,18 @@ class FirestoreDataSource(
     
     /**
      * Get posts by a specific user from Firestore.
+     * No orderBy to avoid requiring a composite index; sorted client-side.
      */
     fun getPostsByUser(userId: String): Flow<List<Post>> = callbackFlow {
         val listenerRegistration = firestore.collection(Constants.COLLECTION_POSTS)
             .whereEqualTo("userId", userId)
-            .orderBy("createdAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    trySend(emptyList())
                     return@addSnapshotListener
                 }
-                val posts = snapshot?.documents?.mapNotNull { it.toPost() } ?: emptyList()
+                val posts = (snapshot?.documents?.mapNotNull { it.toPost() } ?: emptyList())
+                    .sortedByDescending { it.createdAt }
                 trySend(posts)
             }
         awaitClose { listenerRegistration.remove() }
@@ -97,25 +98,19 @@ class FirestoreDataSource(
      * Returns Flow<List<Post>> that emits updates when posts change.
      */
     fun getUserPosts(userId: String): Flow<List<Post>> = callbackFlow {
+        // No orderBy — same composite-index issue; sort client-side instead.
         val listenerRegistration = firestore.collection(Constants.COLLECTION_POSTS)
             .whereEqualTo("userId", userId)
-            .orderBy("createdAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    trySend(emptyList())
                     return@addSnapshotListener
                 }
-                
-                val posts = snapshot?.documents?.mapNotNull { doc ->
-                    doc.toPost()
-                } ?: emptyList()
-                
+                val posts = (snapshot?.documents?.mapNotNull { doc -> doc.toPost() }
+                    ?: emptyList()).sortedByDescending { it.createdAt }
                 trySend(posts)
             }
-        
-        awaitClose {
-            listenerRegistration.remove()
-        }
+        awaitClose { listenerRegistration.remove() }
     }
     
     /**
@@ -221,25 +216,20 @@ class FirestoreDataSource(
      * Use loadTripWithNestedData() to get full trip with days and items.
      */
     fun getTrips(userId: String): Flow<List<Trip>> = callbackFlow {
+        // No orderBy — whereEqualTo + orderBy on different fields requires a composite index.
+        // Sort client-side instead to keep the query simple and index-free.
         val listenerRegistration = firestore.collection(Constants.COLLECTION_TRIPS)
             .whereEqualTo("userId", userId)
-            .orderBy("createdAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    trySend(emptyList())
                     return@addSnapshotListener
                 }
-                
-                val trips = snapshot?.documents?.mapNotNull { doc ->
-                    doc.toTripBasic()
-                } ?: emptyList()
-                
+                val trips = (snapshot?.documents?.mapNotNull { doc -> doc.toTripBasic() }
+                    ?: emptyList()).sortedByDescending { it.createdAt }
                 trySend(trips)
             }
-        
-        awaitClose {
-            listenerRegistration.remove()
-        }
+        awaitClose { listenerRegistration.remove() }
     }
     
     /**
@@ -484,6 +474,7 @@ class FirestoreDataSource(
             val dayId = id
             val dayNumber = getLong("dayNumber")?.toInt() ?: return null
             val date = getLong("date")
+            val description = getString("description")
             
             // Load items
             val itemsSnapshot = reference.collection("items").get().await()
@@ -496,6 +487,7 @@ class FirestoreDataSource(
                 tripId = tripId,
                 dayNumber = dayNumber,
                 date = date,
+                description = description,
                 items = items.sortedBy { it.order }
             )
         } catch (e: Exception) {
@@ -656,7 +648,8 @@ class FirestoreDataSource(
         return mapOf(
             "tripId" to tripId,
             "dayNumber" to dayNumber,
-            "date" to date
+            "date" to date,
+            "description" to description
         )
     }
     

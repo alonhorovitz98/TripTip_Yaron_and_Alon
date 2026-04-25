@@ -307,11 +307,6 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
     }
     
     fun createPost(text: String, imageUri: Uri?, location: String?, latitude: Double?, longitude: Double?) {
-        if (text.isBlank()) {
-            _error.value = "Post text cannot be empty"
-            return
-        }
-        
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null

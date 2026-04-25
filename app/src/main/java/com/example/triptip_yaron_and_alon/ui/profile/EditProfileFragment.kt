@@ -11,6 +11,7 @@ import android.provider.MediaStore
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -37,15 +38,13 @@ class EditProfileFragment : Fragment() {
     private var selectedImageUri: Uri? = null
     private var cameraImageUri: Uri? = null
     
-    // Image picker launcher (gallery)
+    // Image picker launcher — modern Photo Picker (Android 13+), auto-fallback on older devices
     private val imagePickerLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            result.data?.data?.let { uri ->
-                selectedImageUri = uri
-                displayImagePreview(uri)
-            }
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        uri?.let {
+            selectedImageUri = it
+            displayImagePreview(it)
         }
     }
     
@@ -179,8 +178,9 @@ class EditProfileFragment : Fragment() {
      * Open gallery to pick an existing image.
      */
     private fun openImagePicker() {
-        val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
-        imagePickerLauncher.launch(intent)
+        imagePickerLauncher.launch(
+            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+        )
     }
     
     private fun displayImagePreview(uri: Uri) {

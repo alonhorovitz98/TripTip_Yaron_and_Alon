@@ -147,10 +147,9 @@ class MainActivity : AppCompatActivity() {
                 R.id.createPostFragment,
                 R.id.editPostFragment,
                 R.id.postDetailsFragment,
-                R.id.tripBuilderFragment,
-                R.id.tripDayEditorFragment,
-                R.id.editProfileFragment,
-                R.id.tripDetailsFragment
+                R.id.createEditTripFragment,
+                R.id.dayEditorFragment,
+                R.id.editProfileFragment
             )
             
             if (destination.id in hideBottomNavDestinations) {

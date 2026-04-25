@@ -4,7 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.Transformations
+import androidx.lifecycle.map
 import androidx.lifecycle.viewModelScope
 import com.example.triptip_yaron_and_alon.data.remote.firebase.FirebaseAuthDataSource
 import com.example.triptip_yaron_and_alon.data.remote.firebase.NotificationsDataSource
@@ -22,9 +22,7 @@ class NotificationsViewModel(application: Application) : AndroidViewModel(applic
     val notifications: LiveData<List<NotificationsDataSource.NotificationDoc>> = _notifications
 
     /** Live count of unread notifications — drives the badge in the toolbar. */
-    val unreadCount: LiveData<Int> = Transformations.map(_notifications) { list ->
-        list.count { !it.isRead }
-    }
+    val unreadCount: LiveData<Int> = _notifications.map { list -> list.count { !it.isRead } }
 
     private val _isLoading = MutableLiveData(true)
     val isLoading: LiveData<Boolean> = _isLoading
@@ -43,8 +41,12 @@ class NotificationsViewModel(application: Application) : AndroidViewModel(applic
                 return@launch
             }
             currentUserId = userId
-            notificationsDataSource.getNotificationsForUser(userId).collect { list ->
-                _notifications.value = list
+            try {
+                notificationsDataSource.getNotificationsForUser(userId).collect { list ->
+                    _notifications.value = list
+                    _isLoading.value = false
+                }
+            } catch (_: Exception) {
                 _isLoading.value = false
             }
         }

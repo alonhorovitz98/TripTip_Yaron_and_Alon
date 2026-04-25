@@ -2,7 +2,6 @@ package com.example.triptip_yaron_and_alon.data.remote.firebase
 
 import com.example.triptip_yaron_and_alon.util.Result
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -46,12 +45,15 @@ class NotificationsDataSource(
     }
 
     fun getNotificationsForUser(userId: String): Flow<List<NotificationDoc>> = callbackFlow {
+        // No orderBy here — combining whereEqualTo + orderBy on different fields requires a
+        // Firestore composite index. We sort client-side instead to avoid the crash.
         val listener = collection
             .whereEqualTo("userId", userId)
-            .orderBy("createdAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    // Emit empty list rather than closing the flow with an exception
+                    // (a closed flow throws on the collection site and crashes the app).
+                    trySend(emptyList())
                     return@addSnapshotListener
                 }
                 val list = snapshot?.documents?.mapNotNull { doc ->
@@ -67,11 +69,12 @@ class NotificationsDataSource(
                             isRead = doc.getBoolean("isRead") ?: false,
                             createdAt = doc.getLong("createdAt") ?: 0L
                         )
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                         null
                     }
                 } ?: emptyList()
-                trySend(list)
+                // Sort newest-first client-side
+                trySend(list.sortedByDescending { it.createdAt })
             }
         awaitClose { listener.remove() }
     }
@@ -87,14 +90,12 @@ class NotificationsDataSource(
 
     suspend fun markAllAsRead(userId: String): Result<Unit> {
         return try {
-            val unread = collection
-                .whereEqualTo("userId", userId)
-                .whereEqualTo("isRead", false)
-                .get()
-                .await()
-            if (unread.documents.isNotEmpty()) {
+            // Single whereEqualTo — no composite index needed. Filter unread client-side.
+            val docs = collection.whereEqualTo("userId", userId).get().await()
+            val unreadDocs = docs.documents.filter { it.getBoolean("isRead") != true }
+            if (unreadDocs.isNotEmpty()) {
                 val batch = firestore.batch()
-                unread.documents.forEach { batch.update(it.reference, "isRead", true) }
+                unreadDocs.forEach { batch.update(it.reference, "isRead", true) }
                 batch.commit().await()
             }
             Result.Success(Unit)

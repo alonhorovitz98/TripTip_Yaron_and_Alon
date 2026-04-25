@@ -5,6 +5,7 @@ data class TripDay(
     val tripId: String,
     val dayNumber: Int,
     val date: Long? = null,
+    val description: String? = null,
     val items: List<TripItem> = emptyList()
 )
 
