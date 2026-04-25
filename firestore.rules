@@ -1,26 +1,51 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Posts: allow read/write for authenticated users
+
+    // Posts: any authenticated user can read; only owner can create/update/delete
     match /posts/{postId} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
-    // Comments: allow read/write for authenticated users (fixes PERMISSION_DENIED when opening post details)
+
+    // Comments: any authenticated user can read/write
     match /comments/{commentId} {
       allow read, write: if request.auth != null;
     }
-    // Notifications: users can read their own, anyone authenticated can create
+
+    // Notifications: users can only read/update/delete their own; any authed user can create
     match /notifications/{notificationId} {
       allow read: if request.auth != null && resource.data.userId == request.auth.uid;
       allow create: if request.auth != null;
       allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
-    // Users, trips, etc. - adjust to match your existing rules
+
+    // Users: each user can only read/write their own document
     match /users/{userId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
+
+    // Trips + all subcollections (days, items):
+    // Firestore subcollection rules do NOT inherit from parent — they must be declared explicitly.
+    // The wildcard {document=**} covers /trips/{tripId}/days/{dayId} and
+    // /trips/{tripId}/days/{dayId}/items/{itemId} automatically.
     match /trips/{tripId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if request.auth != null && (
+        resource == null || resource.data.userId == request.auth.uid
+      );
+
+      // days subcollection
+      match /days/{dayId} {
+        allow read, write: if request.auth != null &&
+          get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid;
+
+        // items subcollection
+        match /items/{itemId} {
+          allow read, write: if request.auth != null &&
+            get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid;
+        }
+      }
     }
   }
 }
