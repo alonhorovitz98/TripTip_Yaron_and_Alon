@@ -58,11 +58,9 @@ class TripRepository(
                         .collect { remoteTrips ->
                             if (remoteTrips.isNotEmpty()) {
                                 withContext(Dispatchers.IO) {
-                                    // Only sync trip-level metadata (title, dates, etc.).
-                                    // getTrips() returns trips with days = emptyList() for performance
-                                    // (basic documents only). Calling saveTripsWithNestedData() here
-                                    // would treat the empty days list as "all days deleted" and wipe
-                                    // every day row from Room. Use saveTripMetadataOnly() instead.
+                                    // Only update trip-level metadata in Room.
+                                    // getTrips() returns basic trip documents without nested days.
+                                    // Inserting only the trip row preserves existing day/item rows.
                                     remoteTrips.forEach { trip ->
                                         tripDao.insert(TripMapper.toEntity(trip))
                                     }
@@ -455,13 +453,5 @@ class TripRepository(
         }
     }
     
-    /**
-     * Save multiple trips with nested data to Room cache.
-     */
-    private suspend fun saveTripsWithNestedData(trips: List<Trip>) {
-        trips.forEach { trip ->
-            saveTripWithNestedData(trip)
-        }
-    }
 }
 

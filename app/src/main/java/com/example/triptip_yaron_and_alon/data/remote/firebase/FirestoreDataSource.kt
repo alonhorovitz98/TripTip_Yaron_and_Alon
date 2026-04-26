@@ -13,7 +13,6 @@ import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
 
@@ -93,25 +92,6 @@ class FirestoreDataSource(
         }
     }
     
-    /**
-     * Get posts by a specific user ID.
-     * Returns Flow<List<Post>> that emits updates when posts change.
-     */
-    fun getUserPosts(userId: String): Flow<List<Post>> = callbackFlow {
-        // No orderBy — same composite-index issue; sort client-side instead.
-        val listenerRegistration = firestore.collection(Constants.COLLECTION_POSTS)
-            .whereEqualTo("userId", userId)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    trySend(emptyList())
-                    return@addSnapshotListener
-                }
-                val posts = (snapshot?.documents?.mapNotNull { doc -> doc.toPost() }
-                    ?: emptyList()).sortedByDescending { it.createdAt }
-                trySend(posts)
-            }
-        awaitClose { listenerRegistration.remove() }
-    }
     
     /**
      * Create a new post in Firestore.
@@ -232,28 +212,6 @@ class FirestoreDataSource(
         awaitClose { listenerRegistration.remove() }
     }
     
-    /**
-     * Get a single trip by ID (without nested days/items).
-     * Returns Flow<Trip?> that emits updates when the trip changes.
-     * Use loadTripWithNestedData() to get full trip with days and items.
-     */
-    fun getTripById(tripId: String): Flow<Trip?> = callbackFlow {
-        val listenerRegistration = firestore.collection(Constants.COLLECTION_TRIPS)
-            .document(tripId)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    close(error)
-                    return@addSnapshotListener
-                }
-                
-                val trip = snapshot?.toTripBasic()
-                trySend(trip)
-            }
-        
-        awaitClose {
-            listenerRegistration.remove()
-        }
-    }
     
     /**
      * Load a trip with all nested days and items.

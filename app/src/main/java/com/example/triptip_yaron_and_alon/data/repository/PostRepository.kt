@@ -153,36 +153,6 @@ class PostRepository(
             }
         }
     
-    /**
-     * Get posts by a specific user ID.
-     */
-    fun getUserPosts(userId: String): Flow<List<Post>> = postDao.getPostsByUser(userId)
-        .map { entities -> PostMapper.toDomainList(entities) }
-        .catch { emit(emptyList()) }
-        .flowOn(Dispatchers.IO)
-        .flatMapLatest { cachedPosts ->
-            // Emit cached posts immediately
-            flow {
-                emit(cachedPosts)
-                
-                // Then fetch from Firestore and update cache
-                try {
-                    firestoreDataSource.getUserPosts(userId)
-                        .catch { /* Ignore errors, keep using cache */ }
-                        .collect { remotePosts ->
-                            // Update cache in background
-                            withContext(Dispatchers.IO) {
-                                postDao.insertAll(PostMapper.toEntityList(remotePosts))
-                            }
-                            // Emit updated list from Firestore (already domain models)
-                            emit(remotePosts)
-                        }
-                } catch (e: Exception) {
-                    // If Firestore fails, keep emitting cached data
-                    emit(cachedPosts)
-                }
-            }
-        }
     
     /**
      * Create a new post.

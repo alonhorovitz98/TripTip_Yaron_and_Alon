@@ -236,7 +236,7 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
             _isLoading.value = true
             _error.value = null
             var isFirstEmission = true
-            postRepository.getUserPosts(userId).collect { posts ->
+            postRepository.getMyPosts(userId).collect { posts ->
                 _userPosts.value = posts
                 if (isFirstEmission) {
                     _isLoading.value = false
