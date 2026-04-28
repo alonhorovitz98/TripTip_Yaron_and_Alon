@@ -92,10 +92,19 @@ class TripRepository(
                 try {
                     when (val result = firestoreDataSource.loadTripWithNestedData(tripId)) {
                         is Result.Success -> {
+                            // Sync Firestore data to Room without deleting existing days.
+                            // A Firestore response with fewer days than Room (e.g. because the
+                            // days sub-collection security rule isn't set up yet) must never
+                            // delete days that the user just added locally.
                             withContext(Dispatchers.IO) {
-                                saveTripWithNestedData(result.data)
+                                saveTripWithNestedData(result.data, allowDeletion = false)
                             }
-                            emit(result.data)
+                            // Always emit the Room state after syncing so the UI reflects
+                            // all locally-known days, not just what Firestore returned.
+                            val roomDays = withContext(Dispatchers.IO) {
+                                loadDaysForTrip(tripId)
+                            }
+                            emit(result.data.copy(days = roomDays))
                         }
                         is Result.Error -> throw result.exception
                             ?: Exception(result.message ?: "Failed to load trip")
@@ -209,57 +218,22 @@ class TripRepository(
     
     /**
      * Add a day to a trip.
-     * Saves to Firestore and Room cache.
+     * Writes directly to the Firestore days subcollection (single round-trip),
+     * then persists the day entity in Room.
      */
     fun addDayToTrip(tripId: String, day: TripDay): Flow<Result<TripDay>> = flow {
         emit(Result.Loading)
-        
         try {
-            // Get current trip
-            val tripResult = firestoreDataSource.loadTripWithNestedData(tripId)
-            when (tripResult) {
+            when (val result = firestoreDataSource.addDay(tripId, day)) {
                 is Result.Success -> {
-                    val trip = tripResult.data
-                    val updatedDays = trip.days + day.copy(tripId = tripId)
-                    val updatedTrip = trip.copy(days = updatedDays)
-                    
-                    // Update trip in Firestore
-                    val updateResult = firestoreDataSource.updateTrip(updatedTrip)
-                    when (updateResult) {
-                        is Result.Success -> {
-                            // Firestore assigns real day IDs in saveTripDay; never cache "" id in Room (PRIMARY KEY collision).
-                            val refreshed = firestoreDataSource.loadTripWithNestedData(tripId)
-                            when (refreshed) {
-                                is Result.Success -> {
-                                    withContext(Dispatchers.IO) {
-                                        saveTripWithNestedData(refreshed.data)
-                                    }
-                                    val savedDay = refreshed.data.days
-                                        .find { it.dayNumber == day.dayNumber && it.tripId == tripId }
-                                        ?: refreshed.data.days.lastOrNull()
-                                    if (savedDay != null) {
-                                        emit(Result.Success(savedDay))
-                                    } else {
-                                        emit(
-                                            Result.Error(
-                                                IllegalStateException("Day missing after save"),
-                                                "Could not refresh trip after adding day"
-                                            )
-                                        )
-                                    }
-                                }
-                                is Result.Error -> emit(
-                                    Result.Error(refreshed.exception, refreshed.message)
-                                )
-                                is Result.Loading -> emit(Result.Loading)
-                            }
-                        }
-                        is Result.Error -> emit(updateResult)
-                        is Result.Loading -> emit(updateResult)
+                    // Persist in Room immediately so the UI can read it from cache.
+                    withContext(Dispatchers.IO) {
+                        tripDayDao.insert(TripDayMapper.toEntity(result.data))
                     }
+                    emit(Result.Success(result.data))
                 }
-                is Result.Error -> emit(Result.Error(tripResult.exception, tripResult.message))
-                is Result.Loading -> emit(Result.Loading)
+                is Result.Error -> emit(result)
+                is Result.Loading -> Unit
             }
         } catch (e: Exception) {
             emit(Result.Error(e, e.message))
@@ -416,21 +390,27 @@ class TripRepository(
     
     /**
      * Save a trip with all nested data to Room cache.
-     * Removes stale day and item rows that are no longer present in [trip].
+     *
+     * @param allowDeletion When true (default), stale day/item rows that are absent from [trip]
+     *   are removed from Room — correct for explicit user operations (createTrip, updateTrip).
+     *   Pass false for background Firestore syncs (getTripById) so that a Firestore response
+     *   with fewer days than Room (e.g. due to security-rule limitations) never wipes local data.
      */
-    private suspend fun saveTripWithNestedData(trip: Trip) {
+    private suspend fun saveTripWithNestedData(trip: Trip, allowDeletion: Boolean = true) {
         tripDao.insert(TripMapper.toEntity(trip))
 
         val currentDayIds = trip.days.map { it.id }.toSet()
 
-        // Remove days that are no longer in the trip
-        val cachedDays = tripDayDao.getDaysByTrip(trip.id)
-            .catch { emit(emptyList()) }
-            .firstOrNull() ?: emptyList()
-        cachedDays.forEach { dayEntity ->
-            if (dayEntity.id !in currentDayIds) {
-                tripItemDao.deleteByDayId(dayEntity.id)
-                tripDayDao.deleteById(dayEntity.id)
+        if (allowDeletion) {
+            // Remove days that are no longer in the trip (explicit operations only)
+            val cachedDays = tripDayDao.getDaysByTrip(trip.id)
+                .catch { emit(emptyList()) }
+                .firstOrNull() ?: emptyList()
+            cachedDays.forEach { dayEntity ->
+                if (dayEntity.id !in currentDayIds) {
+                    tripItemDao.deleteByDayId(dayEntity.id)
+                    tripDayDao.deleteById(dayEntity.id)
+                }
             }
         }
 
@@ -439,13 +419,15 @@ class TripRepository(
 
             val currentItemIds = day.items.map { it.id }.toSet()
 
-            // Remove items that are no longer in this day
-            val cachedItems = tripItemDao.getItemsByDay(day.id)
-                .catch { emit(emptyList()) }
-                .firstOrNull() ?: emptyList()
-            cachedItems.forEach { itemEntity ->
-                if (itemEntity.id !in currentItemIds) {
-                    tripItemDao.deleteById(itemEntity.id)
+            if (allowDeletion) {
+                // Remove items that are no longer in this day (explicit operations only)
+                val cachedItems = tripItemDao.getItemsByDay(day.id)
+                    .catch { emit(emptyList()) }
+                    .firstOrNull() ?: emptyList()
+                cachedItems.forEach { itemEntity ->
+                    if (itemEntity.id !in currentItemIds) {
+                        tripItemDao.deleteById(itemEntity.id)
+                    }
                 }
             }
 

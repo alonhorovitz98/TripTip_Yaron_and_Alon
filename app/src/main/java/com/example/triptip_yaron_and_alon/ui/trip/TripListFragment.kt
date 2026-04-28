@@ -72,6 +72,8 @@ class TripListFragment : Fragment() {
                 .actionTripListFragmentToCreateEditTripFragment("new")
             findNavController().navigate(action)
         }
+
+
     }
 
     private fun observeViewModel() {

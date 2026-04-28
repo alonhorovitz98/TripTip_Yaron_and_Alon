@@ -34,24 +34,49 @@ class AuthRepository(
     /**
      * Sign up a new user.
      * Creates user in Firebase Auth, saves to Firestore, and caches in Room.
+     * Optional [profileImageUri] is uploaded to Storage and stored on the user profile (same as edit profile).
      */
-    fun signUp(email: String, password: String, name: String): Flow<Result<User>> = flow {
+    fun signUp(
+        email: String,
+        password: String,
+        name: String,
+        profileImageUri: Uri? = null
+    ): Flow<Result<User>> = flow {
         authDataSource.signUp(email, password)
             .collect { result ->
                 when (result) {
                     is Result.Success -> {
-                        val user = result.data.copy(name = name)
-                        // Save to Firestore
+                        var user = result.data.copy(name = name)
+
+                        if (profileImageUri != null) {
+                            when (val upload = storageDataSource.uploadImageSync(
+                                profileImageUri,
+                                Constants.STORAGE_PROFILE_IMAGES
+                            )) {
+                                is Result.Success -> {
+                                    user = user.copy(profileImageUrl = upload.data)
+                                }
+                                is Result.Error -> {
+                                    emit(upload)
+                                    return@collect
+                                }
+                                is Result.Loading -> { }
+                            }
+                        }
+
                         firestoreDataSource.saveUser(user)
-                        // Cache in Room
                         userDao.insert(UserMapper.toEntity(user))
-                        
+
                         try {
                             com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.let { fbUser ->
-                                val updates = com.google.firebase.auth.UserProfileChangeRequest.Builder()
+                                val builder = com.google.firebase.auth.UserProfileChangeRequest.Builder()
                                     .setDisplayName(name)
-                                    .build()
-                                fbUser.updateProfile(updates)
+                                user.profileImageUrl?.let { url ->
+                                    try {
+                                        builder.setPhotoUri(android.net.Uri.parse(url))
+                                    } catch (_: Exception) { }
+                                }
+                                fbUser.updateProfile(builder.build())
                             }
                         } catch (e: Exception) { /* ignore auth profile failure */ }
 

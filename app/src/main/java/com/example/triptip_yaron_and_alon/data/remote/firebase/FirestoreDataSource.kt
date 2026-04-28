@@ -9,6 +9,7 @@ import com.example.triptip_yaron_and_alon.util.Constants
 import com.example.triptip_yaron_and_alon.util.Result
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -35,7 +36,14 @@ class FirestoreDataSource(
             .orderBy("createdAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    // Close gracefully on permission errors so the listener is removed
+                    // immediately and the Firestore SDK stops its internal retry loop.
+                    if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED ||
+                        error.code == FirebaseFirestoreException.Code.UNAUTHENTICATED) {
+                        close()
+                    } else {
+                        close(error)
+                    }
                     return@addSnapshotListener
                 }
                 
@@ -79,7 +87,12 @@ class FirestoreDataSource(
             .document(postId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED ||
+                        error.code == FirebaseFirestoreException.Code.UNAUTHENTICATED) {
+                        close()
+                    } else {
+                        close(error)
+                    }
                     return@addSnapshotListener
                 }
                 
@@ -202,7 +215,12 @@ class FirestoreDataSource(
             .whereEqualTo("userId", userId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    trySend(emptyList())
+                    if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED ||
+                        error.code == FirebaseFirestoreException.Code.UNAUTHENTICATED) {
+                        close()
+                    } else {
+                        trySend(emptyList())
+                    }
                     return@addSnapshotListener
                 }
                 val trips = (snapshot?.documents?.mapNotNull { doc -> doc.toTripBasic() }
@@ -354,6 +372,27 @@ class FirestoreDataSource(
     }
     
     /**
+     * Add a single new day directly to the trip's 'days' subcollection.
+     * Generates a real UUID for the day document so Room can persist it immediately.
+     * This is a lightweight alternative to updateTrip() when only adding one day.
+     */
+    suspend fun addDay(tripId: String, day: TripDay): Result<TripDay> {
+        return try {
+            val dayId = day.id.ifEmpty { UUID.randomUUID().toString() }
+            val dayWithId = day.copy(id = dayId, tripId = tripId)
+            firestore.collection(Constants.COLLECTION_TRIPS)
+                .document(tripId)
+                .collection("days")
+                .document(dayId)
+                .set(dayWithId.toMap())
+                .await()
+            Result.Success(dayWithId)
+        } catch (e: Exception) {
+            Result.Error(e, e.message)
+        }
+    }
+
+    /**
      * Save a trip item as a subcollection under the trip day.
      */
     private suspend fun saveTripItem(tripId: String, dayId: String, item: TripItem) {
@@ -485,7 +524,12 @@ class FirestoreDataSource(
             .document(userId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED ||
+                        error.code == FirebaseFirestoreException.Code.UNAUTHENTICATED) {
+                        close()
+                    } else {
+                        close(error)
+                    }
                     return@addSnapshotListener
                 }
                 

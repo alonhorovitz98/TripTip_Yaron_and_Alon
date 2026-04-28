@@ -2,11 +2,22 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Posts: any authenticated user can read; only owner can create/update/delete
+    // Posts: any authenticated user can read.
+    // Create/delete: only the post owner (userId == auth uid).
+    // Update: owner can change anything; other users may only change engagement fields
+    // (likes, likedBy, commentCount) so likes and comment counts work.
     match /posts/{postId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null && (
+        resource.data.userId == request.auth.uid
+        || (
+          request.resource.data.userId == resource.data.userId
+          && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['likedBy', 'likes', 'commentCount'])
+        )
+      );
     }
 
     // Comments: any authenticated user can read/write

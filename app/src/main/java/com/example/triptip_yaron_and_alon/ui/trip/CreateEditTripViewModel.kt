@@ -198,8 +198,18 @@ class CreateEditTripViewModel(application: Application) : AndroidViewModel(appli
                     is Result.Loading -> _isLoading.value = true
                     is Result.Success -> {
                         _isLoading.value = false
+                        // Patch the live trip directly so the new day appears instantly.
+                        // Do NOT call loadTrip() here: a Firestore reload can return fewer
+                        // days than Room (e.g. sub-collection rules not set up) which would
+                        // overwrite this value and make the day disappear.
+                        val current = _currentTrip.value
+                        if (current != null) {
+                            _currentTrip.value = current.copy(
+                                days = (current.days + result.data)
+                                    .sortedBy { it.dayNumber }
+                            )
+                        }
                         _dayAdded.value = dayNumber
-                        loadTrip(tripId)
                     }
                     is Result.Error -> {
                         _isLoading.value = false

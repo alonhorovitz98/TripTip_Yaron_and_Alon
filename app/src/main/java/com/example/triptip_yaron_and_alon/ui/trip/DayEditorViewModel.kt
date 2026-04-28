@@ -22,8 +22,11 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.TimeoutCancellationException
 
 class DayEditorViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -130,6 +133,32 @@ class DayEditorViewModel(application: Application) : AndroidViewModel(applicatio
         return day.copy(items = enrichedItems)
     }
 
+    private fun getDayNotLoadedMessage() =
+        "Day not loaded. Open this day again or wait a moment, then try again."
+
+    private suspend fun requireDay(tripId: String, dayId: String): TripDay? {
+        _currentDay.value?.takeIf { it.id == dayId }?.let { return it }
+        return try {
+            withTimeout(20_000) {
+                val trip = tripRepository.getTripById(tripId).first { t ->
+                    t?.days?.any { d -> d.id == dayId } == true
+                } ?: return@withTimeout null
+                val raw = trip.days.find { it.id == dayId } ?: return@withTimeout null
+                val enriched = enrichItems(raw)
+                _currentTrip.value = trip
+                _currentDay.value = enriched
+                enriched
+            }
+        } catch (_: TimeoutCancellationException) {
+            null
+        } catch (_: NoSuchElementException) {
+            null
+        } catch (e: Exception) {
+            android.util.Log.w("DayEditor", "requireDay: ${e.message}")
+            null
+        }
+    }
+
     // ─────────────────── Posts ───────────────────
 
     fun loadAvailablePosts() {
@@ -149,7 +178,7 @@ class DayEditorViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun addPostToDay(tripId: String, dayId: String, post: Post) {
         viewModelScope.launch {
-            val day = _currentDay.value ?: run { _error.value = "Day not loaded"; return@launch }
+            val day = requireDay(tripId, dayId) ?: run { _error.value = getDayNotLoadedMessage(); return@launch }
             if (day.items.any { it.postId == post.id }) {
                 _error.value = "This post is already in this day"
                 return@launch
@@ -198,18 +227,16 @@ class DayEditorViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun addGooglePlaceToDay(tripId: String, dayId: String, googlePlaceId: String) {
         viewModelScope.launch {
-            val day = _currentDay.value ?: run { _error.value = "Day not loaded"; return@launch }
-            if (day.items.any { it.placeId == googlePlaceId }) {
+            val day0 = requireDay(tripId, dayId) ?: run { _error.value = getDayNotLoadedMessage(); return@launch }
+            if (day0.items.any { it.placeId == googlePlaceId }) {
                 _error.value = "This place is already in this day"
                 return@launch
             }
             _isPlaceLoading.value = true
             try {
-                placeInfoRepository.getPlaceInfoFromGooglePlaceId(googlePlaceId)
-                    .collect { place ->
-                        _isPlaceLoading.value = false
-                        addPlaceToDay(tripId, dayId, place)
-                    }
+                val place = placeInfoRepository.getPlaceInfoFromGooglePlaceId(googlePlaceId).first()
+                _isPlaceLoading.value = false
+                addPlaceToDay(tripId, dayId, place)
             } catch (e: Exception) {
                 _isPlaceLoading.value = false
                 _error.value = "Failed to load place: ${e.message}"
@@ -217,30 +244,31 @@ class DayEditorViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    private fun addPlaceToDay(tripId: String, dayId: String, place: PlaceInfo) {
-        viewModelScope.launch {
-            val day = _currentDay.value ?: run { _error.value = "Day not loaded"; return@launch }
-            val newItem = TripItem(
-                id = "",
-                dayId = dayId,
-                postId = null,
-                placeId = place.xid,
-                order = day.items.size,
-                notes = null,
-                place = place
-            )
-            tripRepository.addItemToDay(tripId, dayId, newItem).collect { result ->
-                when (result) {
-                    is Result.Loading -> _isLoading.value = true
-                    is Result.Success -> {
-                        _isLoading.value = false
-                        _itemAdded.value = true
-                        loadDay(tripId, dayId)
-                    }
-                    is Result.Error -> {
-                        _isLoading.value = false
-                        _error.value = result.message ?: "Failed to add place"
-                    }
+    private suspend fun addPlaceToDay(tripId: String, dayId: String, place: PlaceInfo) {
+        val day = requireDay(tripId, dayId) ?: run {
+            _error.value = getDayNotLoadedMessage()
+            return
+        }
+        val newItem = TripItem(
+            id = "",
+            dayId = dayId,
+            postId = null,
+            placeId = place.xid,
+            order = day.items.size,
+            notes = null,
+            place = place
+        )
+        tripRepository.addItemToDay(tripId, dayId, newItem).collect { result ->
+            when (result) {
+                is Result.Loading -> _isLoading.value = true
+                is Result.Success -> {
+                    _isLoading.value = false
+                    _itemAdded.value = true
+                    loadDay(tripId, dayId)
+                }
+                is Result.Error -> {
+                    _isLoading.value = false
+                    _error.value = result.message ?: "Failed to add place"
                 }
             }
         }
@@ -248,10 +276,10 @@ class DayEditorViewModel(application: Application) : AndroidViewModel(applicatio
 
     // ─────────────────── Remove item ───────────────────
 
-    fun removeItemFromDay(dayId: String, itemId: String) {
+    fun removeItemFromDay(tripId: String, dayId: String, itemId: String) {
         viewModelScope.launch {
+            val day = requireDay(tripId, dayId) ?: run { _error.value = getDayNotLoadedMessage(); return@launch }
             val trip = _currentTrip.value ?: run { _error.value = "Trip not loaded"; return@launch }
-            val day = _currentDay.value ?: run { _error.value = "Day not loaded"; return@launch }
             val updatedItems = day.items.filter { it.id != itemId }
                 .mapIndexed { index, item -> item.copy(order = index) }
             val updatedDay = day.copy(items = updatedItems)

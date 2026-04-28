@@ -10,6 +10,7 @@ import com.example.triptip_yaron_and_alon.data.remote.firebase.FirebaseAuthDataS
 import com.example.triptip_yaron_and_alon.data.remote.firebase.FirestoreDataSource
 import com.example.triptip_yaron_and_alon.data.repository.TripRepository
 import com.example.triptip_yaron_and_alon.domain.model.Trip
+
 import com.example.triptip_yaron_and_alon.util.Result
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.catch

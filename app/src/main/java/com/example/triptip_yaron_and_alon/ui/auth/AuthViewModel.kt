@@ -12,6 +12,7 @@ import com.example.triptip_yaron_and_alon.data.remote.firebase.FirestoreDataSour
 import com.example.triptip_yaron_and_alon.data.repository.AuthRepository
 import com.example.triptip_yaron_and_alon.domain.model.User
 import com.example.triptip_yaron_and_alon.util.Result
+import android.net.Uri
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -119,9 +120,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     }
     
     /**
-     * Register a new user
+     * Register a new user. Optional [profileImageUri] is uploaded after account creation.
      */
-    fun register(email: String, password: String, name: String) {
+    fun register(email: String, password: String, name: String, profileImageUri: Uri? = null) {
         // Validate input
         if (email.isBlank() || password.isBlank() || name.isBlank()) {
             _error.value = "All fields are required"
@@ -139,7 +140,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
         
         viewModelScope.launch {
-            authRepository.signUp(email, password, name).collect { result ->
+            authRepository.signUp(email, password, name, profileImageUri).collect { result ->
                 when (result) {
                     is Result.Loading -> {
                         _isLoading.value = true

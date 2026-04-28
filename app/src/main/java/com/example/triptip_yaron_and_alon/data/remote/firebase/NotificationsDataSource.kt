@@ -2,6 +2,7 @@ package com.example.triptip_yaron_and_alon.data.remote.firebase
 
 import com.example.triptip_yaron_and_alon.util.Result
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -51,9 +52,12 @@ class NotificationsDataSource(
             .whereEqualTo("userId", userId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    // Emit empty list rather than closing the flow with an exception
-                    // (a closed flow throws on the collection site and crashes the app).
-                    trySend(emptyList())
+                    if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED ||
+                        error.code == FirebaseFirestoreException.Code.UNAUTHENTICATED) {
+                        close()
+                    } else {
+                        trySend(emptyList())
+                    }
                     return@addSnapshotListener
                 }
                 val list = snapshot?.documents?.mapNotNull { doc ->

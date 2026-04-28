@@ -106,7 +106,7 @@ class DayEditorFragment : Fragment() {
                 // Notes are updated directly via updateTrip; handled inline
             },
             onDelete = { item ->
-                viewModel.removeItemFromDay(args.dayId, item.id)
+                viewModel.removeItemFromDay(args.tripId, args.dayId, item.id)
             },
             onMoveUp = { item ->
                 val currentItems = viewModel.currentDay.value?.items ?: return@TripItemsAdapter

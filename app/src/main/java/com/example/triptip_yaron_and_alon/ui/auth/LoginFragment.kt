@@ -74,16 +74,7 @@ class LoginFragment : Fragment() {
             Snackbar.make(binding.root, "Forgot password feature coming soon", Snackbar.LENGTH_SHORT).show()
         }
         
-        // Social login buttons (placeholder)
-        binding.btnGoogle.setOnClickListener {
-            // TODO: Implement Google sign-in
-            Snackbar.make(binding.root, "Google sign-in coming soon", Snackbar.LENGTH_SHORT).show()
-        }
-        
-        binding.btnApple.setOnClickListener {
-            // TODO: Implement Apple sign-in
-            Snackbar.make(binding.root, "Apple sign-in coming soon", Snackbar.LENGTH_SHORT).show()
-        }
+
     }
     
     private fun observeViewModel() {
