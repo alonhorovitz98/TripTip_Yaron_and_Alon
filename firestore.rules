@@ -2,21 +2,37 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // True when a non-owner updates a post but all "content" fields match the
+    // existing document (only likes, likedBy, commentCount may differ).
+    function postContentUnchanged() {
+      let r = request.resource.data;
+      let o = resource.data;
+      return r.get('userId', '') == o.get('userId', '')
+        && r.get('userName', '') == o.get('userName', '')
+        && r.get('userImageUrl', null) == o.get('userImageUrl', null)
+        && r.get('text', '') == o.get('text', '')
+        && r.get('imageUrl', null) == o.get('imageUrl', null)
+        && r.get('createdAt', 0) == o.get('createdAt', 0)
+        && r.get('location', null) == o.get('location', null)
+        && r.get('latitude', null) == o.get('latitude', null)
+        && r.get('longitude', null) == o.get('longitude', null)
+        && r.get('placeXid', null) == o.get('placeXid', null)
+        && r.get('priceLevel', null) == o.get('priceLevel', null);
+    }
+
     // Posts: any authenticated user can read.
     // Create/delete: only the post owner (userId == auth uid).
-    // Update: owner can change anything; other users may only change engagement fields
-    // (likes, likedBy, commentCount) so likes and comment counts work.
+    // Update: owner can change anything; other users may only change engagement
+    // (likes, likedBy, commentCount). We match immutable fields explicitly because
+    // request.resource.data.diff().affectedKeys().hasOnly(...) is unreliable for
+    // FieldValue.increment / arrayUnion (likes, commentCount) in some clients.
     match /posts/{postId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
       allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
       allow update: if request.auth != null && (
         resource.data.userId == request.auth.uid
-        || (
-          request.resource.data.userId == resource.data.userId
-          && request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['likedBy', 'likes', 'commentCount'])
-        )
+        || postContentUnchanged()
       );
     }
 
@@ -32,9 +48,11 @@ service cloud.firestore {
       allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
 
-    // Users: each user can only read/write their own document
+    // Users: public read for display names/avatars; only owner can write
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update, delete: if request.auth != null && request.auth.uid == userId;
     }
 
     // Trips + all subcollections (days, items):

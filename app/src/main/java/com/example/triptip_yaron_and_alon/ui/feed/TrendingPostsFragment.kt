@@ -11,7 +11,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.triptip_yaron_and_alon.databinding.FragmentTrendingPostsBinding
 import com.example.triptip_yaron_and_alon.ui.adapter.PostAdapter
-import com.google.android.material.snackbar.Snackbar
+import com.example.triptip_yaron_and_alon.util.showError
 
 /**
  * Trending Posts Fragment - Shows popular posts from all users
@@ -135,7 +135,7 @@ class TrendingPostsFragment : Fragment() {
             if (error != null) {
                 binding.tvError.text = error
                 binding.tvError.visibility = View.VISIBLE
-                Snackbar.make(binding.root, error, Snackbar.LENGTH_LONG).show()
+                showError(error)
             } else {
                 binding.tvError.visibility = View.GONE
             }

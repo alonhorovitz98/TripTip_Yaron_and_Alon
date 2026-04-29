@@ -5,20 +5,18 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.setFragmentResultListener
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.triptip_yaron_and_alon.databinding.FragmentCreateEditTripBinding
 import com.example.triptip_yaron_and_alon.ui.adapter.TripDaysAdapter
-import com.google.android.material.datepicker.CalendarConstraints
-import com.google.android.material.datepicker.DateValidatorPointForward
 import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.android.material.snackbar.Snackbar
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.TimeZone
 
 class CreateEditTripFragment : Fragment() {
 
@@ -29,18 +27,13 @@ class CreateEditTripFragment : Fragment() {
     private lateinit var viewModel: CreateEditTripViewModel
     private lateinit var daysAdapter: TripDaysAdapter
 
-    // Display dates in UTC so they match the MaterialDatePicker selection (which is UTC midnight)
-    private val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).apply {
-        timeZone = TimeZone.getTimeZone("UTC")
-    }
-
-    private var startDateMillis: Long? = null
-    private var endDateMillis: Long? = null
-
-    // True only while viewing a brand-new trip before its first save
     private var isNewTrip = true
-    // Populated only once when loading an existing trip
-    private var hasPopulatedFields = false
+    private var hasPopulatedName = false
+    private var hasPopulatedDates = false
+
+    private val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+    private var tripStartMillis: Long? = null
+    private var tripEndMillis: Long? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -57,9 +50,16 @@ class CreateEditTripFragment : Fragment() {
         viewModel = ViewModelProvider(this)[CreateEditTripViewModel::class.java]
         isNewTrip = args.tripId == "new"
 
+        binding.tilDescription.visibility = View.GONE
+
         setupRecyclerView()
         setupListeners()
         observeViewModel()
+
+        setFragmentResultListener(DayEditorFragment.REQUEST_DAY_EDITOR) { _, bundle ->
+            val message = bundle.getString(DayEditorFragment.RESULT_MESSAGE) ?: return@setFragmentResultListener
+            Snackbar.make(binding.root, message, Snackbar.LENGTH_SHORT).show()
+        }
 
         if (isNewTrip) {
             viewModel.initNewTrip()
@@ -67,8 +67,6 @@ class CreateEditTripFragment : Fragment() {
             viewModel.loadTrip(args.tripId)
         }
     }
-
-    // ─────────────────── Setup ───────────────────
 
     private fun setupRecyclerView() {
         daysAdapter = TripDaysAdapter(
@@ -83,113 +81,44 @@ class CreateEditTripFragment : Fragment() {
     }
 
     private fun setupListeners() {
-        // Date fields — register on BOTH the TextInputLayout container and the EditText
-        // to ensure clicks are captured regardless of Material touch interception.
-        binding.etStartDate.setOnClickListener { showStartDatePicker() }
-        binding.tilStartDate.setOnClickListener { showStartDatePicker() }
-
-        binding.etEndDate.setOnClickListener { showEndDatePicker() }
-        binding.tilEndDate.setOnClickListener { showEndDatePicker() }
-
-        // Save Trip
         binding.btnSaveTrip.setOnClickListener { onSaveTripClicked() }
+        binding.btnAddDay.setOnClickListener { onAddDayClicked() }
 
-        // Add Day — shows a date picker before creating the day
-        binding.btnAddDay.setOnClickListener { showAddDayDatePicker() }
+        val openStart: (View) -> Unit = { showTripDatePicker(isStart = true) }
+        binding.tilStartDate.setOnClickListener(openStart)
+        binding.etStartDate.setOnClickListener(openStart)
+        val openEnd: (View) -> Unit = { showTripDatePicker(isStart = false) }
+        binding.tilEndDate.setOnClickListener(openEnd)
+        binding.etEndDate.setOnClickListener(openEnd)
     }
 
-    // ─────────────────── Trip date pickers ───────────────────
-
-    private fun showStartDatePicker() {
-        // Guard: prevent opening a second picker while one is already shown
-        if (parentFragmentManager.findFragmentByTag("START_DATE_PICKER") != null) return
-
+    private fun showTripDatePicker(isStart: Boolean) {
+        val current = if (isStart) tripStartMillis else tripEndMillis
         val picker = MaterialDatePicker.Builder.datePicker()
-            .setTitleText("Select start date")
-            .setSelection(startDateMillis ?: MaterialDatePicker.todayInUtcMilliseconds())
+            .setTitleText(if (isStart) "Trip start" else "Trip end")
+            .setSelection(current ?: MaterialDatePicker.todayInUtcMilliseconds())
             .build()
-
         picker.addOnPositiveButtonClickListener { selection ->
-            startDateMillis = selection
-            binding.etStartDate.setText(dateFormat.format(Date(selection)))
-            binding.tilStartDate.error = null
-            // Clear end date if it's now before the new start
-            if (endDateMillis != null && endDateMillis!! <= selection) {
-                endDateMillis = null
-                binding.etEndDate.setText("")
+            if (isStart) {
+                tripStartMillis = selection
+                binding.etStartDate.setText(dateFormat.format(Date(selection)))
+            } else {
+                tripEndMillis = selection
+                binding.etEndDate.setText(dateFormat.format(Date(selection)))
             }
         }
-        picker.show(parentFragmentManager, "START_DATE_PICKER")
+        picker.show(parentFragmentManager, if (isStart) "TRIP_START_PICKER" else "TRIP_END_PICKER")
     }
 
-    private fun showEndDatePicker() {
-        if (parentFragmentManager.findFragmentByTag("END_DATE_PICKER") != null) return
-
-        val constraints = CalendarConstraints.Builder().apply {
-            startDateMillis?.let { setValidator(DateValidatorPointForward.from(it)) }
-        }.build()
-
-        val picker = MaterialDatePicker.Builder.datePicker()
-            .setTitleText("Select end date")
-            .setSelection(endDateMillis ?: (startDateMillis ?: MaterialDatePicker.todayInUtcMilliseconds()))
-            .setCalendarConstraints(constraints)
-            .build()
-
-        picker.addOnPositiveButtonClickListener { selection ->
-            endDateMillis = selection
-            binding.etEndDate.setText(dateFormat.format(Date(selection)))
-            binding.tilEndDate.error = null
-        }
-        picker.show(parentFragmentManager, "END_DATE_PICKER")
-    }
-
-    // ─────────────────── Add Day with date picker ───────────────────
-
-    private fun showAddDayDatePicker() {
-        if (parentFragmentManager.findFragmentByTag("ADD_DAY_DATE_PICKER") != null) return
-
+    private fun onAddDayClicked() {
         val trip = viewModel.currentTrip.value ?: return
         val tripId = trip.id
         if (tripId.isBlank() || tripId == "new") {
             Snackbar.make(binding.root, "Save the trip first before adding days.", Snackbar.LENGTH_SHORT).show()
             return
         }
-
-        val dayNumber = trip.days.size + 1
-
-        // Pre-select a suggested date based on trip start date + day index
-        val suggestedDate = trip.startDate?.let { start ->
-            start + ((dayNumber - 1).toLong() * 24 * 60 * 60 * 1000L)
-        } ?: MaterialDatePicker.todayInUtcMilliseconds()
-
-        // Constrain picker to trip's date range
-        val constraints = CalendarConstraints.Builder().apply {
-            trip.startDate?.let { start ->
-                setStart(start)
-                setValidator(DateValidatorPointForward.from(start))
-            }
-            trip.endDate?.let { setEnd(it) }
-        }.build()
-
-        val picker = MaterialDatePicker.Builder.datePicker()
-            .setTitleText("Day $dayNumber — Pick a date")
-            .setSelection(suggestedDate)
-            .setCalendarConstraints(constraints)
-            .build()
-
-        picker.addOnPositiveButtonClickListener { dateMillis ->
-            viewModel.addDay(tripId, dateMillis)
-        }
-
-        // Negative button = add without a date (user can set it later in DayEditorFragment)
-        picker.addOnNegativeButtonClickListener {
-            viewModel.addDay(tripId, null)
-        }
-
-        picker.show(parentFragmentManager, "ADD_DAY_DATE_PICKER")
+        viewModel.addDay(tripId, null)
     }
-
-    // ─────────────────── Navigation ───────────────────
 
     private fun navigateToDayEditor(dayId: String) {
         val tripId = viewModel.currentTrip.value?.id ?: return
@@ -202,75 +131,61 @@ class CreateEditTripFragment : Fragment() {
         findNavController().navigate(action)
     }
 
-    // ─────────────────── Save ───────────────────
-
     private fun onSaveTripClicked() {
-        val title = binding.etTripName.text?.toString()?.trim() ?: ""
-        val description = binding.etDescription.text?.toString()?.trim()
+        val name = binding.etTripName.text?.toString()?.trim() ?: ""
+        val err = viewModel.validateName(name)
+        if (err != null) {
+            binding.tilTripName.error = err
+            return
+        }
+        binding.tilTripName.error = null
 
-        val error = viewModel.validate(title, startDateMillis, endDateMillis)
-        if (error != null) {
-            when {
-                error.contains("name", ignoreCase = true) -> binding.tilTripName.error = error
-                error.contains("start", ignoreCase = true) -> {
-                    binding.tilStartDate.error = error
-                    Snackbar.make(binding.root, "Tap the Start Date field to select a date", Snackbar.LENGTH_LONG).show()
-                }
-                error.contains("end", ignoreCase = true) -> {
-                    binding.tilEndDate.error = error
-                    Snackbar.make(binding.root, "Tap the End Date field to select a date", Snackbar.LENGTH_LONG).show()
-                }
-                else -> Snackbar.make(binding.root, error, Snackbar.LENGTH_LONG).show()
-            }
+        val s = tripStartMillis
+        val e = tripEndMillis
+        if (s != null && e != null && e < s) {
+            Snackbar.make(
+                binding.root,
+                "End date must be on or after the start date.",
+                Snackbar.LENGTH_LONG
+            ).show()
             return
         }
 
-        binding.tilTripName.error = null
-        binding.tilStartDate.error = null
-        binding.tilEndDate.error = null
-
-        // Always use the live trip ID — args.tripId is "new" for new trips
         val currentTripId = viewModel.currentTrip.value?.id
         if (currentTripId.isNullOrBlank() || currentTripId == "new") {
-            viewModel.createTrip(title, description, startDateMillis!!, endDateMillis!!)
+            viewModel.createTrip(name, tripStartMillis, tripEndMillis)
         } else {
-            viewModel.updateTrip(currentTripId, title, description, startDateMillis!!, endDateMillis!!)
+            viewModel.updateTrip(currentTripId, name, tripStartMillis, tripEndMillis)
         }
     }
-
-    // ─────────────────── Observe ───────────────────
 
     private fun observeViewModel() {
         viewModel.currentTrip.observe(viewLifecycleOwner) { trip ->
             if (trip == null) return@observe
 
-            // Populate fields only once when opening an EXISTING trip (not after creating a new one)
-            if (args.tripId != "new" && !hasPopulatedFields) {
-                binding.etTripName.setText(trip.title)
-                binding.etDescription.setText(trip.description ?: "")
-                trip.startDate?.let { ms ->
-                    startDateMillis = ms
-                    binding.etStartDate.setText(dateFormat.format(Date(ms)))
-                }
-                trip.endDate?.let { ms ->
-                    endDateMillis = ms
-                    binding.etEndDate.setText(dateFormat.format(Date(ms)))
-                }
-                hasPopulatedFields = true
+            if (args.tripId != "new" && !hasPopulatedName) {
+                binding.etTripName.setText(trip.name)
+                hasPopulatedName = true
+            }
+
+            if (args.tripId != "new" && !hasPopulatedDates) {
+                tripStartMillis = trip.startDateMillis
+                tripEndMillis = trip.endDateMillis
+                tripStartMillis?.let { binding.etStartDate.setText(dateFormat.format(Date(it))) }
+                tripEndMillis?.let { binding.etEndDate.setText(dateFormat.format(Date(it))) }
+                hasPopulatedDates = true
             }
 
             val isSaved = trip.id.isNotBlank() && trip.id != "new"
-
-            // "Add Day" is enabled only when the trip is saved to Firestore
             binding.btnAddDay.isEnabled = isSaved && viewModel.isLoading.value != true
 
-            // Update the days list
-            val sortedDays = trip.days.sortedBy { it.dayNumber }
+            val sortedDays = trip.days.sortedBy { it.dayOrder }
             if (sortedDays.isEmpty()) {
-                binding.tvNoDays.text = if (isSaved)
+                binding.tvNoDays.text = if (isSaved) {
                     "No days yet. Tap \"+ Add Day\" to build your itinerary."
-                else
-                    "Save the trip first, then add days to your itinerary."
+                } else {
+                    "Save the trip first, then add days."
+                }
                 binding.tvNoDays.visibility = View.VISIBLE
                 binding.rvDays.visibility = View.GONE
             } else {
@@ -282,16 +197,24 @@ class CreateEditTripFragment : Fragment() {
 
         viewModel.saveResult.observe(viewLifecycleOwner) { trip ->
             if (trip != null) {
-                val msg = if (isNewTrip) "Trip created! Tap '+ Add Day' to start building your itinerary." else "Trip saved!"
+                val msg = if (isNewTrip) {
+                    "Trip saved! Tap '+ Add Day' to add days."
+                } else {
+                    "Trip saved."
+                }
                 Snackbar.make(binding.root, msg, Snackbar.LENGTH_LONG).show()
                 isNewTrip = false
                 viewModel.clearSaveResult()
             }
         }
 
-        viewModel.dayAdded.observe(viewLifecycleOwner) { dayNumber ->
-            if (dayNumber != null) {
-                Snackbar.make(binding.root, "Day $dayNumber added! Tap it to add activities.", Snackbar.LENGTH_SHORT).show()
+        viewModel.dayAdded.observe(viewLifecycleOwner) { n ->
+            if (n != null) {
+                Snackbar.make(
+                    binding.root,
+                    "Day $n added. Tap it to add items.",
+                    Snackbar.LENGTH_SHORT
+                ).show()
                 viewModel.clearDayAdded()
             }
         }

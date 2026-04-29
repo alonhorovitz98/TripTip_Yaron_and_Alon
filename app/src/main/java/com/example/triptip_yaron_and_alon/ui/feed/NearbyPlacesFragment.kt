@@ -18,6 +18,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.FragmentNearbyPlacesBinding
 import com.example.triptip_yaron_and_alon.domain.model.PlaceInfo
+import com.example.triptip_yaron_and_alon.util.showError
+import com.example.triptip_yaron_and_alon.util.showSuccess
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
@@ -165,7 +167,7 @@ class NearbyPlacesFragment : Fragment() {
             if (error != null) {
                 binding.tvError.text = error
                 binding.tvError.visibility = View.VISIBLE
-                Snackbar.make(binding.root, error, Snackbar.LENGTH_LONG).show()
+                showError(error)
             } else {
                 binding.tvError.visibility = View.GONE
             }
@@ -262,11 +264,7 @@ class NearbyPlacesFragment : Fragment() {
     private fun onAddToTripClick(place: PlaceInfo) {
         // Navigate to trip list or show trip selection dialog
         // For now, show a snackbar
-        Snackbar.make(
-            binding.root,
-            "Adding ${place.name} to trip...",
-            Snackbar.LENGTH_SHORT
-        ).show()
+        showSuccess("Adding ${place.name} to trip...")
         
         // TODO: Implement navigation to trip selection or add directly to a trip
         // This will be integrated with TripViewModel in Phase 4

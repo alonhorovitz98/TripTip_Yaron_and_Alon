@@ -11,6 +11,7 @@ import com.example.triptip_yaron_and_alon.data.remote.firebase.FirebaseStorageDa
 import com.example.triptip_yaron_and_alon.data.remote.firebase.FirestoreDataSource
 import com.example.triptip_yaron_and_alon.data.remote.firebase.NotificationsDataSource
 import com.example.triptip_yaron_and_alon.data.repository.PostRepository
+import com.example.triptip_yaron_and_alon.data.repository.UserRepository
 import com.example.triptip_yaron_and_alon.domain.model.Post
 import com.example.triptip_yaron_and_alon.util.Result
 import kotlinx.coroutines.Job
@@ -32,6 +33,14 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
     private val postRepository by lazy {
         PostRepository(
             database.postDao(),
+            firestoreDataSource,
+            storageDataSource
+        )
+    }
+    private val userRepository by lazy {
+        UserRepository(
+            database.userDao(),
+            authDataSource,
             firestoreDataSource,
             storageDataSource
         )
@@ -117,19 +126,20 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun likePost(postId: String) {
         viewModelScope.launch {
-            val user = authDataSource.getCurrentUser().firstOrNull()
-            val userId = user?.id ?: _currentUserId.value ?: return@launch
+            val user = userRepository.getCurrentUserSnapshot() ?: return@launch
+            val userId = user.id
             when (val r = postRepository.likePost(postId, userId)) {
                 is com.example.triptip_yaron_and_alon.util.Result.Success -> {
                     val ownerId = r.data
-                    if (ownerId != null && ownerId != userId && user != null) {
+                    if (ownerId != null && ownerId != userId) {
+                        val label = user.name
                         notificationsDataSource.createNotification(
                             recipientUserId = ownerId,
                             type = NotificationsDataSource.TYPE_LIKE,
                             actorUserId = userId,
-                            actorUserName = user.name.ifBlank { user.email.takeWhile { it != '@' }.ifBlank { "Someone" } },
+                            actorUserName = label,
                             targetPostId = postId,
-                            message = "${user.name.ifBlank { "Someone" }} liked your post"
+                            message = "$label liked your post"
                         )
                     }
                 }

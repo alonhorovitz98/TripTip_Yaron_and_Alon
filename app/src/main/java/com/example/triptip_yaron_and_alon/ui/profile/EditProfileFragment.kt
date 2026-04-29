@@ -25,6 +25,7 @@ import java.util.Date
 import java.util.Locale
 import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.FragmentEditProfileBinding
+import com.example.triptip_yaron_and_alon.util.loadProfileImage
 import com.example.triptip_yaron_and_alon.util.Result
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
@@ -37,6 +38,8 @@ class EditProfileFragment : Fragment() {
     private lateinit var viewModel: ProfileViewModel
     private var selectedImageUri: Uri? = null
     private var cameraImageUri: Uri? = null
+    /** Avoid resetting username/email on every [user] emission while the user is typing. */
+    private var profileFormPrefilled = false
     
     // Image picker launcher — modern Photo Picker (Android 13+), auto-fallback on older devices
     private val imagePickerLauncher = registerForActivityResult(
@@ -208,23 +211,13 @@ class EditProfileFragment : Fragment() {
     private fun observeViewModel() {
         // Observe user data
         viewModel.user.observe(viewLifecycleOwner) { user ->
-            if (user != null) {
-                // Pre-fill form
+            if (user == null) return@observe
+            if (!profileFormPrefilled) {
                 binding.etUsername.setText(user.name)
                 binding.etEmail.setText(user.email)
-                
-                // Profile image - Coil handles file errors gracefully
+                profileFormPrefilled = true
                 if (user.profileImageUrl != null && selectedImageUri == null) {
-                    try {
-                        val imageFile = java.io.File(user.profileImageUrl)
-                        binding.ivProfileImage.load(imageFile) {
-                            placeholder(R.drawable.ic_launcher_foreground)
-                            error(R.drawable.ic_launcher_foreground)
-                            // Coil will handle missing files automatically
-                        }
-                    } catch (e: Exception) {
-                        // If file path is invalid, Coil will show error placeholder
-                    }
+                    binding.ivProfileImage.loadProfileImage(user.profileImageUrl)
                 }
             }
         }

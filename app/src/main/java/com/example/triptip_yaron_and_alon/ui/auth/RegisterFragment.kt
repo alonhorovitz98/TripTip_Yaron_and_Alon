@@ -15,7 +15,6 @@ import coil.load
 import coil.transform.CircleCropTransformation
 import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.FragmentRegisterBinding
-import com.example.triptip_yaron_and_alon.util.Result
 import com.google.android.material.snackbar.Snackbar
 
 class RegisterFragment : Fragment() {
@@ -51,7 +50,7 @@ class RegisterFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
-        viewModel = ViewModelProvider(this)[AuthViewModel::class.java]
+        viewModel = ViewModelProvider(requireActivity())[AuthViewModel::class.java]
         
         setupListeners()
         observeViewModel()
@@ -145,22 +144,6 @@ class RegisterFragment : Fragment() {
                 Snackbar.make(binding.root, error, Snackbar.LENGTH_LONG).show()
             } else {
                 binding.tvError.visibility = View.GONE
-            }
-        }
-        
-        // Observe register result
-        viewModel.registerResult.observe(viewLifecycleOwner) { result ->
-            when (result) {
-                is Result.Success -> {
-                    // Navigate to feed
-                    findNavController().navigate(R.id.action_registerFragment_to_feedFragment)
-                }
-                is Result.Error -> {
-                    // Error is handled by error LiveData
-                }
-                is Result.Loading -> {
-                    // Loading is handled by isLoading LiveData
-                }
             }
         }
     }

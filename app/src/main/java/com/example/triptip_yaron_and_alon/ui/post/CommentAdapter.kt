@@ -7,10 +7,10 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import coil.load
-import coil.transform.CircleCropTransformation
 import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.ItemCommentBinding
 import com.example.triptip_yaron_and_alon.domain.model.Comment
+import com.example.triptip_yaron_and_alon.util.loadProfileImage
 import java.io.File
 
 class CommentAdapter : ListAdapter<Comment, CommentAdapter.ViewHolder>(DiffCallback()) {
@@ -26,17 +26,9 @@ class CommentAdapter : ListAdapter<Comment, CommentAdapter.ViewHolder>(DiffCallb
 
     class ViewHolder(private val binding: ItemCommentBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(comment: Comment) {
-            binding.tvCommentAuthor.text = comment.userName.ifBlank { "User" }
+            binding.tvCommentAuthor.text = comment.userName.ifBlank { "Traveler" }
             binding.tvCommentText.text = comment.text
-            if (!comment.userAvatarUrl.isNullOrBlank()) {
-                binding.ivCommentAvatar.load(comment.userAvatarUrl) {
-                    placeholder(R.drawable.ic_profile_frame)
-                    error(R.drawable.ic_profile_frame)
-                    transformations(CircleCropTransformation())
-                }
-            } else {
-                binding.ivCommentAvatar.setImageResource(R.drawable.ic_profile_frame)
-            }
+            binding.ivCommentAvatar.loadProfileImage(comment.userAvatarUrl)
             if (!comment.imageUrl.isNullOrBlank()) {
                 binding.ivCommentImage.visibility = View.VISIBLE
                 if (comment.imageUrl!!.startsWith("http", ignoreCase = true)) {

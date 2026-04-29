@@ -8,13 +8,13 @@ import com.example.triptip_yaron_and_alon.data.remote.firebase.FirestoreDataSour
 import com.example.triptip_yaron_and_alon.domain.mapper.UserMapper
 import com.example.triptip_yaron_and_alon.domain.model.User
 import com.example.triptip_yaron_and_alon.util.Constants
+import com.example.triptip_yaron_and_alon.util.UserProfileMerge
 import com.example.triptip_yaron_and_alon.util.Result
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -34,39 +34,59 @@ class UserRepository(
 ) {
     
     /**
-     * Get current user.
-     * Checks Room cache first, then Firebase.
+     * Get current user, merging Firestore `users/{id}` with Auth on every update.
      */
     fun getCurrentUser(): Flow<User?> = userDao.getAllUsers()
         .map { users -> users.firstOrNull()?.let { UserMapper.toDomain(it) } }
         .catch { emit(null) }
         .flowOn(Dispatchers.IO)
-        .flatMapLatest { cachedUser ->
+        .flatMapLatest {
             flow {
-                emit(cachedUser)
                 try {
                     authDataSource.getCurrentUser()
-                        .catch { /* Ignore errors, keep cache */ }
+                        .catch { }
                         .collect { firebaseUser ->
                             if (firebaseUser == null) {
                                 emit(null)
                                 return@collect
                             }
-                            val firestoreUser = firestoreDataSource.getUser(firebaseUser.id)
+                            firestoreDataSource.getUser(firebaseUser.id)
                                 .catch { emit(null) }
-                                .firstOrNull()
-                            val user = firestoreUser ?: firebaseUser
-                            withContext(Dispatchers.IO) {
-                                userDao.insert(UserMapper.toEntity(user))
-                            }
-                            emit(user)
+                                .collect { firestoreUser ->
+                                    val merged = UserProfileMerge.merge(firestoreUser, firebaseUser)
+                                    withContext(Dispatchers.IO) {
+                                        userDao.insert(UserMapper.toEntity(merged))
+                                    }
+                                    emit(merged)
+                                }
                         }
                 } catch (_: Exception) {
-                    emit(cachedUser)
+                    emit(null)
                 }
             }
         }
-    
+
+    /**
+     * Resolves the signed-in user once (Firestore + Auth + Room), for actions that need
+     * correct [User.name] / [User.profileImageUrl] in the same call (e.g. comments, likes).
+     */
+    suspend fun getCurrentUserSnapshot(): User? = withContext(Dispatchers.IO) {
+        val authUser = try {
+            authDataSource.getCurrentUser().first { it != null }
+        } catch (_: Exception) {
+            null
+        } ?: return@withContext null
+        val firestoreUser = try {
+            firestoreDataSource.getUser(authUser.id)
+                .catch { emit(null) }
+                .first()
+        } catch (_: Exception) {
+            null
+        }
+        val merged = UserProfileMerge.merge(firestoreUser, authUser)
+        userDao.insert(UserMapper.toEntity(merged))
+        merged
+    }
     /**
      * Update user profile.
      * Updates Firebase Auth, Firestore, and Room cache.

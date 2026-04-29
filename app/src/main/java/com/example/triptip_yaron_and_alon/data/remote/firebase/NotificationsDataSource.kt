@@ -28,16 +28,18 @@ class NotificationsDataSource(
         if (recipientUserId == actorUserId) return Result.Success(Unit) // Don't notify self
         return try {
             val id = UUID.randomUUID().toString()
-            val data = hashMapOf(
+            val data = hashMapOf<String, Any>(
                 "userId" to recipientUserId,
                 "type" to type,
                 "actorUserId" to actorUserId,
                 "actorUserName" to actorUserName,
-                "targetPostId" to targetPostId,
                 "message" to message,
                 "isRead" to false,
                 "createdAt" to System.currentTimeMillis()
             )
+            if (targetPostId != null) {
+                data["targetPostId"] = targetPostId
+            }
             collection.document(id).set(data).await()
             Result.Success(Unit)
         } catch (e: Exception) {

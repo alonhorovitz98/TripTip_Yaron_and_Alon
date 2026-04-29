@@ -46,10 +46,7 @@ class MainActivity : AppCompatActivity() {
             
             if (isLoggedIn) {
                 // User is logged in - navigate to feed if on login/register screen
-                val currentDestination = navController.currentDestination?.id
-                if (currentDestination == R.id.loginFragment || currentDestination == R.id.registerFragment) {
-                    navController.navigate(R.id.action_loginFragment_to_feedFragment)
-                }
+                navigateToFeedFromAuthScreen(navController)
             } else {
                 // User is not logged in - navigate to login if on feed
                 val currentDestination = navController.currentDestination?.id
@@ -70,10 +67,7 @@ class MainActivity : AppCompatActivity() {
             
             if (isLoggedIn) {
                 // User logged in - navigate to feed if on login/register screen
-                val currentDestination = navController.currentDestination?.id
-                if (currentDestination == R.id.loginFragment || currentDestination == R.id.registerFragment) {
-                    navController.navigate(R.id.action_loginFragment_to_feedFragment)
-                }
+                navigateToFeedFromAuthScreen(navController)
             } else {
                 // User logged out - navigate to login if on protected screens
                 val currentDestination = navController.currentDestination?.id
@@ -90,7 +84,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    
+    /**
+     * Each auth screen declares its own action to [R.id.feedFragment]. Using
+     * [R.id.action_loginFragment_to_feedFragment] from [R.id.registerFragment] crashes
+     * because NavController only resolves actions from the current destination.
+     */
+    private fun navigateToFeedFromAuthScreen(navController: androidx.navigation.NavController) {
+        when (navController.currentDestination?.id) {
+            R.id.loginFragment -> navController.navigate(R.id.action_loginFragment_to_feedFragment)
+            R.id.registerFragment -> navController.navigate(R.id.action_registerFragment_to_feedFragment)
+        }
+    }
+
     private fun setupNavigation() {
         val navHostFragment = supportFragmentManager
             .findFragmentById(R.id.nav_host_fragment) as NavHostFragment

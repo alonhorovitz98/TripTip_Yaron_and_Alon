@@ -53,8 +53,8 @@ class TripListFragment : Fragment() {
                     .actionTripListFragmentToCreateEditTripFragment(trip.id)
                 findNavController().navigate(action)
             },
-            onTripLongClick = { trip ->
-                showDeleteDialog(trip.id, trip.title)
+                onTripLongClick = { trip ->
+                showDeleteDialog(trip.id, trip.name)
             }
         )
 
@@ -96,6 +96,13 @@ class TripListFragment : Fragment() {
             if (error != null) {
                 Snackbar.make(binding.root, error, Snackbar.LENGTH_LONG).show()
                 viewModel.clearError()
+            }
+        }
+
+        viewModel.deleteSuccess.observe(viewLifecycleOwner) { ok ->
+            if (ok == true) {
+                Snackbar.make(binding.root, "Trip deleted", Snackbar.LENGTH_SHORT).show()
+                viewModel.clearDeleteSuccess()
             }
         }
     }

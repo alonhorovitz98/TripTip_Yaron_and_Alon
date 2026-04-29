@@ -12,12 +12,12 @@ import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
 import coil.load
-import coil.transform.CircleCropTransformation
 import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.FragmentPostDetailsBinding
 import com.example.triptip_yaron_and_alon.ui.adapter.NearbyPlaceAdapter
 import com.example.triptip_yaron_and_alon.ui.post.CommentAdapter
 import com.example.triptip_yaron_and_alon.ui.util.WrapContentLinearLayoutManager
+import com.example.triptip_yaron_and_alon.util.loadProfileImage
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.MapView
 import com.google.android.gms.maps.model.LatLng
@@ -259,7 +259,9 @@ class PostDetailsFragment : Fragment() {
         binding.chipTag.text = post.location?.uppercase() ?: "TRAVEL"
         
         // User info
-        binding.tvUsername.text = post.userName.ifEmpty { "User ${post.userId.take(8)}" }
+        binding.tvUsername.text = post.userName.ifBlank {
+            post.userId.take(8).let { "Traveler ($it)" }
+        }
         
         // Location + time
         val locationTime = buildString {
@@ -270,16 +272,7 @@ class PostDetailsFragment : Fragment() {
         }
         binding.tvLocationTime.text = locationTime
         
-        // User profile photo (circle) in the small icon
-        if (!post.userImageUrl.isNullOrBlank()) {
-            binding.ivUserProfile.load(post.userImageUrl) {
-                placeholder(R.drawable.ic_profile_frame)
-                error(R.drawable.ic_profile_frame)
-                transformations(CircleCropTransformation())
-            }
-        } else {
-            binding.ivUserProfile.setImageResource(R.drawable.ic_profile_frame)
-        }
+        binding.ivUserProfile.loadProfileImage(post.userImageUrl)
         
         // Post text (description)
         binding.tvPostText.text = post.text

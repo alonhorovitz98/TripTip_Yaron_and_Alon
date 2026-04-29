@@ -10,6 +10,7 @@ import com.example.triptip_yaron_and_alon.domain.mapper.UserMapper
 import com.example.triptip_yaron_and_alon.domain.model.User
 import com.example.triptip_yaron_and_alon.util.Constants
 import com.example.triptip_yaron_and_alon.util.Result
+import com.example.triptip_yaron_and_alon.util.UserProfileMerge
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -98,18 +99,16 @@ class AuthRepository(
                 when (result) {
                     is Result.Success -> {
                         val user = result.data
-                        // Try to load full user data from Firestore
                         val finalUser = try {
                             withContext(Dispatchers.IO) {
-                                firestoreDataSource.getUser(user.id)
+                                val fromFs = firestoreDataSource.getUser(user.id)
                                     .catch { emit(null) }
-                                    .firstOrNull() ?: user
+                                    .first()
+                                UserProfileMerge.merge(fromFs, user)
                             }
-                        } catch (e: Exception) {
-                            // If Firestore fails, use Firebase Auth user
-                            user
+                        } catch (_: Exception) {
+                            UserProfileMerge.merge(null, user)
                         }
-                        // Cache in Room
                         withContext(Dispatchers.IO) {
                             userDao.insert(UserMapper.toEntity(finalUser))
                         }
@@ -144,17 +143,16 @@ class AuthRepository(
         authDataSource.getCurrentUser()
             .collect { firebaseUser ->
                 if (firebaseUser != null) {
-                    // Try to get from Firestore for full profile
                     val user = try {
                         withContext(Dispatchers.IO) {
-                            firestoreDataSource.getUser(firebaseUser.id)
+                            val fromFs = firestoreDataSource.getUser(firebaseUser.id)
                                 .catch { emit(null) }
-                                .firstOrNull() ?: firebaseUser
+                                .first()
+                            UserProfileMerge.merge(fromFs, firebaseUser)
                         }
-                    } catch (e: Exception) {
-                        firebaseUser
+                    } catch (_: Exception) {
+                        UserProfileMerge.merge(null, firebaseUser)
                     }
-                    // Cache in Room
                     withContext(Dispatchers.IO) {
                         userDao.insert(UserMapper.toEntity(user))
                     }

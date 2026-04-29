@@ -1,13 +1,18 @@
 package com.example.triptip_yaron_and_alon.ui.trip
 
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.setFragmentResult
 import androidx.lifecycle.ViewModelProvider
+import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -15,6 +20,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.triptip_yaron_and_alon.databinding.FragmentDayEditorBinding
 import com.example.triptip_yaron_and_alon.databinding.ItemPlaceSuggestionBinding
+import com.example.triptip_yaron_and_alon.domain.model.DayItemType
 import com.example.triptip_yaron_and_alon.domain.model.LocationSuggestion
 import com.example.triptip_yaron_and_alon.ui.adapter.AvailablePostsAdapter
 import com.example.triptip_yaron_and_alon.ui.adapter.TripItemsAdapter
@@ -40,7 +46,7 @@ class DayEditorFragment : Fragment() {
     private val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
     private var selectedDateMillis: Long? = null
 
-    // Debounce search
+    private val mainHandler = Handler(Looper.getMainLooper())
     private var searchRunnable: Runnable? = null
 
     override fun onCreateView(
@@ -57,6 +63,8 @@ class DayEditorFragment : Fragment() {
 
         viewModel = ViewModelProvider(this)[DayEditorViewModel::class.java]
 
+        binding.tilDayDescription.visibility = View.GONE
+
         setupRecyclerViews()
         setupTabs()
         setupListeners()
@@ -66,10 +74,7 @@ class DayEditorFragment : Fragment() {
         viewModel.loadAvailablePosts()
     }
 
-    // ─────────────────── Setup ───────────────────
-
     private fun setupRecyclerViews() {
-        // Available posts
         postsAdapter = AvailablePostsAdapter(
             onAddClick = { post ->
                 viewModel.addPostToDay(args.tripId, args.dayId, post)
@@ -81,9 +86,7 @@ class DayEditorFragment : Fragment() {
             setHasFixedSize(false)
         }
 
-        // Place search suggestions
         suggestionsAdapter = PlaceSuggestionAdapter { suggestion ->
-            // Hide suggestions, show loading, then add the place
             binding.rvSearchSuggestions.visibility = View.GONE
             binding.etSearchPlace.setText("")
             viewModel.clearPlaceSuggestions()
@@ -100,33 +103,9 @@ class DayEditorFragment : Fragment() {
             setHasFixedSize(false)
         }
 
-        // Items on this day
         itemsAdapter = TripItemsAdapter(
-            onNotesChanged = { item, notes ->
-                // Notes are updated directly via updateTrip; handled inline
-            },
             onDelete = { item ->
                 viewModel.removeItemFromDay(args.tripId, args.dayId, item.id)
-            },
-            onMoveUp = { item ->
-                val currentItems = viewModel.currentDay.value?.items ?: return@TripItemsAdapter
-                val index = currentItems.indexOfFirst { it.id == item.id }
-                if (index > 0) {
-                    val reordered = currentItems.toMutableList().also {
-                        val tmp = it[index]; it[index] = it[index - 1]; it[index - 1] = tmp
-                    }.mapIndexed { i, it -> it.copy(order = i) }
-                    viewModel.reorderItems(args.dayId, reordered)
-                }
-            },
-            onMoveDown = { item ->
-                val currentItems = viewModel.currentDay.value?.items ?: return@TripItemsAdapter
-                val index = currentItems.indexOfFirst { it.id == item.id }
-                if (index < currentItems.size - 1) {
-                    val reordered = currentItems.toMutableList().also {
-                        val tmp = it[index]; it[index] = it[index + 1]; it[index + 1] = tmp
-                    }.mapIndexed { i, it -> it.copy(order = i) }
-                    viewModel.reorderItems(args.dayId, reordered)
-                }
             }
         )
         binding.rvDayItems.apply {
@@ -156,29 +135,25 @@ class DayEditorFragment : Fragment() {
     }
 
     private fun setupListeners() {
-        // Date picker
         binding.btnPickDate.setOnClickListener { showDatePicker() }
 
-        // Place search with 400ms debounce
         binding.etSearchPlace.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                searchRunnable?.let { binding.root.handler.removeCallbacks(it) }
+                searchRunnable?.let { mainHandler.removeCallbacks(it) }
                 val query = s?.toString()?.trim() ?: ""
                 if (query.length < 2) {
                     viewModel.clearPlaceSuggestions()
                     return
                 }
                 searchRunnable = Runnable { viewModel.searchPlaces(query) }
-                binding.root.handler.postDelayed(searchRunnable!!, 400)
+                mainHandler.postDelayed(searchRunnable!!, 400)
             }
             override fun afterTextChanged(s: Editable?) {}
         })
 
-        // Save Day
         binding.btnSaveDay.setOnClickListener {
-            val description = binding.etDayDescription.text?.toString()
-            viewModel.saveDay(args.tripId, args.dayId, selectedDateMillis, description)
+            viewModel.saveDay(args.tripId, args.dayId, selectedDateMillis)
         }
     }
 
@@ -193,34 +168,25 @@ class DayEditorFragment : Fragment() {
             binding.tvSelectedDate.text = "Date: $formatted"
             binding.tvSelectedDate.visibility = View.VISIBLE
             binding.btnPickDate.text = formatted
+            viewModel.saveDay(args.tripId, args.dayId, selection)
         }
         picker.show(parentFragmentManager, "DAY_DATE_PICKER")
     }
 
-    // ─────────────────── Observe ───────────────────
-
     private fun observeViewModel() {
         viewModel.currentDay.observe(viewLifecycleOwner) { day ->
             if (day == null) return@observe
-            binding.tvDayTitle.text = "Day ${day.dayNumber}"
+            binding.tvDayTitle.text = "Day ${day.dayOrder}"
 
-            // Show existing date if any
-            day.date?.let { ms ->
-                if (selectedDateMillis == null) {
-                    selectedDateMillis = ms
-                    val formatted = dateFormat.format(Date(ms))
-                    binding.tvSelectedDate.text = "Date: $formatted"
-                    binding.tvSelectedDate.visibility = View.VISIBLE
-                    binding.btnPickDate.text = formatted
-                }
+            if (day.dateMillis != null && selectedDateMillis == null) {
+                val ms = day.dateMillis
+                selectedDateMillis = ms
+                val formatted = dateFormat.format(Date(ms))
+                binding.tvSelectedDate.text = "Date: $formatted"
+                binding.tvSelectedDate.visibility = View.VISIBLE
+                binding.btnPickDate.text = formatted
             }
 
-            // Populate description only once (don't overwrite user edits)
-            if (binding.etDayDescription.text.isNullOrEmpty() && !day.description.isNullOrBlank()) {
-                binding.etDayDescription.setText(day.description)
-            }
-
-            // Update items RecyclerView
             val items = day.items
             if (items.isEmpty()) {
                 binding.tvNoItems.visibility = View.VISIBLE
@@ -231,8 +197,10 @@ class DayEditorFragment : Fragment() {
                 itemsAdapter.submitList(items)
             }
 
-            // Update excluded post IDs so already-added posts show "Added"
-            val addedPostIds = items.mapNotNull { it.postId }.toSet()
+            val addedPostIds = items
+                .filter { it.type == DayItemType.POST }
+                .map { it.value }
+                .toSet()
             postsAdapter.updateExcludedIds(addedPostIds)
         }
 
@@ -241,8 +209,8 @@ class DayEditorFragment : Fragment() {
                 binding.tvNoPostsHint.visibility = View.VISIBLE
             } else {
                 binding.tvNoPostsHint.visibility = View.GONE
-                postsAdapter.submitList(posts)
             }
+            postsAdapter.submitList(posts)
         }
 
         viewModel.placeSuggestions.observe(viewLifecycleOwner) { suggestions ->
@@ -263,17 +231,14 @@ class DayEditorFragment : Fragment() {
             binding.progressPlaceSearch.visibility = if (loading) View.VISIBLE else View.GONE
         }
 
-        viewModel.itemAdded.observe(viewLifecycleOwner) { added ->
-            if (added == true) {
-                Snackbar.make(binding.root, "Item added to day!", Snackbar.LENGTH_SHORT).show()
-                viewModel.clearItemAdded()
-            }
-        }
-
         viewModel.daySaved.observe(viewLifecycleOwner) { saved ->
             if (saved == true) {
-                Snackbar.make(binding.root, "Day saved!", Snackbar.LENGTH_SHORT).show()
                 viewModel.clearDaySaved()
+                setFragmentResult(
+                    REQUEST_DAY_EDITOR,
+                    bundleOf(RESULT_MESSAGE to "Day saved. You can save the trip or add another day.")
+                )
+                findNavController().navigateUp()
             }
         }
 
@@ -286,12 +251,11 @@ class DayEditorFragment : Fragment() {
     }
 
     override fun onDestroyView() {
-        searchRunnable?.let { binding.root.handler.removeCallbacks(it) }
+        searchRunnable?.let { mainHandler.removeCallbacks(it) }
+        searchRunnable = null
         super.onDestroyView()
         _binding = null
     }
-
-    // ─────────────────── Inner: Place suggestion adapter ───────────────────
 
     private class PlaceSuggestionAdapter(
         private val onClick: (LocationSuggestion) -> Unit
@@ -326,10 +290,14 @@ class DayEditorFragment : Fragment() {
         }
 
         class SuggestionDiffCallback : DiffUtil.ItemCallback<LocationSuggestion>() {
-            override fun areItemsTheSame(oldItem: LocationSuggestion, newItem: LocationSuggestion) =
-                oldItem.googlePlaceId == newItem.googlePlaceId && oldItem.displayName == newItem.displayName
-            override fun areContentsTheSame(oldItem: LocationSuggestion, newItem: LocationSuggestion) =
-                oldItem == newItem
+            override fun areItemsTheSame(a: LocationSuggestion, b: LocationSuggestion) =
+                a.googlePlaceId == b.googlePlaceId && a.displayName == b.displayName
+            override fun areContentsTheSame(a: LocationSuggestion, b: LocationSuggestion) = a == b
         }
+    }
+
+    companion object {
+        const val REQUEST_DAY_EDITOR = "request_day_editor"
+        const val RESULT_MESSAGE = "result_message"
     }
 }

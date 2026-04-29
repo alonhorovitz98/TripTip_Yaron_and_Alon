@@ -15,6 +15,7 @@ import com.example.triptip_yaron_and_alon.util.Result
 import android.net.Uri
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * ViewModel for authentication operations
@@ -58,13 +59,14 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     // LiveData for logged in state
     private val _isLoggedIn = MutableLiveData<Boolean>()
     val isLoggedIn: LiveData<Boolean> = _isLoggedIn
-    
-    // Removed init block - checkLoginStatus() should be called explicitly from Fragment
-    
+
+    private val authStateCollectionStarted = AtomicBoolean(false)
+
     /**
-     * Check if user is currently logged in (continuously observes)
+     * Observe Firebase auth state once per ViewModel. Safe to call from multiple sites.
      */
     fun checkLoginStatus() {
+        if (!authStateCollectionStarted.compareAndSet(false, true)) return
         viewModelScope.launch {
             authRepository.isUserLoggedIn().collect { loggedIn ->
                 _isLoggedIn.value = loggedIn
