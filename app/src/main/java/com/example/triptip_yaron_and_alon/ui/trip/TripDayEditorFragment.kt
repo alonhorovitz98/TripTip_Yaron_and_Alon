@@ -2,16 +2,22 @@ package com.example.triptip_yaron_and_alon.ui.trip
 
 import android.app.AlertDialog
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.FragmentTripDayEditorBinding
+import com.example.triptip_yaron_and_alon.domain.model.LocationSuggestion
 import com.example.triptip_yaron_and_alon.domain.model.Post
 import com.example.triptip_yaron_and_alon.domain.model.TripItem
 import com.example.triptip_yaron_and_alon.ui.adapter.AvailablePostsAdapter
@@ -19,6 +25,7 @@ import com.example.triptip_yaron_and_alon.ui.adapter.TripItemsAdapter
 import com.example.triptip_yaron_and_alon.util.Result
 import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.launch
+import android.widget.TextView
 
 class TripDayEditorFragment : Fragment() {
     
@@ -30,6 +37,8 @@ class TripDayEditorFragment : Fragment() {
     
     private lateinit var itemsAdapter: TripItemsAdapter
     private lateinit var availablePostsAdapter: AvailablePostsAdapter
+    private lateinit var nearbyPlacesAdapter: com.example.triptip_yaron_and_alon.ui.adapter.NearbyPlaceAdapter
+    private lateinit var placeSearchAdapter: PlaceSearchSuggestionsAdapter
     
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -46,11 +55,24 @@ class TripDayEditorFragment : Fragment() {
         viewModel = ViewModelProvider(this)[TripViewModel::class.java]
         
         setupRecyclerViews()
+        setupPlaceSearch()
+        setupListeners()
         observeViewModel()
         
         // Load day and available posts
         viewModel.loadDay(args.tripId, args.dayId)
         viewModel.loadAvailablePosts()
+        
+        // Load nearby places based on day's location
+        // We'll need to get location from the day's items or trip
+        // For now, we'll load places when a day with location is available
+    }
+    
+    private fun setupListeners() {
+        binding.btnDone.setOnClickListener {
+            // Navigate back - changes are already saved automatically
+            findNavController().popBackStack()
+        }
     }
     
     private fun setupRecyclerViews() {
@@ -75,10 +97,11 @@ class TripDayEditorFragment : Fragment() {
             layoutManager = LinearLayoutManager(context)
         }
         
-        // Available posts adapter
+        // Available posts adapter - create once and update excluded IDs
         availablePostsAdapter = AvailablePostsAdapter(
             onAddClick = { post ->
-                viewModel.addItemToDay(args.dayId, post.id)
+                android.util.Log.d("TripDayEditor", "Add post clicked: ${post.id}")
+                viewModel.addItemToDay(args.tripId, args.dayId, post.id)
             },
             excludedPostIds = emptySet() // Will be updated when day loads
         )
@@ -87,6 +110,60 @@ class TripDayEditorFragment : Fragment() {
             adapter = availablePostsAdapter
             layoutManager = LinearLayoutManager(context)
         }
+        
+        // Nearby places adapter
+        nearbyPlacesAdapter = com.example.triptip_yaron_and_alon.ui.adapter.NearbyPlaceAdapter(
+            onAddToTripClick = { place ->
+                android.util.Log.d("TripDayEditor", "Add place clicked: ${place.xid}")
+                viewModel.addPlaceToDay(args.tripId, args.dayId, place)
+            },
+            onPlaceClick = { place ->
+                // Navigate to place details if needed
+                // For now, do nothing
+            }
+        )
+        
+        binding.rvNearbyPlaces.apply {
+            adapter = nearbyPlacesAdapter
+            layoutManager = LinearLayoutManager(context)
+        }
+
+        placeSearchAdapter = PlaceSearchSuggestionsAdapter { suggestion ->
+            val placeId = suggestion.googlePlaceId
+            if (!placeId.isNullOrBlank()) {
+                viewModel.addGooglePlaceToDay(args.tripId, args.dayId, placeId)
+                binding.etSearchPlace.text?.clear()
+                binding.rvPlaceSearchSuggestions.visibility = View.GONE
+            } else {
+                Snackbar.make(binding.root, "This place cannot be added", Snackbar.LENGTH_SHORT).show()
+            }
+        }
+        binding.rvPlaceSearchSuggestions.apply {
+            adapter = placeSearchAdapter
+            layoutManager = LinearLayoutManager(context)
+        }
+    }
+
+    private fun setupPlaceSearch() {
+        binding.etSearchPlace.addTextChangedListener(object : TextWatcher {
+            private var searchRunnable: Runnable? = null
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                binding.etSearchPlace.removeCallbacks(searchRunnable ?: Runnable {})
+                searchRunnable = Runnable {
+                    val query = s?.toString()?.trim()
+                    if (!query.isNullOrBlank() && query.length >= 2) {
+                        viewModel.searchPlaceSuggestions(query)
+                    } else {
+                        viewModel.searchPlaceSuggestions("")
+                        placeSearchAdapter.submit(emptyList())
+                        binding.rvPlaceSearchSuggestions.visibility = View.GONE
+                    }
+                }
+                binding.etSearchPlace.postDelayed(searchRunnable!!, 300)
+            }
+            override fun afterTextChanged(editable: Editable?) {}
+        })
     }
     
     private fun observeViewModel() {
@@ -108,34 +185,74 @@ class TripDayEditorFragment : Fragment() {
                     binding.rvItems.visibility = View.VISIBLE
                 }
                 
-                // Update excluded post IDs for available posts adapter
-                val excludedIds = sortedItems.map { it.postId }.toSet()
-                availablePostsAdapter = AvailablePostsAdapter(
-                    onAddClick = { post ->
-                        viewModel.addItemToDay(args.dayId, post.id)
-                    },
-                    excludedPostIds = excludedIds
-                )
-                binding.rvAvailablePosts.adapter = availablePostsAdapter
+                // Update excluded post IDs for available posts adapter (don't recreate adapter)
+                val excludedIds = sortedItems.mapNotNull { it.postId }.toSet()
+                availablePostsAdapter.updateExcludedIds(excludedIds)
                 
-                // Update available posts list
+                // Update available posts list - filter out already added posts
                 viewModel.availablePosts.value?.let { posts ->
-                    availablePostsAdapter.submitList(posts)
+                    val filteredPosts = posts.filter { it.id !in excludedIds }
+                    availablePostsAdapter.submitList(filteredPosts)
+                }
+                
+                // Load nearby places if we have location from items
+                // Try to get location from first item with coordinates
+                val itemWithLocation = sortedItems.firstOrNull { item ->
+                    item.post?.latitude != null && item.post?.longitude != null
+                }
+                
+                if (itemWithLocation != null) {
+                    val lat = itemWithLocation.post?.latitude ?: return@observe
+                    val lon = itemWithLocation.post?.longitude ?: return@observe
+                    viewModel.loadNearbyPlaces(lat, lon)
+                } else {
+                    // Try to get location from post location name
+                    val itemWithLocationName = sortedItems.firstOrNull { item ->
+                        item.post?.location != null && item.post?.location?.isNotBlank() == true
+                    }
+                    
+                    if (itemWithLocationName != null) {
+                        val locationName = itemWithLocationName.post?.location ?: return@observe
+                        viewModel.loadNearbyPlacesForLocation(locationName)
+                    }
                 }
             }
         }
         
         // Observe available posts
         viewModel.availablePosts.observe(viewLifecycleOwner) { posts ->
-            val excludedIds = viewModel.currentDay.value?.items?.map { it.postId }?.toSet() ?: emptySet()
-            availablePostsAdapter = AvailablePostsAdapter(
-                onAddClick = { post ->
-                    viewModel.addItemToDay(args.dayId, post.id)
-                },
-                excludedPostIds = excludedIds
-            )
-            binding.rvAvailablePosts.adapter = availablePostsAdapter
-            availablePostsAdapter.submitList(posts)
+            // Filter out already added posts
+            val excludedIds = viewModel.currentDay.value?.items?.mapNotNull { it.postId }?.toSet() ?: emptySet()
+            availablePostsAdapter.updateExcludedIds(excludedIds)
+            val filteredPosts = posts.filter { it.id !in excludedIds }
+            availablePostsAdapter.submitList(filteredPosts)
+        }
+        
+        // Observe nearby places
+        viewModel.nearbyPlaces.observe(viewLifecycleOwner) { places ->
+            val excludedPlaceIds = viewModel.currentDay.value?.items?.mapNotNull { it.placeId }?.toSet() ?: emptySet()
+            val filteredPlaces = places.filter { it.xid !in excludedPlaceIds }
+            nearbyPlacesAdapter.submitList(filteredPlaces)
+            
+            // Show/hide section based on whether there are places
+            if (filteredPlaces.isNotEmpty()) {
+                binding.tvNearbyPlacesTitle.visibility = View.VISIBLE
+                binding.rvNearbyPlaces.visibility = View.VISIBLE
+            } else {
+                binding.tvNearbyPlacesTitle.visibility = View.GONE
+                binding.rvNearbyPlaces.visibility = View.GONE
+            }
+        }
+        
+        viewModel.placesLoading.observe(viewLifecycleOwner) { isLoading ->
+            // Show loading state if needed
+        }
+        
+        viewModel.placesError.observe(viewLifecycleOwner) { error ->
+            if (error != null) {
+                binding.tvNearbyPlacesTitle.visibility = View.GONE
+                binding.rvNearbyPlaces.visibility = View.GONE
+            }
         }
         
         // Observe loading
@@ -147,10 +264,10 @@ class TripDayEditorFragment : Fragment() {
         viewModel.itemOperationResult.observe(viewLifecycleOwner) { result ->
             when (result) {
                 is Result.Success -> {
-                    Snackbar.make(binding.root, "Item updated successfully", Snackbar.LENGTH_SHORT).show()
+                    Snackbar.make(binding.root, "Item added successfully", Snackbar.LENGTH_SHORT).show()
                 }
                 is Result.Error -> {
-                    Snackbar.make(binding.root, result.message ?: "An error occurred", Snackbar.LENGTH_LONG).show()
+                    Snackbar.make(binding.root, result.message ?: "Failed to add item", Snackbar.LENGTH_LONG).show()
                 }
                 else -> {}
             }
@@ -164,6 +281,37 @@ class TripDayEditorFragment : Fragment() {
                 Snackbar.make(binding.root, error, Snackbar.LENGTH_LONG).show()
             } else {
                 binding.tvError.visibility = View.GONE
+            }
+        }
+
+        viewModel.placeSearchSuggestions.observe(viewLifecycleOwner) { suggestions ->
+            val withGoogleId = suggestions.filter { !it.googlePlaceId.isNullOrBlank() }
+            placeSearchAdapter.submit(withGoogleId)
+            binding.rvPlaceSearchSuggestions.visibility = if (withGoogleId.isEmpty()) View.GONE else View.VISIBLE
+        }
+    }
+
+    private inner class PlaceSearchSuggestionsAdapter(
+        private val onSuggestionClick: (LocationSuggestion) -> Unit
+    ) : RecyclerView.Adapter<PlaceSearchSuggestionsAdapter.VH>() {
+        private val items = mutableListOf<LocationSuggestion>()
+        fun submit(newItems: List<LocationSuggestion>) {
+            items.clear()
+            items.addAll(newItems)
+            notifyDataSetChanged()
+        }
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
+            val view = layoutInflater.inflate(android.R.layout.simple_list_item_1, parent, false)
+            return VH(view)
+        }
+        override fun onBindViewHolder(holder: VH, position: Int) { holder.bind(items[position]) }
+        override fun getItemCount(): Int = items.size
+        inner class VH(itemView: View) : RecyclerView.ViewHolder(itemView) {
+            private val textView: TextView = itemView.findViewById(android.R.id.text1)
+            fun bind(item: LocationSuggestion) {
+                textView.text = item.displayName
+                textView.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_primary))
+                itemView.setOnClickListener { onSuggestionClick(item) }
             }
         }
     }

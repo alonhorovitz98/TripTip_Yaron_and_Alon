@@ -15,6 +15,7 @@ data class CommentEntity(
     val userName: String,
     val userAvatarUrl: String?,
     val text: String,
+    val imageUrl: String? = null,
     val parentCommentId: String?, // null for top-level comments, ID for replies
     val likes: Int = 0,
     val createdAt: Long,

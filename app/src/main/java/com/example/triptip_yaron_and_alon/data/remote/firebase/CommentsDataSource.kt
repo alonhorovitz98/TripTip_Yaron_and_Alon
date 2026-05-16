@@ -4,7 +4,6 @@ import com.example.triptip_yaron_and_alon.domain.model.Comment
 import com.example.triptip_yaron_and_alon.util.Result
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -24,14 +23,15 @@ class CommentsDataSource {
     /**
      * Get all comments for a specific post.
      * Returns Flow that emits updates in real-time.
+     * Uses whereEqualTo only (no orderBy) to avoid requiring a Firestore composite index; sorts in memory.
      */
     fun getCommentsByPost(postId: String): Flow<List<Comment>> = callbackFlow {
         val listener = commentsCollection
             .whereEqualTo("postId", postId)
-            .orderBy("createdAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(Exception(error))
+                    // Don't close with exception (crashes app). Emit empty list so UI shows no comments.
+                    trySend(emptyList())
                     return@addSnapshotListener
                 }
                 
@@ -44,6 +44,7 @@ class CommentsDataSource {
                             userName = doc.getString("userName") ?: "",
                             userAvatarUrl = doc.getString("userAvatarUrl"),
                             text = doc.getString("text") ?: "",
+                            imageUrl = doc.getString("imageUrl"),
                             parentCommentId = doc.getString("parentCommentId"),
                             likes = doc.getLong("likes")?.toInt() ?: 0,
                             createdAt = doc.getLong("createdAt") ?: 0L
@@ -52,20 +53,25 @@ class CommentsDataSource {
                         null
                     }
                 } ?: emptyList()
-                
-                trySend(comments)
+                // Newest first (no orderBy in query to avoid composite index requirement)
+                val sorted = comments.sortedByDescending { it.createdAt }
+                trySend(sorted)
             }
         
         awaitClose { listener.remove() }
     }
     
     /**
-     * Add a new comment to a post.
+     * Add a new comment to a post (with optional image URL from repository upload).
+     * Optional userName and userAvatarUrl (e.g. from Firestore profile) override Auth displayName/photoUrl when provided.
      */
     suspend fun addComment(
         postId: String,
         text: String,
-        parentCommentId: String? = null
+        imageUrl: String? = null,
+        parentCommentId: String? = null,
+        userName: String? = null,
+        userAvatarUrl: String? = null
     ): Result<Comment> {
         return try {
             val currentUser = auth.currentUser
@@ -76,9 +82,10 @@ class CommentsDataSource {
                 id = commentId,
                 postId = postId,
                 userId = currentUser.uid,
-                userName = currentUser.displayName ?: "Anonymous",
-                userAvatarUrl = currentUser.photoUrl?.toString(),
+                userName = userName ?: currentUser.displayName ?: "Anonymous",
+                userAvatarUrl = userAvatarUrl ?: currentUser.photoUrl?.toString(),
                 text = text,
+                imageUrl = imageUrl,
                 parentCommentId = parentCommentId,
                 likes = 0,
                 createdAt = System.currentTimeMillis()
@@ -90,6 +97,7 @@ class CommentsDataSource {
                 "userName" to comment.userName,
                 "userAvatarUrl" to comment.userAvatarUrl,
                 "text" to comment.text,
+                "imageUrl" to comment.imageUrl,
                 "parentCommentId" to comment.parentCommentId,
                 "likes" to comment.likes,
                 "createdAt" to comment.createdAt

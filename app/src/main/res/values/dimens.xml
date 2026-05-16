@@ -32,6 +32,7 @@
     <dimen name="input_padding">16dp</dimen>
     
     <!-- Card Elevation -->
+    <dimen name="card_elevation_small">2dp</dimen>
     <dimen name="card_elevation">2dp</dimen>
     <dimen name="card_elevation_medium">4dp</dimen>
     <dimen name="card_elevation_large">8dp</dimen>
@@ -50,6 +51,7 @@
     <!-- Bottom Navigation -->
     <dimen name="bottom_nav_height">56dp</dimen>
     <dimen name="bottom_nav_icon_size">24dp</dimen>
+    <dimen name="bottom_nav_min_inset_fallback">48dp</dimen>
     
     <!-- FAB -->
     <dimen name="fab_size">56dp</dimen>
@@ -66,4 +68,10 @@
     <dimen name="text_size_xl">20sp</dimen>
     <dimen name="text_size_xxl">24sp</dimen>
     <dimen name="text_size_xxxl">32sp</dimen>
+    
+    <!-- Photo Indicators -->
+    <dimen name="photo_indicator_size">8dp</dimen>
+
+    <!-- Map -->
+    <dimen name="map_bounds_padding">100dp</dimen>
 </resources>

@@ -26,6 +26,7 @@
     <string name="cancel">Cancel</string>
     
     <!-- Photo Source -->
+    <string name="add_photo">Add photo</string>
     <string name="select_photo_source">Select Photo Source</string>
     <string name="take_photo">Take Photo</string>
     <string name="choose_from_gallery">Choose from Gallery</string>

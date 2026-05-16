@@ -34,6 +34,14 @@ interface CommentDao {
      */
     @Query("SELECT * FROM comments WHERE id = :commentId")
     fun getCommentById(commentId: String): Flow<CommentEntity?>
+
+    /**
+     * Get a specific comment by ID (one-shot).
+     * @param commentId The comment ID
+     * @return The comment, or null if not found
+     */
+    @Query("SELECT * FROM comments WHERE id = :commentId")
+    suspend fun getCommentByIdSync(commentId: String): CommentEntity?
     
     /**
      * Get comment count for a post.
@@ -56,6 +64,16 @@ interface CommentDao {
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(comments: List<CommentEntity>)
+
+    /**
+     * Synchronize comments for a post: delete existing ones and insert new ones.
+     * Used to keep local cache in sync with remote even when items are deleted.
+     */
+    @Transaction
+    suspend fun syncComments(postId: String, comments: List<CommentEntity>) {
+        deleteByPost(postId)
+        insertAll(comments)
+    }
     
     /**
      * Update an existing comment.
@@ -70,6 +88,12 @@ interface CommentDao {
      */
     @Delete
     suspend fun delete(comment: CommentEntity)
+
+    /**
+     * Delete a comment by its ID.
+     */
+    @Query("DELETE FROM comments WHERE id = :commentId")
+    suspend fun deleteById(commentId: String)
     
     /**
      * Delete all comments for a specific post.
@@ -78,6 +102,18 @@ interface CommentDao {
     @Query("DELETE FROM comments WHERE postId = :postId")
     suspend fun deleteByPost(postId: String)
     
+    /**
+     * Increment like count locally.
+     */
+    @Query("UPDATE comments SET likes = likes + 1 WHERE id = :commentId")
+    suspend fun incrementLikes(commentId: String)
+
+    /**
+     * Decrement like count locally.
+     */
+    @Query("UPDATE comments SET likes = CASE WHEN likes > 0 THEN likes - 1 ELSE 0 END WHERE id = :commentId")
+    suspend fun decrementLikes(commentId: String)
+
     /**
      * Clear all old cached comments (older than threshold).
      * @param threshold Timestamp threshold

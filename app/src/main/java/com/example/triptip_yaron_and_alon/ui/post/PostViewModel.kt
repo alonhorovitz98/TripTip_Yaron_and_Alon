@@ -10,15 +10,22 @@ import com.example.triptip_yaron_and_alon.data.local.database.TripTipDatabase
 import com.example.triptip_yaron_and_alon.data.remote.firebase.FirebaseAuthDataSource
 import com.example.triptip_yaron_and_alon.data.remote.firebase.FirebaseStorageDataSource
 import com.example.triptip_yaron_and_alon.data.remote.firebase.FirestoreDataSource
+import com.example.triptip_yaron_and_alon.data.remote.firebase.NotificationsDataSource
+import com.example.triptip_yaron_and_alon.data.remote.firebase.CommentsDataSource
+import com.example.triptip_yaron_and_alon.data.repository.CommentsRepository
 import com.example.triptip_yaron_and_alon.data.repository.PlaceInfoRepository
 import com.example.triptip_yaron_and_alon.data.repository.PostRepository
+import com.example.triptip_yaron_and_alon.data.repository.UserRepository
 import com.example.triptip_yaron_and_alon.domain.model.LocationSuggestion
 import com.example.triptip_yaron_and_alon.domain.model.PlaceInfo
+import com.example.triptip_yaron_and_alon.domain.model.Comment
 import com.example.triptip_yaron_and_alon.domain.model.Post
 import com.example.triptip_yaron_and_alon.domain.model.WeatherInfo
+import com.example.triptip_yaron_and_alon.util.Constants
 import com.example.triptip_yaron_and_alon.util.Result
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class PostViewModel(application: Application) : AndroidViewModel(application) {
@@ -36,10 +43,29 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
     private val placeInfoRepository by lazy { PlaceInfoRepository() }
-    
+    private val notificationsDataSource by lazy { NotificationsDataSource() }
+    private val commentsDataSource by lazy { CommentsDataSource() }
+    private val commentsRepository by lazy { CommentsRepository(commentsDataSource, database.commentDao()) }
+    private val userRepository by lazy {
+        UserRepository(
+            database.userDao(),
+            authDataSource,
+            firestoreDataSource,
+            storageDataSource
+        )
+    }
+
     // Current post
     private val _post = MutableLiveData<Post?>()
     val post: LiveData<Post?> = _post
+    
+    // Whether current user liked the current post (for details screen like button)
+    private val _isLikedByCurrentUser = MutableLiveData<Boolean>(false)
+    val isLikedByCurrentUser: LiveData<Boolean> = _isLikedByCurrentUser
+    
+    // Comments for current post
+    private val _comments = MutableLiveData<List<Comment>>(emptyList())
+    val comments: LiveData<List<Comment>> = _comments
     
     // User posts
     private val _userPosts = MutableLiveData<List<Post>>()
@@ -86,20 +112,120 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
     
     private val _locationSuggestionsLoading = MutableLiveData<Boolean>()
     val locationSuggestionsLoading: LiveData<Boolean> = _locationSuggestionsLoading
+    private var locationSearchJob: Job? = null
+    private var latestLocationQuery: String = ""
     
     // Current user ID (simplified - should come from auth)
     private var currentUserId: String? = null
     
     fun loadPost(postId: String) {
         viewModelScope.launch {
+            currentUserId = authDataSource.getCurrentUser().firstOrNull()?.id
             _isLoading.value = true
             _error.value = null
             var isFirstEmission = true
             postRepository.getPostById(postId).collect { post ->
                 _post.value = post
+                _isLikedByCurrentUser.value = currentUserId?.let { post?.likedBy?.contains(it) == true } ?: false
                 if (isFirstEmission) {
                     _isLoading.value = false
                     isFirstEmission = false
+                }
+            }
+        }
+    }
+    
+    fun likePost(postId: String) {
+        viewModelScope.launch {
+            val user = authDataSource.getCurrentUser().firstOrNull()
+            val uid = user?.id ?: currentUserId ?: return@launch
+            when (val r = postRepository.likePost(postId, uid)) {
+                is Result.Success -> {
+                    val ownerId = r.data
+                    if (ownerId != null && ownerId != uid && user != null) {
+                        notificationsDataSource.createNotification(
+                            recipientUserId = ownerId,
+                            type = NotificationsDataSource.TYPE_LIKE,
+                            actorUserId = uid,
+                            actorUserName = user.name.ifBlank { user.email.takeWhile { it != '@' }.ifBlank { "Someone" } },
+                            targetPostId = postId,
+                            message = "${user.name.ifBlank { "Someone" }} liked your post"
+                        )
+                    }
+                }
+                is Result.Error -> _error.value = r.message
+                is Result.Loading -> { }
+            }
+        }
+    }
+    
+    fun unlikePost(postId: String) {
+        viewModelScope.launch {
+            val uid = currentUserId ?: authDataSource.getCurrentUser().firstOrNull()?.id ?: return@launch
+            when (val r = postRepository.unlikePost(postId, uid)) {
+                is Result.Success -> { }
+                is Result.Error -> _error.value = r.message
+                is Result.Loading -> { }
+            }
+        }
+    }
+    
+    fun toggleLike(postId: String) {
+        val post = _post.value ?: return
+        val uid = currentUserId ?: return
+        if (post.likedBy.contains(uid)) unlikePost(postId) else likePost(postId)
+    }
+    
+    fun loadComments(postId: String) {
+        viewModelScope.launch {
+            commentsRepository.getCommentsByPost(postId).collect { list ->
+                _comments.postValue(list)
+            }
+        }
+    }
+    
+    fun addComment(postId: String, text: String, imageUri: Uri? = null) {
+        if (text.isBlank() && imageUri == null) return
+        viewModelScope.launch {
+            var imageUrl: String? = null
+            if (imageUri != null) {
+                when (val r = storageDataSource.uploadImageSync(imageUri, Constants.STORAGE_COMMENT_IMAGES)) {
+                    is Result.Success -> imageUrl = r.data
+                    is Result.Error -> {
+                        _error.value = r.message
+                        return@launch
+                    }
+                    is Result.Loading -> { }
+                }
+            }
+            val user = userRepository.getCurrentUser().firstOrNull()
+                ?: authDataSource.getCurrentUser().firstOrNull()
+                ?: return@launch
+            val displayName = user.name.ifBlank { user.email.takeWhile { it != '@' }.ifBlank { "User" } }
+            commentsRepository.addComment(
+                postId,
+                text.ifBlank { "" },
+                imageUrl,
+                null,
+                userName = displayName,
+                userAvatarUrl = user.profileImageUrl
+            ).collect { result ->
+                when (result) {
+                    is Result.Success -> {
+                        val ownerId = _post.value?.userId
+                        if (ownerId != null && ownerId != user.id) {
+                            notificationsDataSource.createNotification(
+                                recipientUserId = ownerId,
+                                type = NotificationsDataSource.TYPE_COMMENT,
+                                actorUserId = user.id,
+                                actorUserName = user.name.ifBlank { user.email.takeWhile { it != '@' }.ifBlank { "Someone" } },
+                                targetPostId = postId,
+                                message = "${user.name.ifBlank { "Someone" }} commented on your post"
+                            )
+                        }
+                    }
+                    is Result.Error -> _error.value = result.message
+                    is Result.Loading -> { }
                 }
             }
         }
@@ -122,14 +248,20 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
     
     /**
      * Search for location suggestions (for autocomplete).
+     * Uses Google Places API for better quality results.
      */
     fun searchLocationSuggestions(query: String) {
         if (query.length < 2) {
+            latestLocationQuery = ""
+            locationSearchJob?.cancel()
             _locationSuggestions.value = emptyList()
+            _locationSuggestionsLoading.value = false
             return
         }
-        
-        viewModelScope.launch {
+
+        latestLocationQuery = query
+        locationSearchJob?.cancel()
+        locationSearchJob = viewModelScope.launch {
             _locationSuggestionsLoading.value = true
             placeInfoRepository.searchLocationSuggestions(query)
                 .catch { e ->
@@ -137,7 +269,38 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
                     _error.value = "Failed to search locations: ${e.message}"
                 }
                 .collect { suggestions ->
-                    _locationSuggestions.value = suggestions
+                    // Ignore stale responses that return after a newer query was fired.
+                    if (query == latestLocationQuery) {
+                        _locationSuggestions.value = suggestions
+                    }
+                    _locationSuggestionsLoading.value = false
+                }
+        }
+    }
+    
+    /**
+     * Fetch place details from Google Places API by place_id.
+     * Use this when user selects a Google Places suggestion to get coordinates.
+     */
+    fun fetchPlaceDetails(placeId: String) {
+        viewModelScope.launch {
+            _locationSuggestionsLoading.value = true
+            placeInfoRepository.getGooglePlaceDetails(placeId)
+                .catch { e ->
+                    _locationSuggestionsLoading.value = false
+                    _error.value = "Failed to fetch place details: ${e.message}"
+                }
+                .collect { suggestion ->
+                    // Update the location suggestions with the fetched coordinates
+                    val currentSuggestions = _locationSuggestions.value ?: emptyList()
+                    val updatedSuggestions = currentSuggestions.map { 
+                        if (it.googlePlaceId != null && it.googlePlaceId == placeId) {
+                            suggestion // Replace with full details
+                        } else {
+                            it
+                        }
+                    }
+                    _locationSuggestions.value = updatedSuggestions
                     _locationSuggestionsLoading.value = false
                 }
         }
@@ -153,29 +316,61 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
             _isLoading.value = true
             _error.value = null
             
-            // Get current user ID
-            val userId = authDataSource.getCurrentUser().firstOrNull()?.id
+            // Get current user from UserRepository (includes Firestore profile image); fallback to Auth
+            val currentUser = userRepository.getCurrentUser().firstOrNull()
+                ?: authDataSource.getCurrentUser().firstOrNull()
                 ?: run {
                     _isLoading.value = false
                     _error.value = "User not authenticated"
                     return@launch
                 }
+            val userId = currentUser.id
+            val userName = currentUser.name.ifBlank {
+                currentUser.email.takeWhile { it != '@' }.ifBlank { "User" }
+            }
+            val userImageUrl = currentUser.profileImageUrl
             
-            // Geocode location if name provided but no coordinates
+            // Geocode location if name provided but no coordinates; also get price_level from Google when place_id present
             var finalLatitude = latitude
             var finalLongitude = longitude
+            var priceLevel: Int? = null
             
             if (location != null && location.isNotBlank() && (latitude == null || longitude == null)) {
                 try {
-                    val coordinates = placeInfoRepository.geocodeLocation(location)
-                        .firstOrNull()
-                    
-                    if (coordinates != null) {
-                        finalLatitude = coordinates.first
-                        finalLongitude = coordinates.second
+                    // Check if location contains a Google Places place_id (format: "place_name|place_id")
+                    val parts = location.split("|")
+                    if (parts.size == 2 && parts[1].isNotBlank()) {
+                        // This is a Google Places place_id, fetch details (coords + price_level)
+                        val placeDetails = placeInfoRepository.getGooglePlaceDetails(parts[1])
+                            .firstOrNull()
+                        val fullDetails = placeInfoRepository.getFullPlaceDetails(parts[1]).firstOrNull()
+                        priceLevel = fullDetails?.priceLevel?.coerceIn(0, 4)
+                        
+                        if (placeDetails != null && placeDetails.latitude != 0.0 && placeDetails.longitude != 0.0) {
+                            finalLatitude = placeDetails.latitude
+                            finalLongitude = placeDetails.longitude
+                        } else {
+                            // Fallback to Nominatim geocoding
+                            val coordinates = placeInfoRepository.geocodeLocation(parts[0])
+                                .firstOrNull()
+                            
+                            if (coordinates != null) {
+                                finalLatitude = coordinates.first
+                                finalLongitude = coordinates.second
+                            }
+                        }
                     } else {
-                        // Location not found, but continue with location name only
-                        _error.value = "Location not found, but post will be created with location name"
+                        // Regular location name, use Nominatim geocoding
+                        val coordinates = placeInfoRepository.geocodeLocation(location)
+                            .firstOrNull()
+                        
+                        if (coordinates != null) {
+                            finalLatitude = coordinates.first
+                            finalLongitude = coordinates.second
+                        } else {
+                            // Location not found, but continue with location name only
+                            _error.value = "Location not found, but post will be created with location name"
+                        }
                     }
                 } catch (e: Exception) {
                     // Geocoding failed, but continue with location name only
@@ -183,19 +378,20 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
             
-            // Create Post object
+            // Create Post object with real user display name and avatar
             val post = Post(
                 id = "", // Will be generated by Firestore
                 userId = userId,
-                userName = "", // Will be loaded from user data
-                userImageUrl = null,
+                userName = userName,
+                userImageUrl = userImageUrl,
                 text = text,
                 imageUrl = null, // Will be set after image upload
                 createdAt = System.currentTimeMillis(),
                 location = location,
                 latitude = finalLatitude,
                 longitude = finalLongitude,
-                placeXid = null
+                placeXid = null,
+                priceLevel = priceLevel
             )
             
             postRepository.createPost(post, imageUri).collect { result ->

@@ -3,21 +3,21 @@
     <!-- Typography Styles for Stitch Design -->
     
     <!-- Headlines -->
-    <style name="TextAppearance.TripTip.Headline1" parent="TextAppearance.Material3.HeadlineLarge">
+    <style name="TextAppearance.TripTip.Headline1">
         <item name="android:textSize">@dimen/text_size_xxxl</item>
         <item name="android:textStyle">bold</item>
         <item name="android:textColor">@color/text_primary</item>
         <item name="android:fontFamily">sans-serif-medium</item>
     </style>
     
-    <style name="TextAppearance.TripTip.Headline2" parent="TextAppearance.Material3.HeadlineMedium">
+    <style name="TextAppearance.TripTip.Headline2">
         <item name="android:textSize">@dimen/text_size_xxl</item>
         <item name="android:textStyle">bold</item>
         <item name="android:textColor">@color/text_primary</item>
         <item name="android:fontFamily">sans-serif-medium</item>
     </style>
     
-    <style name="TextAppearance.TripTip.Headline3" parent="TextAppearance.Material3.HeadlineSmall">
+    <style name="TextAppearance.TripTip.Headline3">
         <item name="android:textSize">@dimen/text_size_xl</item>
         <item name="android:textStyle">bold</item>
         <item name="android:textColor">@color/text_primary</item>
@@ -25,20 +25,20 @@
     </style>
     
     <!-- Body Text -->
-    <style name="TextAppearance.TripTip.Body1" parent="TextAppearance.Material3.BodyLarge">
+    <style name="TextAppearance.TripTip.Body1">
         <item name="android:textSize">@dimen/text_size_large</item>
         <item name="android:textColor">@color/text_primary</item>
         <item name="android:fontFamily">sans-serif</item>
     </style>
     
-    <style name="TextAppearance.TripTip.Body2" parent="TextAppearance.Material3.BodyMedium">
+    <style name="TextAppearance.TripTip.Body2">
         <item name="android:textSize">@dimen/text_size_medium</item>
         <item name="android:textColor">@color/text_secondary</item>
         <item name="android:fontFamily">sans-serif</item>
     </style>
     
     <!-- Labels -->
-    <style name="TextAppearance.TripTip.Label" parent="TextAppearance.Material3.LabelSmall">
+    <style name="TextAppearance.TripTip.Label">
         <item name="android:textSize">@dimen/text_size_small</item>
         <item name="android:textStyle">bold</item>
         <item name="android:textColor">@color/text_primary</item>
@@ -46,15 +46,11 @@
         <item name="android:fontFamily">sans-serif-medium</item>
     </style>
     
-    <!-- Captions -->
-    <style name="TextAppearance.TripTip.Caption" parent="TextAppearance.Material3.BodySmall">
-        <item name="android:textSize">@dimen/text_size_small</item>
-        <item name="android:textColor">@color/text_hint</item>
-        <item name="android:fontFamily">sans-serif</item>
-    </style>
+    <!-- Captions - Note: TextAppearance.TripTip.Caption is also in styles.xml, keeping this one -->
+    <!-- Removed duplicate to avoid conflict -->
     
     <!-- Button Text -->
-    <style name="TextAppearance.TripTip.Button" parent="TextAppearance.Material3.LabelLarge">
+    <style name="TextAppearance.TripTip.Button">
         <item name="android:textSize">@dimen/text_size_medium</item>
         <item name="android:textStyle">bold</item>
         <item name="android:textColor">@color/text_white</item>
@@ -62,7 +58,7 @@
     </style>
     
     <!-- Link Text -->
-    <style name="TextAppearance.TripTip.Link" parent="TextAppearance.Material3.BodyMedium">
+    <style name="TextAppearance.TripTip.Link">
         <item name="android:textSize">@dimen/text_size_medium</item>
         <item name="android:textColor">@color/orange_primary</item>
         <item name="android:fontFamily">sans-serif</item>

@@ -1,9 +1,20 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.kapt)
     alias(libs.plugins.navigation.safe.args)
     alias(libs.plugins.google.services)
+}
+
+// Load local.properties file manually
+val localPropertiesFile = rootProject.file("local.properties")
+val localProperties = Properties()
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.inputStream().use { stream ->
+        localProperties.load(stream)
+    }
 }
 
 android {
@@ -20,9 +31,14 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
-        // API Keys - Read from local.properties or use empty string
+        // API Keys - Read from local.properties (NEVER commit API keys to git!)
         // Note: Open-Meteo doesn't require an API key (free and open source)
-        buildConfigField("String", "OPENTRIPMAP_API_KEY", "\"${project.findProperty("OPENTRIPMAP_API_KEY") ?: ""}\"")
+        // Add keys to local.properties file (which is in .gitignore)
+        val opentripmapApiKey = localProperties.getProperty("OPENTRIPMAP_API_KEY", "")
+        val googlePlacesApiKey = localProperties.getProperty("GOOGLE_PLACES_API_KEY", "")
+        buildConfigField("String", "OPENTRIPMAP_API_KEY", "\"$opentripmapApiKey\"")
+        buildConfigField("String", "GOOGLE_PLACES_API_KEY", "\"$googlePlacesApiKey\"")
+        manifestPlaceholders["GOOGLE_PLACES_API_KEY"] = googlePlacesApiKey
     }
 
     buildTypes {
@@ -76,6 +92,9 @@ dependencies {
     implementation(libs.androidx.recyclerview)
     implementation(libs.androidx.swiperefreshlayout)
     
+    // ViewPager2 for tabs
+    implementation("androidx.viewpager2:viewpager2:1.1.0")
+    
     // Networking
     implementation(libs.retrofit)
     implementation(libs.retrofit.gson)
@@ -89,6 +108,14 @@ dependencies {
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.play.services)
+    
+    // Google Play Services Location & Maps
+    implementation("com.google.android.gms:play-services-location:21.3.0")
+    implementation("com.google.android.gms:play-services-maps:19.0.0")
+    
+    // UI Enhancements
+    implementation(libs.lottie)
+    implementation(libs.shimmer)
     
     // Firebase - Use BOM for version management
     implementation(platform(libs.firebase.bom))

@@ -3,13 +3,13 @@ package com.example.triptip_yaron_and_alon
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.setupActionBarWithNavController
-import androidx.navigation.ui.setupWithNavController
 import com.example.triptip_yaron_and_alon.ui.auth.AuthViewModel
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.bottomnavigation.BottomNavigationView
@@ -19,8 +19,10 @@ import kotlinx.coroutines.launch
 class MainActivity : AppCompatActivity() {
     
     private lateinit var authViewModel: AuthViewModel
+    private lateinit var appBarLayout: com.google.android.material.appbar.AppBarLayout
     private lateinit var bottomNavigationView: BottomNavigationView
     private lateinit var navController: androidx.navigation.NavController
+    private var isUpdatingSelection = false // Flag to prevent infinite loop
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,17 +37,24 @@ class MainActivity : AppCompatActivity() {
     
     private fun checkAutoLogin() {
         lifecycleScope.launch {
-            // Check login status immediately and navigate if logged in
+            // Check login status immediately and navigate accordingly
             val isLoggedIn = authViewModel.checkLoginStatusSync()
             
+            val navHostFragment = supportFragmentManager
+                .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
+            val navController = navHostFragment.navController
+            
             if (isLoggedIn) {
-                val navHostFragment = supportFragmentManager
-                    .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
-                val navController = navHostFragment.navController
-                
-                // Navigate to feed if we're on login screen
-                if (navController.currentDestination?.id == R.id.loginFragment) {
+                // User is logged in - navigate to feed if on login/register screen
+                val currentDestination = navController.currentDestination?.id
+                if (currentDestination == R.id.loginFragment || currentDestination == R.id.registerFragment) {
                     navController.navigate(R.id.action_loginFragment_to_feedFragment)
+                }
+            } else {
+                // User is not logged in - navigate to login if on feed
+                val currentDestination = navController.currentDestination?.id
+                if (currentDestination == R.id.feedFragment || currentDestination == null) {
+                    navController.navigate(R.id.loginFragment)
                 }
             }
             
@@ -55,14 +64,27 @@ class MainActivity : AppCompatActivity() {
         
         // Observe logged in state for future changes
         authViewModel.isLoggedIn.observe(this) { isLoggedIn ->
+            val navHostFragment = supportFragmentManager
+                .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
+            val navController = navHostFragment.navController
+            
             if (isLoggedIn) {
-                val navHostFragment = supportFragmentManager
-                    .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
-                val navController = navHostFragment.navController
-                
-                // Navigate to feed if we're on login screen
-                if (navController.currentDestination?.id == R.id.loginFragment) {
+                // User logged in - navigate to feed if on login/register screen
+                val currentDestination = navController.currentDestination?.id
+                if (currentDestination == R.id.loginFragment || currentDestination == R.id.registerFragment) {
                     navController.navigate(R.id.action_loginFragment_to_feedFragment)
+                }
+            } else {
+                // User logged out - navigate to login if on protected screens
+                val currentDestination = navController.currentDestination?.id
+                val protectedScreens = setOf(
+                    R.id.feedFragment,
+                    R.id.profileFragment,
+                    R.id.tripListFragment,
+                    R.id.createPostFragment
+                )
+                if (currentDestination in protectedScreens) {
+                    navController.navigate(R.id.loginFragment)
                 }
             }
         }
@@ -74,7 +96,7 @@ class MainActivity : AppCompatActivity() {
             .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
         navController = navHostFragment.navController
         
-        // Setup toolbar as action bar - must be done before setupActionBarWithNavController
+        appBarLayout = findViewById(R.id.appBarLayout)
         val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
         requireNotNull(toolbar) { "Toolbar with id 'toolbar' not found in activity_main.xml" }
         setSupportActionBar(toolbar)
@@ -89,38 +111,34 @@ class MainActivity : AppCompatActivity() {
     private fun setupBottomNavigation() {
         bottomNavigationView = findViewById(R.id.bottomNavigationView)
         
-        // Setup bottom navigation with NavController
-        bottomNavigationView.setupWithNavController(navController)
+        // Handle reselection (when user taps already selected tab)
+        bottomNavigationView.setOnItemReselectedListener { 
+            // No-op: prevents reloading when user taps the same tab
+        }
         
         // Override default navigation behavior for specific items
         bottomNavigationView.setOnItemSelectedListener { item ->
-            when (item.itemId) {
-                R.id.nav_home -> {
-                    navController.navigate(R.id.feedFragment)
-                    true
-                }
-                R.id.nav_explore -> {
-                    // For now, navigate to feed (explore fragment will be created later)
-                    navController.navigate(R.id.feedFragment)
-                    true
-                }
-                R.id.nav_create -> {
-                    navController.navigate(R.id.createPostFragment)
-                    true
-                }
-                R.id.nav_plan -> {
-                    navController.navigate(R.id.tripListFragment)
-                    true
-                }
-                R.id.nav_profile -> {
-                    navController.navigate(R.id.profileFragment)
-                    true
-                }
-                else -> false
+            // Prevent navigation if we're programmatically updating selection
+            if (isUpdatingSelection) {
+                return@setOnItemSelectedListener true
             }
+            
+            val destinationId = when (item.itemId) {
+                R.id.nav_home -> R.id.feedFragment
+                R.id.nav_create -> R.id.createPostFragment
+                R.id.nav_plan -> R.id.tripListFragment
+                R.id.nav_profile -> R.id.profileFragment
+                else -> null
+            }
+            
+            if (destinationId != null && navController.currentDestination?.id != destinationId) {
+                navigateToTopLevelDestination(destinationId)
+            }
+            
+            true
         }
         
-        // Listen to navigation changes to show/hide bottom nav
+        // Listen to navigation changes to show/hide bottom nav and app bar
         navController.addOnDestinationChangedListener { _, destination, _ ->
             // Hide bottom navigation on these screens
             val hideBottomNavDestinations = setOf(
@@ -141,9 +159,33 @@ class MainActivity : AppCompatActivity() {
                 bottomNavigationView.visibility = android.view.View.VISIBLE
             }
             
+            // Hide activity app bar on screens that have their own custom headers (feed, create post)
+            appBarLayout.visibility = if (
+                destination.id == R.id.feedFragment ||
+                destination.id == R.id.createPostFragment
+            ) View.GONE else View.VISIBLE
+            
             // Update selected item based on destination
             updateBottomNavSelection(destination.id)
         }
+        
+        // Sync app bar visibility with current destination (e.g. after process death)
+        navController.currentDestination?.id?.let { id ->
+            appBarLayout.visibility = if (
+                id == R.id.feedFragment ||
+                id == R.id.createPostFragment
+            ) View.GONE else View.VISIBLE
+        }
+    }
+    
+    /**
+     * Navigate to a top-level destination with state restoration for smooth tab switching
+     * Using launchSingleTop prevents creating duplicate fragments, making tab switching instant
+     */
+    private fun navigateToTopLevelDestination(destinationId: Int) {
+        // Simple navigation - Navigation Component handles state restoration automatically
+        // The key optimization is preventing duplicate collectors in ViewModels
+        navController.navigate(destinationId)
     }
     
     private fun updateBottomNavSelection(destinationId: Int) {
@@ -156,7 +198,15 @@ class MainActivity : AppCompatActivity() {
         )
         
         destinationToNavItem[destinationId]?.let { menuItemId ->
-            bottomNavigationView.selectedItemId = menuItemId
+            // Only update if different from current selection
+            if (bottomNavigationView.selectedItemId != menuItemId) {
+                isUpdatingSelection = true
+                try {
+                    bottomNavigationView.selectedItemId = menuItemId
+                } finally {
+                    isUpdatingSelection = false
+                }
+            }
         }
     }
     

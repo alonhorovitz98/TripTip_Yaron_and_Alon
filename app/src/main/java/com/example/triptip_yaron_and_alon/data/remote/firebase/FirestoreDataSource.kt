@@ -7,6 +7,7 @@ import com.example.triptip_yaron_and_alon.domain.model.TripItem
 import com.example.triptip_yaron_and_alon.domain.model.User
 import com.example.triptip_yaron_and_alon.util.Constants
 import com.example.triptip_yaron_and_alon.util.Result
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
@@ -147,6 +148,46 @@ class FirestoreDataSource(
                 .delete()
                 .await()
             
+            Result.Success(Unit)
+        } catch (e: Exception) {
+            Result.Error(e, e.message)
+        }
+    }
+    
+    /**
+     * Like a post (add userId to likedBy and increment likes count).
+     * Returns the post's userId (owner) for creating a notification.
+     */
+    suspend fun likePost(postId: String, userId: String): Result<String?> {
+        return try {
+            val docRef = firestore.collection(Constants.COLLECTION_POSTS).document(postId)
+            val doc = docRef.get().await()
+            val ownerId = doc.getString("userId")
+            docRef.update(
+                mapOf(
+                    "likedBy" to FieldValue.arrayUnion(userId),
+                    "likes" to FieldValue.increment(1)
+                )
+            ).await()
+            Result.Success(ownerId)
+        } catch (e: Exception) {
+            Result.Error(e, e.message)
+        }
+    }
+    
+    /**
+     * Unlike a post (remove userId from likedBy and decrement likes count).
+     */
+    suspend fun unlikePost(postId: String, userId: String): Result<Unit> {
+        return try {
+            firestore.collection(Constants.COLLECTION_POSTS).document(postId)
+                .update(
+                    mapOf(
+                        "likedBy" to FieldValue.arrayRemove(userId),
+                        "likes" to FieldValue.increment(-1)
+                    )
+                )
+                .await()
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error(e, e.message)
@@ -427,10 +468,14 @@ class FirestoreDataSource(
      */
     private fun com.google.firebase.firestore.DocumentSnapshot.toTripItem(dayId: String): TripItem? {
         return try {
+            val postId = getString("postId")
+            val placeId = getString("placeId")
+            if (postId == null && placeId == null) return null
             TripItem(
                 id = id,
                 dayId = dayId,
-                postId = getString("postId") ?: return null,
+                postId = postId,
+                placeId = placeId,
                 order = getLong("order")?.toInt() ?: 0,
                 notes = getString("notes")
             )
@@ -504,6 +549,7 @@ class FirestoreDataSource(
      */
     private fun com.google.firebase.firestore.DocumentSnapshot.toPost(): Post? {
         return try {
+            val likedByList = (get("likedBy") as? List<*>)?.mapNotNull { it as? String } ?: emptyList()
             Post(
                 id = id,
                 userId = getString("userId") ?: return null,
@@ -515,7 +561,12 @@ class FirestoreDataSource(
                 location = getString("location"),
                 latitude = getDouble("latitude"),
                 longitude = getDouble("longitude"),
-                placeXid = getString("placeXid")
+                placeXid = getString("placeXid"),
+                priceLevel = getLong("priceLevel")?.toInt()?.coerceIn(0, 4),
+                likes = (getLong("likes") ?: 0).toInt(),
+                likedBy = likedByList,
+                likedByCurrentUser = false, // Set in UI from currentUserId
+                commentCount = (getLong("commentCount") ?: 0).toInt()
             )
         } catch (e: Exception) {
             null
@@ -536,7 +587,11 @@ class FirestoreDataSource(
             "location" to location,
             "latitude" to latitude,
             "longitude" to longitude,
-            "placeXid" to placeXid
+            "placeXid" to placeXid,
+            "priceLevel" to priceLevel,
+            "likes" to likes,
+            "likedBy" to likedBy,
+            "commentCount" to commentCount
         )
     }
     
@@ -572,6 +627,7 @@ class FirestoreDataSource(
         return mapOf(
             "dayId" to dayId,
             "postId" to postId,
+            "placeId" to placeId,
             "order" to order,
             "notes" to notes
         )

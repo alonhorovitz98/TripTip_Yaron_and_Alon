@@ -32,6 +32,9 @@ firebaseBom = "34.8.0"
 # Optional: Hilt for DI
 hilt = "2.50"
 hiltNavigation = "1.2.0"
+# UI Enhancements
+lottie = "6.1.0"
+shimmer = "0.5.0"
 
 [libraries]
 # Core
@@ -78,6 +81,10 @@ firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.r
 firebase-auth-ktx = { group = "com.google.firebase", name = "firebase-auth-ktx" }
 firebase-firestore-ktx = { group = "com.google.firebase", name = "firebase-firestore-ktx" }
 firebase-storage-ktx = { group = "com.google.firebase", name = "firebase-storage-ktx" }
+
+# UI Enhancements
+lottie = { group = "com.airbnb.android", name = "lottie", version.ref = "lottie" }
+shimmer = { group = "com.facebook.shimmer", name = "shimmer", version.ref = "shimmer" }
 
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }

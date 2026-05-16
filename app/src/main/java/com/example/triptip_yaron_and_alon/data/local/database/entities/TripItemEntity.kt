@@ -17,14 +17,16 @@ import androidx.room.PrimaryKey
     ],
     indices = [
         Index(value = ["dayId"]),
-        Index(value = ["postId"])
+        Index(value = ["postId"]),
+        Index(value = ["placeId"])
     ]
 )
 data class TripItemEntity(
     @PrimaryKey
     val id: String,
     val dayId: String,
-    val postId: String,
+    val postId: String? = null, // Optional - for posts
+    val placeId: String? = null, // Optional - for places (OpenTripMap xid)
     val order: Int,
     val notes: String? = null,
     val cachedAt: Long = System.currentTimeMillis()

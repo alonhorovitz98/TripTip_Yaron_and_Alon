@@ -11,10 +11,16 @@ import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.ItemTripDayBinding
 import com.example.triptip_yaron_and_alon.domain.model.TripDay
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class TripDaysAdapter(
-    private val onDayClick: (TripDay) -> Unit
+    private val onDayClick: (TripDay) -> Unit,
+    private val onDayDateClick: ((TripDay) -> Unit)? = null
 ) : ListAdapter<TripDay, TripDaysAdapter.DayViewHolder>(DayDiffCallback()) {
+
+    private val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
     
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DayViewHolder {
         val binding = ItemTripDayBinding.inflate(
@@ -22,7 +28,7 @@ class TripDaysAdapter(
             parent,
             false
         )
-        return DayViewHolder(binding, onDayClick)
+        return DayViewHolder(binding, onDayClick, onDayDateClick, dateFormat)
     }
     
     override fun onBindViewHolder(holder: DayViewHolder, position: Int) {
@@ -31,12 +37,18 @@ class TripDaysAdapter(
     
     class DayViewHolder(
         private val binding: ItemTripDayBinding,
-        private val onDayClick: (TripDay) -> Unit
+        private val onDayClick: (TripDay) -> Unit,
+        private val onDayDateClick: ((TripDay) -> Unit)?,
+        private val dateFormat: SimpleDateFormat
     ) : RecyclerView.ViewHolder(binding.root) {
         
         fun bind(day: TripDay) {
             binding.apply {
                 tvDayNumber.text = "Day ${day.dayNumber}"
+                tvDayDate.text = day.date?.let { dateFormat.format(Date(it)) } ?: "Tap to set date"
+                tvDayDate.setOnClickListener {
+                    onDayDateClick?.invoke(day)
+                }
                 
                 // Set activity count
                 val count = day.items.size

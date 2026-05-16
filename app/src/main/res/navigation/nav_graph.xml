@@ -32,9 +32,9 @@
     <!-- Main Flow -->
     <fragment
         android:id="@+id/feedFragment"
-        android:name="com.example.triptip_yaron_and_alon.ui.feed.FeedFragment"
+        android:name="com.example.triptip_yaron_and_alon.ui.feed.SocialFeedFragment"
         android:label="Feed"
-        tools:layout="@layout/fragment_feed">
+        tools:layout="@layout/fragment_social_feed">
         <action
             android:id="@+id/action_feedFragment_to_postDetailsFragment"
             app:destination="@id/postDetailsFragment">
@@ -51,6 +51,37 @@
         <action
             android:id="@+id/action_feedFragment_to_tripListFragment"
             app:destination="@id/tripListFragment" />
+        <action
+            android:id="@+id/action_feedFragment_to_googlePlaceDetailsFragment"
+            app:destination="@id/googlePlaceDetailsFragment">
+            <argument
+                android:name="placeId"
+                app:argType="string" />
+        </action>
+        <action
+            android:id="@+id/action_feedFragment_to_notificationsFragment"
+            app:destination="@id/notificationsFragment" />
+        <action
+            android:id="@+id/action_feedFragment_to_postsMapFragment"
+            app:destination="@id/postsMapFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/notificationsFragment"
+        android:name="com.example.triptip_yaron_and_alon.ui.notifications.NotificationsFragment"
+        android:label="Notifications"
+        tools:layout="@layout/fragment_notifications">
+        <action
+            android:id="@+id/action_notificationsFragment_to_feedFragment"
+            app:destination="@id/feedFragment"
+            app:popUpTo="@id/feedFragment" />
+        <action
+            android:id="@+id/action_notificationsFragment_to_postDetailsFragment"
+            app:destination="@id/postDetailsFragment">
+            <argument
+                android:name="postId"
+                app:argType="string" />
+        </action>
     </fragment>
 
     <fragment
@@ -84,6 +115,16 @@
             app:destination="@id/feedFragment"
             app:popUpTo="@id/feedFragment"
             app:popUpToInclusive="true" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/googlePlaceDetailsFragment"
+        android:name="com.example.triptip_yaron_and_alon.ui.place.GooglePlaceDetailsFragment"
+        android:label="Place Details"
+        tools:layout="@layout/fragment_google_place_details">
+        <argument
+            android:name="placeId"
+            app:argType="string" />
     </fragment>
 
     <fragment
@@ -133,8 +174,11 @@
             app:destination="@id/tripBuilderFragment">
             <argument
                 android:name="tripId"
+                app:argType="string" />
+            <argument
+                android:name="postId"
                 app:argType="string"
-                android:defaultValue="new" />
+                app:nullable="true" />
         </action>
         <action
             android:id="@+id/action_tripListFragment_to_tripDetailsFragment"
@@ -231,6 +275,20 @@
             app:destination="@id/loginFragment"
             app:popUpTo="@id/loginFragment"
             app:popUpToInclusive="true" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/postsMapFragment"
+        android:name="com.example.triptip_yaron_and_alon.ui.feed.PostsMapFragment"
+        android:label="Posts Map"
+        tools:layout="@layout/fragment_posts_map">
+        <action
+            android:id="@+id/action_postsMapFragment_to_postDetailsFragment"
+            app:destination="@id/postDetailsFragment">
+            <argument
+                android:name="postId"
+                app:argType="string" />
+        </action>
     </fragment>
 
     <fragment

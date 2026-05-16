@@ -4,16 +4,23 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
 import coil.load
+import coil.transform.CircleCropTransformation
 import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.FragmentPostDetailsBinding
-import com.example.triptip_yaron_and_alon.ui.adapter.NearbyPlacesAdapter
-import com.example.triptip_yaron_and_alon.util.Result
+import com.example.triptip_yaron_and_alon.ui.adapter.NearbyPlaceAdapter
+import com.example.triptip_yaron_and_alon.ui.post.CommentAdapter
+import com.example.triptip_yaron_and_alon.ui.util.WrapContentLinearLayoutManager
+import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.MapView
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.snackbar.Snackbar
 import java.io.File
 import java.text.SimpleDateFormat
@@ -27,7 +34,10 @@ class PostDetailsFragment : Fragment() {
     
     private lateinit var viewModel: PostViewModel
     private val args: PostDetailsFragmentArgs by navArgs()
-    private lateinit var placesAdapter: NearbyPlacesAdapter
+    private lateinit var placesAdapter: NearbyPlaceAdapter
+    private lateinit var commentAdapter: CommentAdapter
+    private var hasLoadedWeatherAndPlaces = false
+    private var hasShownPostNotFound = false
     
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -44,26 +54,98 @@ class PostDetailsFragment : Fragment() {
         viewModel = ViewModelProvider(this)[PostViewModel::class.java]
         
         setupRecyclerView()
+        setupCommentsList()
         setupListeners()
         observeViewModel()
         
-        // Load post
+        // Load post and comments
         viewModel.loadPost(args.postId)
+        viewModel.loadComments(args.postId)
+        
+        binding.mapView.onCreate(savedInstanceState)
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        binding.mapView.onResume()
+    }
+    
+    override fun onPause() {
+        binding.mapView.onPause()
+        super.onPause()
+    }
+    
+    override fun onDestroyView() {
+        hasLoadedWeatherAndPlaces = false
+        binding.mapView.onDestroy()
+        super.onDestroyView()
+        _binding = null
+    }
+    
+    override fun onLowMemory() {
+        super.onLowMemory()
+        _binding?.mapView?.onLowMemory()
+    }
+    
+    private val commentImagePicker = registerForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            val text = binding.etComment.text?.toString()?.trim() ?: ""
+            viewModel.addComment(args.postId, text, it)
+            binding.etComment.text?.clear()
+        }
     }
     
     private fun setupRecyclerView() {
-        placesAdapter = NearbyPlacesAdapter { place ->
-            // Handle place click - could navigate to place details or show info
-            Snackbar.make(binding.root, "Place: ${place.name}", Snackbar.LENGTH_SHORT).show()
-        }
+        placesAdapter = NearbyPlaceAdapter(
+            onAddToTripClick = { place ->
+                // Navigate to TripDayEditorFragment with place info
+                // For now, show a message - can be enhanced to navigate to trip builder
+                Snackbar.make(
+                    binding.root,
+                    "Tap 'Add to Trip' to add this place to your trip",
+                    Snackbar.LENGTH_LONG
+                ).show()
+            },
+            onPlaceClick = { place ->
+                // Navigate to place details if needed
+                // For now, do nothing
+            }
+        )
         
         binding.rvNearbyPlaces.apply {
             adapter = placesAdapter
-            layoutManager = LinearLayoutManager(context)
+            layoutManager = androidx.recyclerview.widget.LinearLayoutManager(context)
+        }
+    }
+    
+    private fun setupCommentsList() {
+        commentAdapter = CommentAdapter()
+        binding.rvComments.apply {
+            setHasFixedSize(false)
+            adapter = commentAdapter
+            layoutManager = WrapContentLinearLayoutManager(requireContext())
         }
     }
     
     private fun setupListeners() {
+        // Back is handled by toolbar (NavController). Share removed (not implemented).
+        binding.btnLike.setOnClickListener { viewModel.toggleLike(args.postId) }
+        
+        // Send comment
+        binding.btnSendComment.setOnClickListener {
+            val text = binding.etComment.text?.toString()?.trim() ?: ""
+            viewModel.addComment(args.postId, text, null)
+            binding.etComment.text?.clear()
+        }
+        
+        // Add photo to comment (camera icon)
+        binding.btnCommentPhoto.setOnClickListener {
+            commentImagePicker.launch("image/*")
+        }
+        
+        // Add to Trip button
         binding.btnAddToTrip.setOnClickListener {
             // Navigate to TripBuilderFragment with postId
             val action = PostDetailsFragmentDirections
@@ -78,21 +160,26 @@ class PostDetailsFragment : Fragment() {
     private fun observeViewModel() {
         viewModel.post.observe(viewLifecycleOwner) { post ->
             if (post != null) {
+                hasShownPostNotFound = false
                 displayPost(post)
                 
-                // Load weather and places if coordinates are available
-                if (post.latitude != null && post.longitude != null) {
-                    // Use coordinates directly
-                    viewModel.loadWeather(post.latitude, post.longitude)
-                    viewModel.loadNearbyPlaces(post.latitude, post.longitude)
-                } else if (post.location != null && post.location.isNotBlank()) {
-                    // Geocode location name to get coordinates, then load weather/places
-                    viewModel.loadWeatherForLocation(post.location)
-                    viewModel.loadNearbyPlacesForLocation(post.location)
+                // Load weather and places once per screen open
+                if (!hasLoadedWeatherAndPlaces) {
+                    if (post.latitude != null && post.longitude != null) {
+                        viewModel.loadWeather(post.latitude, post.longitude)
+                        viewModel.loadNearbyPlaces(post.latitude, post.longitude)
+                        hasLoadedWeatherAndPlaces = true
+                    } else if (post.location != null && post.location.isNotBlank()) {
+                        viewModel.loadWeatherForLocation(post.location)
+                        viewModel.loadNearbyPlacesForLocation(post.location)
+                        hasLoadedWeatherAndPlaces = true
+                    }
                 }
             } else {
-                binding.tvError.text = "Post not found"
-                binding.tvError.visibility = View.VISIBLE
+                if (viewModel.isLoading.value != true && !hasShownPostNotFound) {
+                    hasShownPostNotFound = true
+                    Snackbar.make(binding.root, "Post not found", Snackbar.LENGTH_LONG).show()
+                }
             }
         }
         
@@ -110,90 +197,149 @@ class PostDetailsFragment : Fragment() {
         viewModel.weatherError.observe(viewLifecycleOwner) { error ->
             if (error != null) {
                 // Don't show error for weather - just keep it hidden
-                binding.cardWeather.visibility = View.GONE
+                binding.weatherCard.visibility = View.GONE
             }
         }
         
         // Observe nearby places
         viewModel.nearbyPlaces.observe(viewLifecycleOwner) { places ->
             if (places.isNotEmpty()) {
-                displayPlaces(places)
+                binding.tvNearbyPlacesLabel.visibility = View.VISIBLE
+                binding.rvNearbyPlaces.visibility = View.VISIBLE
+                placesAdapter.submitList(places)
             } else {
-                binding.tvNearbyPlacesTitle.visibility = View.GONE
+                binding.tvNearbyPlacesLabel.visibility = View.GONE
                 binding.rvNearbyPlaces.visibility = View.GONE
             }
         }
         
         viewModel.placesLoading.observe(viewLifecycleOwner) { isLoading ->
-            // Places loading is handled in displayPlaces
+            // Show loading state if needed
         }
         
         viewModel.placesError.observe(viewLifecycleOwner) { error ->
+            // Don't show error for places - just keep it hidden
             if (error != null) {
-                // Don't show error for places - just keep them hidden
-                binding.tvNearbyPlacesTitle.visibility = View.GONE
+                binding.tvNearbyPlacesLabel.visibility = View.GONE
                 binding.rvNearbyPlaces.visibility = View.GONE
             }
         }
         
+        viewModel.isLikedByCurrentUser.observe(viewLifecycleOwner) { liked ->
+            binding.btnLike.setIconResource(
+                if (liked) com.example.triptip_yaron_and_alon.R.drawable.ic_heart_filled
+                else com.example.triptip_yaron_and_alon.R.drawable.ic_heart
+            )
+        }
+        
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
-            binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+            // Progress bar not in new layout - show loading via button state
             binding.btnAddToTrip.isEnabled = !isLoading
+            binding.btnAddToTrip.text = if (isLoading) "Loading..." else "Add to Trip"
         }
         
         viewModel.error.observe(viewLifecycleOwner) { error ->
             if (error != null) {
-                binding.tvError.text = error
-                binding.tvError.visibility = View.VISIBLE
                 Snackbar.make(binding.root, error, Snackbar.LENGTH_LONG).show()
-            } else {
-                binding.tvError.visibility = View.GONE
+            }
+        }
+        
+        viewModel.comments.observe(viewLifecycleOwner) { comments ->
+            commentAdapter.submitList(comments) {
+                // Remeasure so wrap_content RecyclerView updates height after list changes
+                binding.rvComments.requestLayout()
             }
         }
     }
     
     private fun displayPost(post: com.example.triptip_yaron_and_alon.domain.model.Post) {
+        // Title (use post text or location as title)
+        binding.tvTitle.text = post.text.take(50).ifEmpty { post.location ?: "Post" }
+        
+        // Tag chip (can be based on location or category)
+        binding.chipTag.text = post.location?.uppercase() ?: "TRAVEL"
+        
         // User info
         binding.tvUsername.text = post.userName.ifEmpty { "User ${post.userId.take(8)}" }
-        binding.tvTimestamp.text = formatTimestamp(post.createdAt)
         
-        // User profile image
-        if (post.userImageUrl != null) {
+        // Location + time
+        val locationTime = buildString {
+            if (post.location != null) {
+                append(post.location)
+            }
+            append(" • ${formatTimestamp(post.createdAt)}")
+        }
+        binding.tvLocationTime.text = locationTime
+        
+        // User profile photo (circle) in the small icon
+        if (!post.userImageUrl.isNullOrBlank()) {
             binding.ivUserProfile.load(post.userImageUrl) {
-                placeholder(R.drawable.ic_launcher_foreground)
-                error(R.drawable.ic_launcher_foreground)
+                placeholder(R.drawable.ic_profile_frame)
+                error(R.drawable.ic_profile_frame)
+                transformations(CircleCropTransformation())
             }
         } else {
-            binding.ivUserProfile.setImageResource(R.drawable.ic_launcher_foreground)
+            binding.ivUserProfile.setImageResource(R.drawable.ic_profile_frame)
         }
         
-        // Post text
+        // Post text (description)
         binding.tvPostText.text = post.text
         
-        // Post image - Coil handles file errors gracefully
-        if (post.imageUrl != null) {
+        // Post image - Coil handles file errors gracefully (URL or file path)
+        if (!post.imageUrl.isNullOrBlank()) {
             binding.ivPostImage.visibility = View.VISIBLE
-            try {
-                val imageFile = java.io.File(post.imageUrl)
-                binding.ivPostImage.load(imageFile) {
+            if (post.imageUrl.startsWith("http", ignoreCase = true)) {
+                binding.ivPostImage.load(post.imageUrl) {
                     placeholder(R.drawable.ic_launcher_background)
                     error(R.drawable.ic_launcher_background)
-                    // Coil will handle missing files automatically
                 }
-            } catch (e: Exception) {
-                // If file path is invalid, hide image view
-                binding.ivPostImage.visibility = View.GONE
+            } else {
+                try {
+                    binding.ivPostImage.load(File(post.imageUrl)) {
+                        placeholder(R.drawable.ic_launcher_background)
+                        error(R.drawable.ic_launcher_background)
+                    }
+                } catch (e: Exception) {
+                    binding.ivPostImage.visibility = View.GONE
+                }
             }
         } else {
             binding.ivPostImage.visibility = View.GONE
         }
         
-        // Location
-        if (post.location != null) {
-            binding.tvLocation.text = "📍 ${post.location}"
-            binding.tvLocation.visibility = View.VISIBLE
+        // Price level (Google 0-4): only show when we have real data
+        val level = post.priceLevel?.coerceIn(0, 4)
+        if (level != null) {
+            binding.pricingSection.visibility = View.VISIBLE
+            binding.tvPrice.text = when (level) {
+                0 -> "Free"
+                1 -> "$"
+                2 -> "$$"
+                3 -> "$$$"
+                4 -> "$$$$"
+                else -> ""
+            }
         } else {
-            binding.tvLocation.visibility = View.GONE
+            binding.pricingSection.visibility = View.GONE
+        }
+        
+        // Map: show real Google map only when we have coordinates
+        val lat = post.latitude
+        val lng = post.longitude
+        if (lat != null && lng != null) {
+            binding.tvLocationLabel.visibility = View.VISIBLE
+            binding.mapCard.visibility = View.VISIBLE
+            binding.mapView.getMapAsync { googleMap ->
+                googleMap.uiSettings.isMapToolbarEnabled = false
+                val pos = LatLng(lat, lng)
+                googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(pos, 14f))
+                googleMap.addMarker(
+                    MarkerOptions().position(pos).title(post.location ?: "Location")
+                )
+            }
+        } else {
+            binding.tvLocationLabel.visibility = View.GONE
+            binding.mapCard.visibility = View.GONE
         }
         
         // Weather and Places will be loaded if coordinates are available
@@ -202,30 +348,19 @@ class PostDetailsFragment : Fragment() {
     
     private fun displayWeather(weather: com.example.triptip_yaron_and_alon.domain.model.WeatherInfo) {
         binding.apply {
-            cardWeather.visibility = View.VISIBLE
+            weatherCard.visibility = View.VISIBLE
             
-            // Weather description
-            tvWeatherDescription.text = weather.description
+            // Temperature (large, bold)
+            tvTemperature.text = "${weather.temperature}°C"
             
-            // Weather details
-            val details = buildString {
-                append("${weather.temperature}°C")
-                append(" • ${weather.humidity}% humidity")
-                append(" • ${weather.windSpeed} km/h wind")
-            }
-            tvWeatherDetails.text = details
+            // Condition with icon
+            tvCondition.text = weather.description.replaceFirstChar { it.uppercase() }
             
-            // Weather icon (using emoji or placeholder)
-            // Note: Weather icon URL would need to be loaded with Coil if available
-            ivWeatherIcon.setImageResource(R.drawable.ic_launcher_foreground)
-        }
-    }
-    
-    private fun displayPlaces(places: List<com.example.triptip_yaron_and_alon.domain.model.PlaceInfo>) {
-        binding.apply {
-            tvNearbyPlacesTitle.visibility = View.VISIBLE
-            rvNearbyPlaces.visibility = View.VISIBLE
-            placesAdapter.submitList(places)
+            // Wind speed
+            tvWind.text = "${weather.windSpeed}km/h"
+            
+            // Humidity
+            tvHumidity.text = "${weather.humidity}%"
         }
     }
     
@@ -245,8 +380,4 @@ class PostDetailsFragment : Fragment() {
         }
     }
     
-    override fun onDestroyView() {
-        super.onDestroyView()
-        _binding = null
-    }
 }

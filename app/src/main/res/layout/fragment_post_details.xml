@@ -25,15 +25,15 @@
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintHeight_percent="0.4">
 
-                <!-- Post Image -->
+                <!-- Post Image - fitCenter so full photo is visible on screen -->
                 <ImageView
                     android:id="@+id/ivPostImage"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:scaleType="centerCrop"
+                    android:scaleType="fitCenter"
                     android:background="@color/background_light" />
 
-                <!-- Overlay Icons -->
+                <!-- Overlay: centered Like (heart) only; back is in toolbar, share removed -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -44,46 +44,11 @@
                     android:paddingTop="16dp"
                     android:paddingBottom="16dp">
 
-                    <!-- Back Arrow (circular white button) -->
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnBack"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
-                        android:insetTop="0dp"
-                        android:insetBottom="0dp"
-                        android:insetLeft="0dp"
-                        android:insetRight="0dp"
-                        android:backgroundTint="@color/background_white"
-                        app:icon="@drawable/ic_arrow_back"
-                        app:iconTint="@color/text_primary"
-                        app:cornerRadius="20dp"
-                        app:iconSize="24dp"
-                        style="@style/Widget.Material3.Button" />
-
-                    <!-- Spacer -->
                     <View
                         android:layout_width="0dp"
                         android:layout_height="0dp"
                         android:layout_weight="1" />
 
-                    <!-- Share Icon (circular white button) -->
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnShare"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
-                        android:insetTop="0dp"
-                        android:insetBottom="0dp"
-                        android:insetLeft="0dp"
-                        android:insetRight="0dp"
-                        android:backgroundTint="@color/background_white"
-                        app:icon="@drawable/ic_paper_airplane"
-                        app:iconTint="@color/text_primary"
-                        app:cornerRadius="20dp"
-                        app:iconSize="24dp"
-                        android:layout_marginEnd="8dp"
-                        style="@style/Widget.Material3.Button" />
-
-                    <!-- Heart Icon (circular white button) -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnLike"
                         android:layout_width="40dp"
@@ -99,6 +64,11 @@
                         app:iconSize="24dp"
                         style="@style/Widget.Material3.Button" />
 
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:layout_weight="1" />
+
                 </LinearLayout>
             </FrameLayout>
 
@@ -108,10 +78,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="-32dp"
-                app:cardCornerRadiusTopStart="@dimen/corner_radius_xl"
-                app:cardCornerRadiusTopEnd="@dimen/corner_radius_xl"
-                app:cardCornerRadiusBottomStart="0dp"
-                app:cardCornerRadiusBottomEnd="0dp"
+                app:cardCornerRadius="@dimen/corner_radius_xl"
                 app:cardElevation="@dimen/card_elevation_medium"
                 app:cardBackgroundColor="@color/background_white"
                 app:layout_constraintTop_toBottomOf="@id/imageSection"
@@ -214,6 +181,76 @@
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintEnd_toEndOf="parent" />
 
+                    <!-- Comments Section -->
+                    <TextView
+                        android:id="@+id/tvCommentsLabel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:text="Comments"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text_primary"
+                        android:layout_marginTop="20dp"
+                        app:layout_constraintTop_toBottomOf="@id/tvPostText"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent" />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rvComments"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:nestedScrollingEnabled="false"
+                        android:minHeight="80dp"
+                        android:layout_marginTop="8dp"
+                        app:layout_constraintTop_toBottomOf="@id/tvCommentsLabel"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent" />
+
+                    <LinearLayout
+                        android:id="@+id/commentInputRow"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginTop="8dp"
+                        app:layout_constraintTop_toBottomOf="@id/rvComments"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent">
+
+                        <ImageButton
+                            android:id="@+id/btnCommentPhoto"
+                            android:layout_width="44dp"
+                            android:layout_height="44dp"
+                            android:src="@drawable/ic_camera"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="@string/add_photo"
+                            android:tint="@color/orange_primary"
+                            android:padding="8dp" />
+
+                        <EditText
+                            android:id="@+id/etComment"
+                            android:layout_width="0dp"
+                            android:layout_height="44dp"
+                            android:layout_weight="1"
+                            android:layout_marginStart="8dp"
+                            android:hint="Add a comment..."
+                            android:inputType="textCapSentences|textMultiLine"
+                            android:maxLines="3"
+                            android:background="@drawable/white_rounded_square"
+                            android:paddingStart="12dp"
+                            android:paddingEnd="12dp"
+                            android:textSize="14sp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnSendComment"
+                            android:layout_width="wrap_content"
+                            android:layout_height="44dp"
+                            android:text="Send"
+                            android:layout_marginStart="8dp"
+                            app:cornerRadius="8dp"
+                            style="@style/Widget.Material3.Button" />
+                    </LinearLayout>
+
                     <!-- CURRENT WEATHER Section -->
                     <TextView
                         android:id="@+id/tvWeatherLabel"
@@ -226,7 +263,7 @@
                         android:textAllCaps="true"
                         android:letterSpacing="0.1"
                         android:layout_marginTop="24dp"
-                        app:layout_constraintTop_toBottomOf="@id/tvPostText"
+                        app:layout_constraintTop_toBottomOf="@id/commentInputRow"
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintEnd_toEndOf="parent" />
 
@@ -360,35 +397,47 @@
                     <com.google.android.material.card.MaterialCardView
                         android:id="@+id/mapCard"
                         android:layout_width="0dp"
-                        android:layout_height="150dp"
+                        android:layout_height="180dp"
                         android:layout_marginTop="8dp"
                         app:cardCornerRadius="@dimen/corner_radius_medium"
                         app:cardElevation="0dp"
-                        app:cardBackgroundColor="@color/turquoise_dark"
                         app:layout_constraintTop_toBottomOf="@id/tvLocationLabel"
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintEnd_toEndOf="parent">
 
-                        <FrameLayout
+                        <com.google.android.gms.maps.MapView
+                            android:id="@+id/mapView"
                             android:layout_width="match_parent"
-                            android:layout_height="match_parent">
-
-                            <!-- Map placeholder (can be replaced with actual map) -->
-                            <View
-                                android:layout_width="match_parent"
-                                android:layout_height="match_parent"
-                                android:background="@color/turquoise_dark" />
-
-                            <ImageView
-                                android:layout_width="32dp"
-                                android:layout_height="32dp"
-                                android:src="@drawable/ic_location_pin"
-                                android:tint="@color/orange_primary"
-                                android:layout_gravity="center" />
-                        </FrameLayout>
+                            android:layout_height="match_parent" />
                     </com.google.android.material.card.MaterialCardView>
 
-                    <!-- Pricing Section -->
+                    <!-- Nearby Places Section -->
+                    <TextView
+                        android:id="@+id/tvNearbyPlacesLabel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:text="NEARBY PLACES"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text_secondary"
+                        android:textAllCaps="true"
+                        android:letterSpacing="0.1"
+                        android:layout_marginTop="24dp"
+                        app:layout_constraintTop_toBottomOf="@id/mapCard"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent" />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rvNearbyPlaces"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:nestedScrollingEnabled="false"
+                        app:layout_constraintTop_toBottomOf="@id/tvNearbyPlacesLabel"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent" />
+
+                    <!-- Pricing Section (Google price_level 0-4, only when available) -->
                     <LinearLayout
                         android:id="@+id/pricingSection"
                         android:layout_width="0dp"
@@ -396,75 +445,26 @@
                         android:orientation="horizontal"
                         android:gravity="center_vertical"
                         android:layout_marginTop="24dp"
-                        app:layout_constraintTop_toBottomOf="@id/mapCard"
+                        android:visibility="gone"
+                        app:layout_constraintTop_toBottomOf="@id/tvNearbyPlacesLabel"
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintEnd_toEndOf="parent">
 
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Starting from"
-                                android:textSize="12sp"
-                                android:textColor="@color/text_secondary" />
-
-                            <TextView
-                                android:id="@+id/tvPrice"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="$1,250 /pp"
-                                android:textSize="24sp"
-                                android:textStyle="bold"
-                                android:textColor="@color/text_primary"
-                                android:layout_marginTop="4dp" />
-                        </LinearLayout>
-
-                        <!-- Avatar Cluster (placeholder) -->
-                        <FrameLayout
+                        <TextView
                             android:layout_width="wrap_content"
-                            android:layout_height="wrap_content">
+                            android:layout_height="wrap_content"
+                            android:text="Price level"
+                            android:textSize="12sp"
+                            android:textColor="@color/text_secondary" />
 
-                            <View
-                                android:layout_width="40dp"
-                                android:layout_height="40dp"
-                                android:background="@drawable/orange_circle"
-                                android:layout_marginStart="0dp" />
-
-                            <View
-                                android:layout_width="40dp"
-                                android:layout_height="40dp"
-                                android:background="@drawable/orange_circle"
-                                android:layout_marginStart="20dp" />
-
-                            <View
-                                android:layout_width="40dp"
-                                android:layout_height="40dp"
-                                android:background="@drawable/orange_circle"
-                                android:layout_marginStart="40dp" />
-
-                            <com.google.android.material.card.MaterialCardView
-                                android:layout_width="40dp"
-                                android:layout_height="40dp"
-                                android:layout_marginStart="60dp"
-                                app:cardCornerRadius="20dp"
-                                app:cardBackgroundColor="@color/orange_primary"
-                                app:cardElevation="0dp">
-
-                                <TextView
-                                    android:layout_width="match_parent"
-                                    android:layout_height="match_parent"
-                                    android:text="+12"
-                                    android:textSize="12sp"
-                                    android:textColor="@color/text_white"
-                                    android:textStyle="bold"
-                                    android:gravity="center" />
-                            </com.google.android.material.card.MaterialCardView>
-                        </FrameLayout>
+                        <TextView
+                            android:id="@+id/tvPrice"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textSize="20sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/text_primary"
+                            android:layout_marginStart="8dp" />
                     </LinearLayout>
 
                     <!-- Add to Trip Button -->
