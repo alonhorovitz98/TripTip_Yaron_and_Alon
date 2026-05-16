@@ -456,8 +456,17 @@ class CreatePostFragment : Fragment() {
                     findNavController().navigate(R.id.action_createPostFragment_to_feedFragment)
                 }
                 is Result.Error -> {
-                    val errorMessage = result.message ?: "An error occurred"
-                    Snackbar.make(binding.root, errorMessage, Snackbar.LENGTH_LONG).show()
+                    val raw = result.message ?: "An error occurred"
+                    val friendly = when {
+                        raw.contains("PERMISSION_DENIED", ignoreCase = true) ||
+                        raw.contains("insufficient permissions", ignoreCase = true) ->
+                            "Couldn't publish post — Firestore rules are blocking the write. Ask the project owner to deploy the latest firestore.rules."
+                        raw.contains("UNAVAILABLE", ignoreCase = true) ||
+                        raw.contains("network", ignoreCase = true) ->
+                            "Couldn't publish — network problem. Check your connection and try again."
+                        else -> raw
+                    }
+                    Snackbar.make(binding.root, friendly, Snackbar.LENGTH_LONG).show()
                 }
                 else -> {}
             }

@@ -32,17 +32,10 @@ class NotificationsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        viewModel = ViewModelProvider(this)[NotificationsViewModel::class.java]
-        setupToolbar()
+        viewModel = ViewModelProvider(requireActivity())[NotificationsViewModel::class.java]
         setupRecyclerView()
         observeViewModel()
         viewModel.loadNotifications()
-    }
-
-    private fun setupToolbar() {
-        binding.toolbar.setNavigationOnClickListener {
-            findNavController().navigate(com.example.triptip_yaron_and_alon.R.id.action_notificationsFragment_to_feedFragment)
-        }
     }
 
     private fun setupRecyclerView() {
@@ -79,7 +72,7 @@ class NotificationsFragment : Fragment() {
         val loading = viewModel.isLoading.value == true
         val hasItems = notifications.isNotEmpty()
 
-        binding.tvEmpty.visibility = if (!loading && !hasItems) View.VISIBLE else View.GONE
+        binding.emptyState.visibility = if (!loading && !hasItems) View.VISIBLE else View.GONE
         binding.rvNotifications.visibility = if (hasItems) View.VISIBLE else View.GONE
     }
 

@@ -66,10 +66,14 @@ class ProfileFragment : Fragment() {
                 if (user.profileImageUrl != null) {
                     try {
                         val imageFile = java.io.File(user.profileImageUrl)
-                        binding.ivProfileImage.load(imageFile) {
-                            placeholder(R.drawable.ic_launcher_foreground)
-                            error(R.drawable.ic_launcher_foreground)
-                            // Coil will handle missing files automatically
+                        if (imageFile.exists()) {
+                            binding.ivProfileImage.load(imageFile) {
+                                placeholder(R.drawable.ic_launcher_foreground)
+                                error(R.drawable.ic_launcher_foreground)
+                                // Cache-bust on mtime so a freshly-saved picture appears
+                                memoryCacheKey("${imageFile.absolutePath}_${imageFile.lastModified()}")
+                                crossfade(true)
+                            }
                         }
                     } catch (e: Exception) {
                         // If file path is invalid, Coil will show error placeholder
