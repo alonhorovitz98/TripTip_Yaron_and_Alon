@@ -124,7 +124,7 @@ class NearbyPlacesFragment : Fragment() {
     private fun observeViewModel() {
         // Observe places
         viewModel.places.observe(viewLifecycleOwner) { places ->
-            if (places.isEmpty() && !viewModel.isLoading.value!!) {
+            if (places.isEmpty() && viewModel.isLoading.value != true) {
                 // Show empty state only if not loading
                 binding.emptyState.root.visibility = View.VISIBLE
                 binding.rvPlaces.visibility = View.GONE

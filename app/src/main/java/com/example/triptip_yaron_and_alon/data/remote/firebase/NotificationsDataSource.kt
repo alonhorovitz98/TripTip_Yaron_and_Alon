@@ -48,10 +48,10 @@ class NotificationsDataSource(
     fun getNotificationsForUser(userId: String): Flow<List<NotificationDoc>> = callbackFlow {
         val listener = collection
             .whereEqualTo("userId", userId)
-            .orderBy("createdAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    // Don't close the flow on error — just emit empty list so the app doesn't crash
+                    trySend(emptyList())
                     return@addSnapshotListener
                 }
                 val list = snapshot?.documents?.mapNotNull { doc ->
@@ -71,7 +71,8 @@ class NotificationsDataSource(
                         null
                     }
                 } ?: emptyList()
-                trySend(list)
+                // Sort by createdAt descending client-side (avoids composite index requirement)
+                trySend(list.sortedByDescending { it.createdAt })
             }
         awaitClose { listener.remove() }
     }

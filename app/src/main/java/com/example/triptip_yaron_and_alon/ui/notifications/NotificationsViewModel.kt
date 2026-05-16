@@ -36,9 +36,15 @@ class NotificationsViewModel(application: Application) : AndroidViewModel(applic
                 _isLoading.value = false
                 return@launch
             }
-            notificationsDataSource.getNotificationsForUser(userId).collect { list ->
-                _notifications.value = list
-                _unreadCount.value = list.count { !it.isRead }
+            try {
+                notificationsDataSource.getNotificationsForUser(userId).collect { list ->
+                    _notifications.value = list
+                    _unreadCount.value = list.count { !it.isRead }
+                    _isLoading.value = false
+                }
+            } catch (e: Exception) {
+                _notifications.value = emptyList()
+                _unreadCount.value = 0
                 _isLoading.value = false
             }
         }
