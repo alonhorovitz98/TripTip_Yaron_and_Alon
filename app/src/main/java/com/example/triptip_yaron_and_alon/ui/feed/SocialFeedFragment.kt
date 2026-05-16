@@ -76,14 +76,15 @@ class SocialFeedFragment : Fragment() {
     }
     
     private fun setupListeners() {
-        // Notifications button
         binding.btnNotifications.setOnClickListener {
-            findNavController().navigate(com.example.triptip_yaron_and_alon.R.id.action_feedFragment_to_notificationsFragment)
+            findNavController().navigate(R.id.action_feedFragment_to_notificationsFragment)
         }
-        
-        // FAB - Add new post
+
+        binding.btnShowMap.setOnClickListener {
+            findNavController().navigate(R.id.action_feedFragment_to_postsMapFragment)
+        }
+
         binding.fabCreatePost.setOnClickListener {
-            // Navigate to create post
             findNavController().navigate(R.id.action_feedFragment_to_createPostFragment)
         }
     }

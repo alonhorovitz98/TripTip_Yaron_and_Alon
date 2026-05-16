@@ -8,6 +8,7 @@ import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
+import com.example.triptip_yaron_and_alon.BuildConfig
 import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.FragmentLoginBinding
 import com.example.triptip_yaron_and_alon.util.Result
@@ -42,6 +43,14 @@ class LoginFragment : Fragment() {
     }
     
     private fun setupListeners() {
+        if (BuildConfig.DEBUG) {
+            binding.btnLogin.setOnLongClickListener {
+                binding.etEmail.setText("test@triptip.com")
+                binding.etPassword.setText("Test1234!")
+                true
+            }
+        }
+
         // Back button
         binding.btnBack.setOnClickListener {
             requireActivity().onBackPressedDispatcher.onBackPressed()
