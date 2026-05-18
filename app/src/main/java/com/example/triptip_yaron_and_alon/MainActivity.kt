@@ -166,10 +166,12 @@ class MainActivity : AppCompatActivity() {
                 bottomNavigationView.visibility = android.view.View.VISIBLE
             }
             
-            // Hide activity app bar on screens that have their own custom headers (feed, create post)
+            // Hide activity app bar on screens that have their own custom headers (feed, create post,
+            // notifications — fragment provides its own toolbar to avoid double app bars)
             appBarLayout.visibility = if (
                 destination.id == R.id.feedFragment ||
-                destination.id == R.id.createPostFragment
+                destination.id == R.id.createPostFragment ||
+                destination.id == R.id.notificationsFragment
             ) View.GONE else View.VISIBLE
             
             // Update selected item based on destination
@@ -180,7 +182,8 @@ class MainActivity : AppCompatActivity() {
         navController.currentDestination?.id?.let { id ->
             appBarLayout.visibility = if (
                 id == R.id.feedFragment ||
-                id == R.id.createPostFragment
+                id == R.id.createPostFragment ||
+                id == R.id.notificationsFragment
             ) View.GONE else View.VISIBLE
         }
     }

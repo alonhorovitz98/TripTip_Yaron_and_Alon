@@ -2,6 +2,7 @@ package com.example.triptip_yaron_and_alon.ui.post
 
 import android.app.Application
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -144,14 +145,19 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
                     val ownerId = r.data
                     if (ownerId != null && ownerId != uid) {
                         val label = user.name
-                        notificationsDataSource.createNotification(
-                            recipientUserId = ownerId,
-                            type = NotificationsDataSource.TYPE_LIKE,
-                            actorUserId = uid,
-                            actorUserName = label,
-                            targetPostId = postId,
-                            message = "$label liked your post"
-                        )
+                        when (
+                            notificationsDataSource.createNotification(
+                                recipientUserId = ownerId,
+                                type = NotificationsDataSource.TYPE_LIKE,
+                                actorUserId = uid,
+                                actorUserName = label,
+                                targetPostId = postId,
+                                message = "$label liked your post"
+                            )
+                        ) {
+                            is Result.Error -> Log.w("PostViewModel", "like notification: ${it.message}")
+                            else -> { }
+                        }
                     }
                 }
                 is Result.Error -> _error.value = r.message
@@ -214,14 +220,19 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
                         val ownerId = _post.value?.userId
                         if (ownerId != null && ownerId != user.id) {
                             val label = user.name
-                            notificationsDataSource.createNotification(
-                                recipientUserId = ownerId,
-                                type = NotificationsDataSource.TYPE_COMMENT,
-                                actorUserId = user.id,
-                                actorUserName = label,
-                                targetPostId = postId,
-                                message = "$label commented on your post"
-                            )
+                            when (
+                                notificationsDataSource.createNotification(
+                                    recipientUserId = ownerId,
+                                    type = NotificationsDataSource.TYPE_COMMENT,
+                                    actorUserId = user.id,
+                                    actorUserName = label,
+                                    targetPostId = postId,
+                                    message = "$label commented on your post"
+                                )
+                            ) {
+                                is Result.Error -> Log.w("PostViewModel", "comment notification: ${it.message}")
+                                else -> { }
+                            }
                         }
                     }
                     is Result.Error -> _error.value = result.message

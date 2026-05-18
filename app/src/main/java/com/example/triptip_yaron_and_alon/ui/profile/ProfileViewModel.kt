@@ -11,9 +11,11 @@ import com.example.triptip_yaron_and_alon.data.remote.firebase.FirebaseAuthDataS
 import com.example.triptip_yaron_and_alon.data.remote.firebase.FirebaseStorageDataSource
 import com.example.triptip_yaron_and_alon.data.remote.firebase.FirestoreDataSource
 import com.example.triptip_yaron_and_alon.data.repository.AuthRepository
+import com.example.triptip_yaron_and_alon.data.repository.PostRepository
 import com.example.triptip_yaron_and_alon.data.repository.UserRepository
 import com.example.triptip_yaron_and_alon.domain.model.User
 import com.example.triptip_yaron_and_alon.util.Result
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
@@ -38,6 +40,13 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
             firestoreDataSource,
             storageDataSource,
             database.userDao()
+        )
+    }
+    private val postRepository by lazy {
+        PostRepository(
+            database.postDao(),
+            firestoreDataSource,
+            storageDataSource
         )
     }
     
@@ -100,6 +109,15 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                         _isLoading.value = false
                         _updateResult.value = result
                         _user.value = result.data
+                        viewModelScope.launch(Dispatchers.IO) {
+                            runCatching {
+                                postRepository.propagateAuthorDisplayToPublishedContent(
+                                    result.data.id,
+                                    result.data.name,
+                                    result.data.profileImageUrl
+                                )
+                            }
+                        }
                     }
                     is Result.Error -> {
                         _isLoading.value = false

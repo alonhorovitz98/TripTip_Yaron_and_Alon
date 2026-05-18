@@ -1,6 +1,7 @@
 package com.example.triptip_yaron_and_alon.ui.feed
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -133,14 +134,19 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
                     val ownerId = r.data
                     if (ownerId != null && ownerId != userId) {
                         val label = user.name
-                        notificationsDataSource.createNotification(
-                            recipientUserId = ownerId,
-                            type = NotificationsDataSource.TYPE_LIKE,
-                            actorUserId = userId,
-                            actorUserName = label,
-                            targetPostId = postId,
-                            message = "$label liked your post"
-                        )
+                        when (
+                            notificationsDataSource.createNotification(
+                                recipientUserId = ownerId,
+                                type = NotificationsDataSource.TYPE_LIKE,
+                                actorUserId = userId,
+                                actorUserName = label,
+                                targetPostId = postId,
+                                message = "$label liked your post"
+                            )
+                        ) {
+                            is Result.Error -> Log.w("FeedViewModel", "like notification: ${it.message}")
+                            else -> { }
+                        }
                     }
                 }
                 is com.example.triptip_yaron_and_alon.util.Result.Error -> _error.value = r.message

@@ -49,20 +49,17 @@
                         android:layout_height="0dp"
                         android:layout_weight="1" />
 
-                    <com.google.android.material.button.MaterialButton
+                    <ImageButton
                         android:id="@+id/btnLike"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
-                        android:insetTop="0dp"
-                        android:insetBottom="0dp"
-                        android:insetLeft="0dp"
-                        android:insetRight="0dp"
-                        android:backgroundTint="@color/background_white"
-                        app:icon="@drawable/ic_heart"
-                        app:iconTint="@color/orange_primary"
-                        app:cornerRadius="20dp"
-                        app:iconSize="24dp"
-                        style="@style/Widget.Material3.Button" />
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:background="@drawable/circle_background_white"
+                        android:contentDescription="@string/like"
+                        android:foreground="?attr/selectableItemBackgroundBorderless"
+                        android:padding="12dp"
+                        android:scaleType="centerInside"
+                        android:src="@drawable/ic_heart"
+                        app:tint="@color/orange_primary" />
 
                     <View
                         android:layout_width="0dp"
