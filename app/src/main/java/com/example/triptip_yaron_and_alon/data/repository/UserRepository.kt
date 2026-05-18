@@ -17,8 +17,10 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.withContext
 
 /**
@@ -35,35 +37,32 @@ class UserRepository(
     
     /**
      * Get current user, merging Firestore `users/{id}` with Auth on every update.
+     * Uses [flatMapLatest] so sign-out (auth emits null) cancels the Firestore listener and
+     * does not block on a nested infinite [collect].
      */
     fun getCurrentUser(): Flow<User?> = userDao.getAllUsers()
         .map { users -> users.firstOrNull()?.let { UserMapper.toDomain(it) } }
         .catch { emit(null) }
         .flowOn(Dispatchers.IO)
         .flatMapLatest {
-            flow {
-                try {
-                    authDataSource.getCurrentUser()
-                        .catch { }
-                        .collect { firebaseUser ->
-                            if (firebaseUser == null) {
-                                emit(null)
-                                return@collect
+            authDataSource.getCurrentUser()
+                .catch { }
+                .flatMapLatest { firebaseUser ->
+                    if (firebaseUser == null) {
+                        flowOf(null)
+                    } else {
+                        firestoreDataSource.getUser(firebaseUser.id)
+                            .catch { emit(null) }
+                            .map { firestoreUser ->
+                                UserProfileMerge.merge(firestoreUser, firebaseUser)
                             }
-                            firestoreDataSource.getUser(firebaseUser.id)
-                                .catch { emit(null) }
-                                .collect { firestoreUser ->
-                                    val merged = UserProfileMerge.merge(firestoreUser, firebaseUser)
-                                    withContext(Dispatchers.IO) {
-                                        userDao.insert(UserMapper.toEntity(merged))
-                                    }
-                                    emit(merged)
+                            .onEach { merged ->
+                                withContext(Dispatchers.IO) {
+                                    userDao.insert(UserMapper.toEntity(merged))
                                 }
-                        }
-                } catch (_: Exception) {
-                    emit(null)
+                            }
+                    }
                 }
-            }
         }
 
     /**

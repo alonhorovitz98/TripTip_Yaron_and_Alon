@@ -381,7 +381,8 @@ class CreatePostFragment : Fragment() {
             selectedGooglePlaceId = null
             
             // Resolve coordinates to human-readable place name.
-            lifecycleScope.launch {
+            // scope tied to view lifecycle — avoids NPE if fragment view is destroyed while geolocation/geocoder runs
+            viewLifecycleOwner.lifecycleScope.launch {
                 val locationText = withContext(Dispatchers.IO) {
                     try {
                         val geocoder = Geocoder(requireContext(), Locale.getDefault())
@@ -395,12 +396,13 @@ class CreatePostFragment : Fragment() {
                         "Current location"
                     }
                 }
+                val b = _binding ?: return@launch
                 isProgrammaticLocationUpdate = true
-                binding.etLocation.setText(locationText)
+                b.etLocation.setText(locationText)
                 isProgrammaticLocationUpdate = false
-                binding.etLocation.clearFocus()
-                binding.scrollView.post {
-                    binding.scrollView.scrollTo(0, 0)
+                b.etLocation.clearFocus()
+                b.scrollView.post {
+                    _binding?.scrollView?.scrollTo(0, 0)
                 }
             }
         }.addOnFailureListener {

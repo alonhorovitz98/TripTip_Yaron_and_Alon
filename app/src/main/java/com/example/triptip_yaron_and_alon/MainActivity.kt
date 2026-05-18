@@ -13,8 +13,9 @@ import androidx.navigation.ui.setupActionBarWithNavController
 import com.example.triptip_yaron_and_alon.ui.auth.AuthViewModel
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.bottomnavigation.BottomNavigationView
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity() {
     
@@ -37,8 +38,10 @@ class MainActivity : AppCompatActivity() {
     
     private fun checkAutoLogin() {
         lifecycleScope.launch {
-            // Check login status immediately and navigate accordingly
-            val isLoggedIn = authViewModel.checkLoginStatusSync()
+            // Avoid Room + repository lazy init on the main thread (causes jank / black first frame).
+            val isLoggedIn = withContext(Dispatchers.IO) {
+                authViewModel.checkLoginStatusSync()
+            }
             
             val navHostFragment = supportFragmentManager
                 .findFragmentById(R.id.nav_host_fragment) as NavHostFragment

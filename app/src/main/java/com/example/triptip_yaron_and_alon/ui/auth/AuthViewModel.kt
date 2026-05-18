@@ -13,8 +13,10 @@ import com.example.triptip_yaron_and_alon.data.repository.AuthRepository
 import com.example.triptip_yaron_and_alon.domain.model.User
 import com.example.triptip_yaron_and_alon.util.Result
 import android.net.Uri
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -75,12 +77,15 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     }
     
     /**
-     * Check if user is currently logged in (one-time check, returns immediately)
+     * Check if user is currently logged in (one-time check, returns immediately).
+     * Safe to call from a background dispatcher (e.g. IO for Room init); LiveData is updated on Main.
      */
     suspend fun checkLoginStatusSync(): Boolean {
-        return authRepository.isUserLoggedIn().first().also { loggedIn ->
+        val loggedIn = authRepository.isUserLoggedIn().first()
+        withContext(Dispatchers.Main.immediate) {
             _isLoggedIn.value = loggedIn
         }
+        return loggedIn
     }
     
     /**

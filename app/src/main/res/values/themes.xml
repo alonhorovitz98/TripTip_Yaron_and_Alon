@@ -2,6 +2,8 @@
 <resources>
     <!-- Base application theme using Material Design 3 -->
     <style name="Theme.TripTip_Yaron_and_Alon" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- First frame before content draws (avoids black flash on activity start) -->
+        <item name="android:windowBackground">@color/background_beige</item>
         <!-- Primary Colors -->
         <item name="colorPrimary">@color/orange_primary</item>
         <item name="colorPrimaryVariant">@color/orange_dark</item>

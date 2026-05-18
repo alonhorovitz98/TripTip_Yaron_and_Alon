@@ -322,7 +322,13 @@ class PostDetailsFragment : Fragment() {
             binding.tvLocationLabel.visibility = View.VISIBLE
             binding.mapCard.visibility = View.VISIBLE
             binding.mapView.getMapAsync { googleMap ->
-                googleMap.uiSettings.isMapToolbarEnabled = false
+                googleMap.uiSettings.apply {
+                    isMapToolbarEnabled = false
+                    isZoomControlsEnabled = false
+                    isCompassEnabled = false
+                    isMyLocationButtonEnabled = false
+                    isIndoorLevelPickerEnabled = false
+                }
                 val pos = LatLng(lat, lng)
                 googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(pos, 14f))
                 googleMap.addMarker(
