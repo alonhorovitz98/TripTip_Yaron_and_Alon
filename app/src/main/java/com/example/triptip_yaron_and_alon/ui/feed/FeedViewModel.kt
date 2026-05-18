@@ -127,26 +127,30 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun likePost(postId: String) {
         viewModelScope.launch {
-            val user = userRepository.getCurrentUserSnapshot() ?: return@launch
-            val userId = user.id
+            val user = authDataSource.getCurrentUser().firstOrNull()
+            val userId = user?.id ?: _currentUserId.value ?: run {
+                Log.w(TAG, "likePost($postId): no authenticated user, aborting")
+                return@launch
+            }
             when (val r = postRepository.likePost(postId, userId)) {
                 is com.example.triptip_yaron_and_alon.util.Result.Success -> {
                     val ownerId = r.data
-                    if (ownerId != null && ownerId != userId) {
-                        val label = user.name
-                        when (
-                            notificationsDataSource.createNotification(
-                                recipientUserId = ownerId,
-                                type = NotificationsDataSource.TYPE_LIKE,
-                                actorUserId = userId,
-                                actorUserName = label,
-                                targetPostId = postId,
-                                message = "$label liked your post"
-                            )
-                        ) {
-                            is Result.Error -> Log.w("FeedViewModel", "like notification: ${it.message}")
-                            else -> { }
+                    Log.d(TAG, "likePost($postId) OK: ownerId=$ownerId, actor=$userId")
+                    if (ownerId != null && ownerId != userId && user != null) {
+                        val actorName = user.name.ifBlank { user.email.takeWhile { it != '@' }.ifBlank { "Someone" } }
+                        val notifResult = notificationsDataSource.createNotification(
+                            recipientUserId = ownerId,
+                            type = NotificationsDataSource.TYPE_LIKE,
+                            actorUserId = userId,
+                            actorUserName = actorName,
+                            targetPostId = postId,
+                            message = "$actorName liked your post"
+                        )
+                        if (notifResult is com.example.triptip_yaron_and_alon.util.Result.Error) {
+                            Log.w(TAG, "createNotification failed for owner=$ownerId post=$postId: ${notifResult.message}")
                         }
+                    } else {
+                        Log.d(TAG, "likePost($postId): skipping notification (ownerId=$ownerId, actor=$userId, userNull=${user == null})")
                     }
                 }
                 is com.example.triptip_yaron_and_alon.util.Result.Error -> _error.value = r.message
@@ -216,5 +220,9 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun clearError() {
         _error.value = null
+    }
+
+    companion object {
+        private const val TAG = "LikeNotif"
     }
 }

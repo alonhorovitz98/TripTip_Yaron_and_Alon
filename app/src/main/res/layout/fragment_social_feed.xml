@@ -60,21 +60,31 @@
                 android:layout_height="0dp"
                 android:layout_weight="1" />
 
-            <!-- Notifications (button + unread badge) -->
+            <!-- Map button -->
+            <ImageButton
+                android:id="@+id/btnShowMap"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_map"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Show map"
+                android:tint="@color/text_primary"
+                android:layout_marginEnd="4dp" />
+
+            <!-- Notifications with unread badge -->
             <FrameLayout
                 android:layout_width="40dp"
                 android:layout_height="40dp">
 
                 <ImageButton
                     android:id="@+id/btnNotifications"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
                     android:src="@drawable/ic_notifications"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="@string/notifications"
                     android:tint="@color/text_primary" />
 
-                <!-- Unread badge — hidden when count is 0 -->
                 <TextView
                     android:id="@+id/tvNotificationBadge"
                     android:layout_width="18dp"
@@ -82,11 +92,11 @@
                     android:layout_gravity="top|end"
                     android:layout_marginTop="2dp"
                     android:layout_marginEnd="2dp"
-                    android:background="@drawable/badge_background"
-                    android:gravity="center"
+                    android:background="@drawable/notification_badge_bg"
                     android:textColor="@color/text_white"
-                    android:textSize="10sp"
+                    android:textSize="9sp"
                     android:textStyle="bold"
+                    android:gravity="center"
                     android:visibility="gone" />
 
             </FrameLayout>

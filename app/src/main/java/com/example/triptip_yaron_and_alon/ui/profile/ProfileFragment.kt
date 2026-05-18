@@ -60,7 +60,24 @@ class ProfileFragment : Fragment() {
             if (user != null) {
                 binding.tvUsername.text = user.name.ifBlank { user.email.substringBefore("@") }
                 binding.tvEmail.text = user.email
-                binding.ivProfileImage.loadProfileImage(user.profileImageUrl)
+                
+                // Profile image - Coil handles file errors gracefully
+                if (user.profileImageUrl != null) {
+                    try {
+                        val imageFile = java.io.File(user.profileImageUrl)
+                        if (imageFile.exists()) {
+                            binding.ivProfileImage.load(imageFile) {
+                                placeholder(R.drawable.ic_launcher_foreground)
+                                error(R.drawable.ic_launcher_foreground)
+                                // Cache-bust on mtime so a freshly-saved picture appears
+                                memoryCacheKey("${imageFile.absolutePath}_${imageFile.lastModified()}")
+                                crossfade(true)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        // If file path is invalid, Coil will show error placeholder
+                    }
+                }
             }
         }
         

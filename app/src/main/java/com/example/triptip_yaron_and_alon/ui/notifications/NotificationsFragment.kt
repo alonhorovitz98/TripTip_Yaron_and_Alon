@@ -29,20 +29,12 @@ class NotificationsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        // Activity scope so SocialFeedFragment shares the same instance and badge stays in sync
         viewModel = ViewModelProvider(requireActivity())[NotificationsViewModel::class.java]
-        setupToolbar()
         setupRecyclerView()
         observeViewModel()
         viewModel.loadNotifications()
         // Mark everything read as soon as the screen is opened
         viewModel.markAllAsRead()
-    }
-
-    private fun setupToolbar() {
-        binding.toolbar.setNavigationOnClickListener {
-            findNavController().navigate(com.example.triptip_yaron_and_alon.R.id.action_notificationsFragment_to_feedFragment)
-        }
     }
 
     private fun setupRecyclerView() {
@@ -79,7 +71,7 @@ class NotificationsFragment : Fragment() {
         val loading = viewModel.isLoading.value == true
         val hasItems = notifications.isNotEmpty()
 
-        binding.tvEmpty.visibility = if (!loading && !hasItems) View.VISIBLE else View.GONE
+        binding.emptyState.visibility = if (!loading && !hasItems) View.VISIBLE else View.GONE
         binding.rvNotifications.visibility = if (hasItems) View.VISIBLE else View.GONE
     }
 

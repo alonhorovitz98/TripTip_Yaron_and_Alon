@@ -19,10 +19,12 @@ import com.google.android.material.tabs.TabLayoutMediator
  * Social Feed Fragment with three tabs: Trending, Following, and Nearby
  */
 class SocialFeedFragment : Fragment() {
-    
+
     private var _binding: FragmentSocialFeedBinding? = null
     private val binding get() = _binding!!
-    
+
+    private lateinit var notificationsViewModel: NotificationsViewModel
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -31,26 +33,24 @@ class SocialFeedFragment : Fragment() {
         _binding = FragmentSocialFeedBinding.inflate(inflater, container, false)
         return binding.root
     }
-    
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        setupViewPager()
-        setupListeners()
-        setupNotificationBadge()
-    }
-
-    private fun setupNotificationBadge() {
-        val notificationsViewModel =
-            ViewModelProvider(requireActivity())[NotificationsViewModel::class.java]
-
+        notificationsViewModel = ViewModelProvider(requireActivity())[NotificationsViewModel::class.java]
         notificationsViewModel.loadNotifications()
 
+        setupViewPager()
+        setupListeners()
+        observeUnreadCount()
+    }
+
+    private fun observeUnreadCount() {
         notificationsViewModel.unreadCount.observe(viewLifecycleOwner) { count ->
             val badge = binding.tvNotificationBadge
             if (count > 0) {
                 badge.visibility = View.VISIBLE
-                badge.text = if (count > 99) "99+" else count.toString()
+                badge.text = if (count > 9) "9+" else count.toString()
             } else {
                 badge.visibility = View.GONE
             }
@@ -76,14 +76,15 @@ class SocialFeedFragment : Fragment() {
     }
     
     private fun setupListeners() {
-        // Notifications button
         binding.btnNotifications.setOnClickListener {
-            findNavController().navigate(com.example.triptip_yaron_and_alon.R.id.action_feedFragment_to_notificationsFragment)
+            findNavController().navigate(R.id.action_feedFragment_to_notificationsFragment)
         }
-        
-        // FAB - Add new post
+
+        binding.btnShowMap.setOnClickListener {
+            findNavController().navigate(R.id.action_feedFragment_to_postsMapFragment)
+        }
+
         binding.fabCreatePost.setOnClickListener {
-            // Navigate to create post
             findNavController().navigate(R.id.action_feedFragment_to_createPostFragment)
         }
     }

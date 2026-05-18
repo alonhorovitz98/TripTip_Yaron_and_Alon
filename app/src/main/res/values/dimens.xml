@@ -71,4 +71,7 @@
     
     <!-- Photo Indicators -->
     <dimen name="photo_indicator_size">8dp</dimen>
+
+    <!-- Map -->
+    <dimen name="map_bounds_padding">100dp</dimen>
 </resources>
