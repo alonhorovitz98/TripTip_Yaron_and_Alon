@@ -83,6 +83,7 @@
             app:boxCornerRadiusBottomEnd="@dimen/corner_radius_medium"
             app:boxBackgroundMode="filled"
             app:boxBackgroundColor="@color/background_white"
+            app:placeholderText="e.g. wanderlust@example.com"
             style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
 
             <com.google.android.material.textfield.TextInputEditText
@@ -94,8 +95,7 @@
                 android:paddingStart="16dp"
                 android:paddingEnd="16dp"
                 android:paddingTop="16dp"
-                android:paddingBottom="16dp"
-                android:hint="e.g. wanderlust@example.com" />
+                android:paddingBottom="16dp" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Password Input with Forgot Link -->

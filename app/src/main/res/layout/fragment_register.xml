@@ -155,6 +155,7 @@
             app:boxCornerRadiusBottomEnd="@dimen/corner_radius_medium"
             app:boxBackgroundMode="filled"
             app:boxBackgroundColor="@color/background_white"
+            app:placeholderText="What should we call you?"
             style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
 
             <com.google.android.material.textfield.TextInputEditText
@@ -166,8 +167,7 @@
                 android:paddingStart="16dp"
                 android:paddingEnd="16dp"
                 android:paddingTop="16dp"
-                android:paddingBottom="16dp"
-                android:hint="What should we call you?" />
+                android:paddingBottom="16dp" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Email Input -->
@@ -185,6 +185,7 @@
             app:boxCornerRadiusBottomEnd="@dimen/corner_radius_medium"
             app:boxBackgroundMode="filled"
             app:boxBackgroundColor="@color/background_white"
+            app:placeholderText="example@email.com"
             style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
 
             <com.google.android.material.textfield.TextInputEditText
@@ -196,8 +197,7 @@
                 android:paddingStart="16dp"
                 android:paddingEnd="16dp"
                 android:paddingTop="16dp"
-                android:paddingBottom="16dp"
-                android:hint="example@email.com" />
+                android:paddingBottom="16dp" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Password Input -->
@@ -216,6 +216,7 @@
             app:boxBackgroundMode="filled"
             app:boxBackgroundColor="@color/background_white"
             app:endIconMode="password_toggle"
+            app:placeholderText="Min. 8 characters"
             style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
 
             <com.google.android.material.textfield.TextInputEditText
@@ -227,8 +228,7 @@
                 android:paddingStart="16dp"
                 android:paddingEnd="16dp"
                 android:paddingTop="16dp"
-                android:paddingBottom="16dp"
-                android:hint="Min. 8 characters" />
+                android:paddingBottom="16dp" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Confirm Password Input -->

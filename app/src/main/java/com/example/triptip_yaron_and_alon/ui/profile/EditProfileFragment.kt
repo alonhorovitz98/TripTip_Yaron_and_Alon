@@ -1,13 +1,10 @@
 package com.example.triptip_yaron_and_alon.ui.profile
 
 import android.Manifest
-import android.app.Activity
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
-import android.provider.MediaStore
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -31,27 +28,45 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 
 class EditProfileFragment : Fragment() {
-    
+
     private var _binding: FragmentEditProfileBinding? = null
     private val binding get() = _binding!!
-    
+
     private lateinit var viewModel: ProfileViewModel
     private var selectedImageUri: Uri? = null
     private var cameraImageUri: Uri? = null
-    /** Avoid resetting username/email on every [user] emission while the user is typing. */
-    private var profileFormPrefilled = false
-    
-    // Image picker launcher — modern Photo Picker (Android 13+), auto-fallback on older devices
-    private val imagePickerLauncher = registerForActivityResult(
+
+    // Prevents the user observer from clobbering user input every time the Firestore
+    // listener re-emits. We only prefill the form on the first emission per view.
+    private var hasPrefilledForm = false
+
+    // Modern photo picker — no runtime permission needed, works reliably on emulators
+    private val photoPickerLauncher = registerForActivityResult(
         ActivityResultContracts.PickVisualMedia()
     ) { uri ->
-        uri?.let {
-            selectedImageUri = it
-            displayImagePreview(it)
+        if (uri != null) {
+            // Eagerly copy the picked content URI into a temp file we fully control.
+            // This avoids URI-permission edge cases and ensures the preview + later
+            // upload both work even if the picker URI is revoked.
+            val localUri = copyUriToCache(uri) ?: uri
+            selectedImageUri = localUri
+            displayImagePreview(localUri)
         }
     }
-    
-    // Camera launcher
+
+    private fun copyUriToCache(uri: Uri): Uri? = try {
+        val outFile = File(
+            requireContext().cacheDir,
+            "picked_${System.currentTimeMillis()}.jpg"
+        )
+        requireContext().contentResolver.openInputStream(uri)?.use { input ->
+            outFile.outputStream().use { output -> input.copyTo(output) }
+        }
+        if (outFile.length() > 0) Uri.fromFile(outFile) else null
+    } catch (_: Exception) {
+        null
+    }
+
     private val cameraLauncher = registerForActivityResult(
         ActivityResultContracts.TakePicture()
     ) { success ->
@@ -60,8 +75,7 @@ class EditProfileFragment : Fragment() {
             displayImagePreview(cameraImageUri!!)
         }
     }
-    
-    // Camera permission launcher
+
     private val cameraPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -75,7 +89,7 @@ class EditProfileFragment : Fragment() {
             ).show()
         }
     }
-    
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -84,57 +98,47 @@ class EditProfileFragment : Fragment() {
         _binding = FragmentEditProfileBinding.inflate(inflater, container, false)
         return binding.root
     }
-    
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        
+
         viewModel = ViewModelProvider(this)[ProfileViewModel::class.java]
-        
+        hasPrefilledForm = false
+
         setupListeners()
         observeViewModel()
-        
-        // Load current profile
+
         viewModel.loadProfile()
     }
-    
+
     private fun setupListeners() {
         binding.btnChangeImage.setOnClickListener {
             showImageSourceDialog()
         }
-        
         binding.btnSaveProfile.setOnClickListener {
             saveProfile()
         }
     }
-    
-    /**
-     * Show bottom sheet dialog with options: Take Photo, Choose from Gallery, Cancel
-     */
+
     private fun showImageSourceDialog() {
         val options = arrayOf(
             getString(R.string.take_photo),
             getString(R.string.choose_from_gallery),
             getString(R.string.cancel)
         )
-        
         MaterialAlertDialogBuilder(requireContext())
             .setTitle(getString(R.string.select_photo_source))
             .setItems(options) { _, which ->
                 when (which) {
-                    0 -> openCamera() // Take Photo
-                    1 -> openImagePicker() // Choose from Gallery
-                    2 -> {} // Cancel - do nothing
+                    0 -> openCamera()
+                    1 -> openImagePicker()
+                    2 -> {}
                 }
             }
             .show()
     }
-    
-    /**
-     * Open camera to take a photo.
-     * Checks for camera permission first.
-     */
+
     private fun openCamera() {
-        // Check camera permission
         if (ContextCompat.checkSelfPermission(
                 requireContext(),
                 Manifest.permission.CAMERA
@@ -143,11 +147,8 @@ class EditProfileFragment : Fragment() {
             cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
             return
         }
-        
-        // Create a file for the photo
         val photoFile = createImageFile()
         photoFile?.let { file ->
-            // Get URI using FileProvider
             cameraImageUri = FileProvider.getUriForFile(
                 requireContext(),
                 "${requireContext().packageName}.fileprovider",
@@ -155,17 +156,10 @@ class EditProfileFragment : Fragment() {
             )
             cameraLauncher.launch(cameraImageUri)
         } ?: run {
-            Snackbar.make(
-                binding.root,
-                "Failed to create image file",
-                Snackbar.LENGTH_SHORT
-            ).show()
+            Snackbar.make(binding.root, "Failed to create image file", Snackbar.LENGTH_SHORT).show()
         }
     }
-    
-    /**
-     * Create a temporary image file for camera capture.
-     */
+
     private fun createImageFile(): File? {
         return try {
             val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
@@ -176,65 +170,71 @@ class EditProfileFragment : Fragment() {
             null
         }
     }
-    
-    /**
-     * Open gallery to pick an existing image.
-     */
+
     private fun openImagePicker() {
-        imagePickerLauncher.launch(
+        photoPickerLauncher.launch(
             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
         )
     }
-    
+
     private fun displayImagePreview(uri: Uri) {
         binding.ivProfileImage.load(uri) {
             placeholder(R.drawable.ic_launcher_foreground)
             error(R.drawable.ic_launcher_foreground)
+            size(240)
+            crossfade(true)
+            memoryCachePolicy(coil.request.CachePolicy.DISABLED)
+            diskCachePolicy(coil.request.CachePolicy.DISABLED)
         }
     }
-    
+
     private fun saveProfile() {
         val name = binding.etUsername.text.toString().trim()
-        
         if (name.isBlank()) {
             Snackbar.make(binding.root, "Please enter a username", Snackbar.LENGTH_SHORT).show()
             return
         }
-        
-        // Update profile with name and optional image
-        viewModel.updateProfile(
-            name = name,
-            imageUri = selectedImageUri
-        )
+        viewModel.updateProfile(name = name, imageUri = selectedImageUri)
     }
-    
+
     private fun observeViewModel() {
-        // Observe user data
         viewModel.user.observe(viewLifecycleOwner) { user ->
-            if (user == null) return@observe
-            if (!profileFormPrefilled) {
+            // Only prefill the form ONCE — otherwise repeated Firestore emissions
+            // clobber user input and make the screen feel frozen.
+            if (user != null && !hasPrefilledForm) {
                 binding.etUsername.setText(user.name)
                 binding.etEmail.setText(user.email)
-                profileFormPrefilled = true
+                hasPrefilledForm = true
+
                 if (user.profileImageUrl != null && selectedImageUri == null) {
-                    binding.ivProfileImage.loadProfileImage(user.profileImageUrl)
+                    try {
+                        val imageFile = File(user.profileImageUrl)
+                        if (imageFile.exists()) {
+                            binding.ivProfileImage.load(imageFile) {
+                                placeholder(R.drawable.ic_launcher_foreground)
+                                error(R.drawable.ic_launcher_foreground)
+                                size(240)
+                                crossfade(true)
+                                // Key includes mtime so updates always re-decode
+                                memoryCacheKey("${imageFile.absolutePath}_${imageFile.lastModified()}")
+                            }
+                        }
+                    } catch (_: Exception) { /* Coil shows error placeholder */ }
                 }
             }
         }
-        
-        // Observe loading
+
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
             binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+            // Only disable Save while saving. Never disable inputs or Change Image —
+            // that's what made the screen feel locked.
             binding.btnSaveProfile.isEnabled = !isLoading
-            binding.btnChangeImage.isEnabled = !isLoading
         }
-        
-        // Observe update result
+
         viewModel.updateResult.observe(viewLifecycleOwner) { result ->
             when (result) {
                 is Result.Success -> {
                     Snackbar.make(binding.root, "Profile updated successfully!", Snackbar.LENGTH_SHORT).show()
-                    // Navigate back to profile
                     findNavController().navigate(R.id.action_editProfileFragment_to_profileFragment)
                 }
                 is Result.Error -> {
@@ -244,8 +244,7 @@ class EditProfileFragment : Fragment() {
                 else -> {}
             }
         }
-        
-        // Observe error
+
         viewModel.error.observe(viewLifecycleOwner) { error ->
             if (error != null) {
                 binding.tvError.text = error
@@ -255,7 +254,7 @@ class EditProfileFragment : Fragment() {
             }
         }
     }
-    
+
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null

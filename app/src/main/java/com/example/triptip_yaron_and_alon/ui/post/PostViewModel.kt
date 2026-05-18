@@ -2,6 +2,7 @@ package com.example.triptip_yaron_and_alon.ui.post
 
 import android.app.Application
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -137,21 +138,30 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
     
     fun likePost(postId: String) {
         viewModelScope.launch {
-            val user = userRepository.getCurrentUserSnapshot() ?: return@launch
-            val uid = user.id
+            val user = authDataSource.getCurrentUser().firstOrNull()
+            val uid = user?.id ?: currentUserId ?: run {
+                Log.w(TAG, "likePost($postId): no authenticated user, aborting")
+                return@launch
+            }
             when (val r = postRepository.likePost(postId, uid)) {
                 is Result.Success -> {
                     val ownerId = r.data
-                    if (ownerId != null && ownerId != uid) {
-                        val label = user.name
-                        notificationsDataSource.createNotification(
+                    Log.d(TAG, "likePost($postId) OK: ownerId=$ownerId, actor=$uid")
+                    if (ownerId != null && ownerId != uid && user != null) {
+                        val actorName = user.name.ifBlank { user.email.takeWhile { it != '@' }.ifBlank { "Someone" } }
+                        val notifResult = notificationsDataSource.createNotification(
                             recipientUserId = ownerId,
                             type = NotificationsDataSource.TYPE_LIKE,
                             actorUserId = uid,
-                            actorUserName = label,
+                            actorUserName = actorName,
                             targetPostId = postId,
-                            message = "$label liked your post"
+                            message = "$actorName liked your post"
                         )
+                        if (notifResult is Result.Error) {
+                            Log.w(TAG, "createNotification failed for owner=$ownerId post=$postId: ${notifResult.message}")
+                        }
+                    } else {
+                        Log.d(TAG, "likePost($postId): skipping notification (ownerId=$ownerId, actor=$uid, userNull=${user == null})")
                     }
                 }
                 is Result.Error -> _error.value = r.message
@@ -541,5 +551,9 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
                 _placesError.value = "Failed to geocode location: ${e.message}"
             }
         }
+    }
+
+    companion object {
+        private const val TAG = "LikeNotif"
     }
 }

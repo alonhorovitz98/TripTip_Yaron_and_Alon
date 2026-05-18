@@ -206,10 +206,16 @@ class FirebaseAuthDataSource(
      * Extension function to convert FirebaseUser to domain User model.
      */
     private fun FirebaseUser.toDomain(): User {
+        val rawName = displayName
+        val resolvedName = if (rawName.isNullOrBlank()) {
+            email?.substringBefore('@')?.takeIf { it.isNotBlank() } ?: ""
+        } else {
+            rawName
+        }
         return User(
             id = uid,
             email = email ?: "",
-            name = displayName ?: "",
+            name = resolvedName,
             profileImageUrl = photoUrl?.toString()
         )
     }
