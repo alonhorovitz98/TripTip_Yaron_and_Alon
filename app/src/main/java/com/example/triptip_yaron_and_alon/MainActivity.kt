@@ -158,7 +158,10 @@ class MainActivity : AppCompatActivity() {
             } else {
                 bottomNavigationView.visibility = android.view.View.VISIBLE
             }
-            
+
+            // Refresh action bar menu visibility per destination
+            invalidateOptionsMenu()
+
             // Hide activity app bar on screens that have their own custom headers (feed, create post)
             appBarLayout.visibility = if (
                 destination.id == R.id.feedFragment ||
@@ -219,6 +222,26 @@ class MainActivity : AppCompatActivity() {
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.main_menu, menu)
         return true
+    }
+
+    override fun onPrepareOptionsMenu(menu: Menu): Boolean {
+        // Hide redundant top-bar actions on screens that already have their own navigation
+        val hideMenuOn = setOf(
+            R.id.notificationsFragment,
+            R.id.postDetailsFragment,
+            R.id.postsMapFragment,
+            R.id.editPostFragment,
+            R.id.editProfileFragment,
+            R.id.tripBuilderFragment,
+            R.id.tripDayEditorFragment,
+            R.id.tripDetailsFragment
+        )
+        val currentId = navController.currentDestination?.id
+        val visible = currentId !in hideMenuOn
+        for (i in 0 until menu.size()) {
+            menu.getItem(i).isVisible = visible
+        }
+        return super.onPrepareOptionsMenu(menu)
     }
     
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
