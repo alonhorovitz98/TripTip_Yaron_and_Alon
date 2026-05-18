@@ -1,26 +1,80 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Posts: allow read/write for authenticated users
-    match /posts/{postId} {
-      allow read, write: if request.auth != null;
+
+    // True when a non-owner updates a post but all "content" fields match the
+    // existing document (only likes, likedBy, commentCount may differ).
+    function postContentUnchanged() {
+      let r = request.resource.data;
+      let o = resource.data;
+      return r.get('userId', '') == o.get('userId', '')
+        && r.get('userName', '') == o.get('userName', '')
+        && r.get('userImageUrl', null) == o.get('userImageUrl', null)
+        && r.get('text', '') == o.get('text', '')
+        && r.get('imageUrl', null) == o.get('imageUrl', null)
+        && r.get('createdAt', 0) == o.get('createdAt', 0)
+        && r.get('location', null) == o.get('location', null)
+        && r.get('latitude', null) == o.get('latitude', null)
+        && r.get('longitude', null) == o.get('longitude', null)
+        && r.get('placeXid', null) == o.get('placeXid', null)
+        && r.get('priceLevel', null) == o.get('priceLevel', null);
     }
-    // Comments: allow read/write for authenticated users (fixes PERMISSION_DENIED when opening post details)
+
+    // Posts: any authenticated user can read.
+    // Create/delete: only the post owner (userId == auth uid).
+    // Update: owner can change anything; other users may only change engagement
+    // (likes, likedBy, commentCount). We match immutable fields explicitly because
+    // request.resource.data.diff().affectedKeys().hasOnly(...) is unreliable for
+    // FieldValue.increment / arrayUnion (likes, commentCount) in some clients.
+    match /posts/{postId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null && (
+        resource.data.userId == request.auth.uid
+        || postContentUnchanged()
+      );
+    }
+
+    // Comments: any authenticated user can read/write
     match /comments/{commentId} {
       allow read, write: if request.auth != null;
     }
-    // Notifications: users can read their own, anyone authenticated can create
+
+    // Notifications: users can only read/update/delete their own; any authed user can create
     match /notifications/{notificationId} {
       allow read: if request.auth != null && resource.data.userId == request.auth.uid;
       allow create: if request.auth != null;
       allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
-    // Users, trips, etc. - adjust to match your existing rules
+
+    // Users: public read for display names/avatars; only owner can write
     match /users/{userId} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update, delete: if request.auth != null && request.auth.uid == userId;
     }
+
+    // Trips + all subcollections (days, items):
+    // Firestore subcollection rules do NOT inherit from parent — they must be declared explicitly.
+    // The wildcard {document=**} covers /trips/{tripId}/days/{dayId} and
+    // /trips/{tripId}/days/{dayId}/items/{itemId} automatically.
     match /trips/{tripId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if request.auth != null && (
+        resource == null || resource.data.userId == request.auth.uid
+      );
+
+      // days subcollection
+      match /days/{dayId} {
+        allow read, write: if request.auth != null &&
+          get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid;
+
+        // items subcollection
+        match /items/{itemId} {
+          allow read, write: if request.auth != null &&
+            get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid;
+        }
+      }
     }
   }
 }

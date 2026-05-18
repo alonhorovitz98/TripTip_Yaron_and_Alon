@@ -9,19 +9,18 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.FragmentTripListBinding
 import com.example.triptip_yaron_and_alon.ui.adapter.TripAdapter
 import com.google.android.material.snackbar.Snackbar
 
 class TripListFragment : Fragment() {
-    
+
     private var _binding: FragmentTripListBinding? = null
     private val binding get() = _binding!!
-    
-    private lateinit var viewModel: TripViewModel
+
+    private lateinit var viewModel: TripListViewModel
     private lateinit var tripAdapter: TripAdapter
-    
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -30,63 +29,55 @@ class TripListFragment : Fragment() {
         _binding = FragmentTripListBinding.inflate(inflater, container, false)
         return binding.root
     }
-    
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        
-        viewModel = ViewModelProvider(this)[TripViewModel::class.java]
-        
+
+        viewModel = ViewModelProvider(this)[TripListViewModel::class.java]
+
         setupRecyclerView()
         setupListeners()
         observeViewModel()
-        
-        // ViewModel will automatically get the current user ID from Firebase Auth
-        viewModel.loadUserTrips()
+
+        viewModel.loadTrips()
     }
-    
+
     private fun setupRecyclerView() {
         tripAdapter = TripAdapter(
             onTripClick = { trip ->
-                // Debug: Log trip details
-                android.util.Log.d("TripList", "Trip clicked - ID: '${trip.id}', Title: '${trip.title}', isEmpty: ${trip.id.isEmpty()}, isBlank: ${trip.id.isBlank()}")
-                
-                // Ensure we have a valid trip ID
-                val tripId = if (trip.id.isBlank() || trip.id.isEmpty()) {
-                    android.util.Log.e("TripList", "ERROR: Trip ID is empty or blank! Using 'new' as fallback")
-                    "new"
-                } else {
-                    trip.id
+                if (trip.id.isBlank()) {
+                    Snackbar.make(binding.root, "Unable to open trip: missing ID", Snackbar.LENGTH_SHORT).show()
+                    return@TripAdapter
                 }
-                
                 val action = TripListFragmentDirections
-                    .actionTripListFragmentToTripBuilderFragment(tripId, null)
+                    .actionTripListFragmentToCreateEditTripFragment(trip.id)
                 findNavController().navigate(action)
             },
-            onTripLongClick = { trip ->
-                showDeleteDialog(trip.id, trip.title)
+                onTripLongClick = { trip ->
+                showDeleteDialog(trip.id, trip.name)
             }
         )
-        
+
         binding.rvTrips.apply {
             adapter = tripAdapter
             layoutManager = LinearLayoutManager(context)
-            
-            // Performance optimizations for smooth scrolling
-            setHasFixedSize(true) // RecyclerView knows item sizes won't change
-            setItemViewCacheSize(10) // Cache more views off-screen
+            setHasFixedSize(true)
+            setItemViewCacheSize(10)
         }
     }
-    
+
     private fun setupListeners() {
         binding.fabCreateTrip.setOnClickListener {
             val action = TripListFragmentDirections
-                .actionTripListFragmentToTripBuilderFragment("new", null)
+                .actionTripListFragmentToCreateEditTripFragment("new")
             findNavController().navigate(action)
         }
+
+
     }
-    
+
     private fun observeViewModel() {
-        viewModel.userTrips.observe(viewLifecycleOwner) { trips ->
+        viewModel.trips.observe(viewLifecycleOwner) { trips ->
             if (trips.isEmpty()) {
                 binding.tvEmptyState.visibility = View.VISIBLE
                 binding.rvTrips.visibility = View.GONE
@@ -96,18 +87,26 @@ class TripListFragment : Fragment() {
                 tripAdapter.submitList(trips)
             }
         }
-        
-        viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
-            binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+
+        viewModel.isLoading.observe(viewLifecycleOwner) { loading ->
+            binding.progressBar.visibility = if (loading) View.VISIBLE else View.GONE
         }
-        
+
         viewModel.error.observe(viewLifecycleOwner) { error ->
             if (error != null) {
                 Snackbar.make(binding.root, error, Snackbar.LENGTH_LONG).show()
+                viewModel.clearError()
+            }
+        }
+
+        viewModel.deleteSuccess.observe(viewLifecycleOwner) { ok ->
+            if (ok == true) {
+                Snackbar.make(binding.root, "Trip deleted", Snackbar.LENGTH_SHORT).show()
+                viewModel.clearDeleteSuccess()
             }
         }
     }
-    
+
     private fun showDeleteDialog(tripId: String, tripTitle: String) {
         AlertDialog.Builder(requireContext())
             .setTitle("Delete Trip")
@@ -118,10 +117,9 @@ class TripListFragment : Fragment() {
             .setNegativeButton("Cancel", null)
             .show()
     }
-    
+
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
     }
 }
-

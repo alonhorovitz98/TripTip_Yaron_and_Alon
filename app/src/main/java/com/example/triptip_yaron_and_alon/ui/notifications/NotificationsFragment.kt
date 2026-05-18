@@ -9,9 +9,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.triptip_yaron_and_alon.databinding.FragmentNotificationsBinding
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 class NotificationsFragment : Fragment() {
 
@@ -36,12 +33,14 @@ class NotificationsFragment : Fragment() {
         setupRecyclerView()
         observeViewModel()
         viewModel.loadNotifications()
+        // Mark everything read as soon as the screen is opened
+        viewModel.markAllAsRead()
     }
 
     private fun setupRecyclerView() {
         adapter = NotificationsAdapter(
             onNotificationClick = { notification ->
-                viewModel.markAsRead(notification.id)
+                if (!notification.isRead) viewModel.markAsRead(notification.id)
                 notification.targetPostId?.let { postId ->
                     val bundle = android.os.Bundle().apply { putString("postId", postId) }
                     findNavController().navigate(

@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
@@ -11,12 +12,12 @@ import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
 import coil.load
-import coil.transform.CircleCropTransformation
 import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.FragmentPostDetailsBinding
 import com.example.triptip_yaron_and_alon.ui.adapter.NearbyPlaceAdapter
 import com.example.triptip_yaron_and_alon.ui.post.CommentAdapter
 import com.example.triptip_yaron_and_alon.ui.util.WrapContentLinearLayoutManager
+import com.example.triptip_yaron_and_alon.util.loadProfileImage
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.MapView
 import com.google.android.gms.maps.model.LatLng
@@ -88,7 +89,7 @@ class PostDetailsFragment : Fragment() {
     }
     
     private val commentImagePicker = registerForActivityResult(
-        ActivityResultContracts.GetContent()
+        ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         uri?.let {
             val text = binding.etComment.text?.toString()?.trim() ?: ""
@@ -142,17 +143,15 @@ class PostDetailsFragment : Fragment() {
         
         // Add photo to comment (camera icon)
         binding.btnCommentPhoto.setOnClickListener {
-            commentImagePicker.launch("image/*")
+            commentImagePicker.launch(
+                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+            )
         }
         
         // Add to Trip button
         binding.btnAddToTrip.setOnClickListener {
-            // Navigate to TripBuilderFragment with postId
             val action = PostDetailsFragmentDirections
-                .actionPostDetailsFragmentToTripBuilderFragment(
-                    tripId = "new",
-                    postId = args.postId
-                )
+                .actionPostDetailsFragmentToCreateEditTripFragment(tripId = "new")
             findNavController().navigate(action)
         }
     }
@@ -260,7 +259,9 @@ class PostDetailsFragment : Fragment() {
         binding.chipTag.text = post.location?.uppercase() ?: "TRAVEL"
         
         // User info
-        binding.tvUsername.text = post.userName.ifEmpty { "User ${post.userId.take(8)}" }
+        binding.tvUsername.text = post.userName.ifBlank {
+            post.userId.take(8).let { "Traveler ($it)" }
+        }
         
         // Location + time
         val locationTime = buildString {
@@ -271,16 +272,7 @@ class PostDetailsFragment : Fragment() {
         }
         binding.tvLocationTime.text = locationTime
         
-        // User profile photo (circle) in the small icon
-        if (!post.userImageUrl.isNullOrBlank()) {
-            binding.ivUserProfile.load(post.userImageUrl) {
-                placeholder(R.drawable.ic_profile_frame)
-                error(R.drawable.ic_profile_frame)
-                transformations(CircleCropTransformation())
-            }
-        } else {
-            binding.ivUserProfile.setImageResource(R.drawable.ic_profile_frame)
-        }
+        binding.ivUserProfile.loadProfileImage(post.userImageUrl)
         
         // Post text (description)
         binding.tvPostText.text = post.text
@@ -330,7 +322,13 @@ class PostDetailsFragment : Fragment() {
             binding.tvLocationLabel.visibility = View.VISIBLE
             binding.mapCard.visibility = View.VISIBLE
             binding.mapView.getMapAsync { googleMap ->
-                googleMap.uiSettings.isMapToolbarEnabled = false
+                googleMap.uiSettings.apply {
+                    isMapToolbarEnabled = false
+                    isZoomControlsEnabled = false
+                    isCompassEnabled = false
+                    isMyLocationButtonEnabled = false
+                    isIndoorLevelPickerEnabled = false
+                }
                 val pos = LatLng(lat, lng)
                 googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(pos, 14f))
                 googleMap.addMarker(

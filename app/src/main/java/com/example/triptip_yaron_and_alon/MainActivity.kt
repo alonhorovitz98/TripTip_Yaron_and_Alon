@@ -13,8 +13,9 @@ import androidx.navigation.ui.setupActionBarWithNavController
 import com.example.triptip_yaron_and_alon.ui.auth.AuthViewModel
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.bottomnavigation.BottomNavigationView
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity() {
     
@@ -37,8 +38,10 @@ class MainActivity : AppCompatActivity() {
     
     private fun checkAutoLogin() {
         lifecycleScope.launch {
-            // Check login status immediately and navigate accordingly
-            val isLoggedIn = authViewModel.checkLoginStatusSync()
+            // Avoid Room + repository lazy init on the main thread (causes jank / black first frame).
+            val isLoggedIn = withContext(Dispatchers.IO) {
+                authViewModel.checkLoginStatusSync()
+            }
             
             val navHostFragment = supportFragmentManager
                 .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
@@ -46,10 +49,7 @@ class MainActivity : AppCompatActivity() {
             
             if (isLoggedIn) {
                 // User is logged in - navigate to feed if on login/register screen
-                val currentDestination = navController.currentDestination?.id
-                if (currentDestination == R.id.loginFragment || currentDestination == R.id.registerFragment) {
-                    navController.navigate(R.id.action_loginFragment_to_feedFragment)
-                }
+                navigateToFeedFromAuthScreen(navController)
             } else {
                 // User is not logged in - navigate to login if on feed
                 val currentDestination = navController.currentDestination?.id
@@ -70,10 +70,7 @@ class MainActivity : AppCompatActivity() {
             
             if (isLoggedIn) {
                 // User logged in - navigate to feed if on login/register screen
-                val currentDestination = navController.currentDestination?.id
-                if (currentDestination == R.id.loginFragment || currentDestination == R.id.registerFragment) {
-                    navController.navigate(R.id.action_loginFragment_to_feedFragment)
-                }
+                navigateToFeedFromAuthScreen(navController)
             } else {
                 // User logged out - navigate to login if on protected screens
                 val currentDestination = navController.currentDestination?.id
@@ -90,7 +87,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    
+    /**
+     * Each auth screen declares its own action to [R.id.feedFragment]. Using
+     * [R.id.action_loginFragment_to_feedFragment] from [R.id.registerFragment] crashes
+     * because NavController only resolves actions from the current destination.
+     */
+    private fun navigateToFeedFromAuthScreen(navController: androidx.navigation.NavController) {
+        when (navController.currentDestination?.id) {
+            R.id.loginFragment -> navController.navigate(R.id.action_loginFragment_to_feedFragment)
+            R.id.registerFragment -> navController.navigate(R.id.action_registerFragment_to_feedFragment)
+        }
+    }
+
     private fun setupNavigation() {
         val navHostFragment = supportFragmentManager
             .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
@@ -147,10 +155,9 @@ class MainActivity : AppCompatActivity() {
                 R.id.createPostFragment,
                 R.id.editPostFragment,
                 R.id.postDetailsFragment,
-                R.id.tripBuilderFragment,
-                R.id.tripDayEditorFragment,
-                R.id.editProfileFragment,
-                R.id.tripDetailsFragment
+                R.id.createEditTripFragment,
+                R.id.dayEditorFragment,
+                R.id.editProfileFragment
             )
             
             if (destination.id in hideBottomNavDestinations) {

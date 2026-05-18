@@ -5,7 +5,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fitsSystemWindows="true"
-    android:background="@color/background_light">
+    android:background="@color/background_light"
+    android:importantForAutofill="noExcludeDescendants">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
@@ -290,7 +291,7 @@
                             android:src="@drawable/ic_location_pin"
                             android:tint="@color/orange_primary" />
 
-                        <AutoCompleteTextView
+                        <EditText
                             android:id="@+id/etLocation"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
@@ -299,14 +300,14 @@
                             android:textColorHint="@color/text_hint"
                             android:textSize="14sp"
                             android:inputType="text"
-                            android:completionThreshold="1"
-                            android:dropDownHeight="200dp"
                             android:background="@android:color/transparent"
                             android:importantForAutofill="no"
                             android:paddingStart="12dp"
                             android:paddingEnd="12dp"
                             android:paddingTop="8dp"
-                            android:paddingBottom="8dp" />
+                            android:paddingBottom="8dp"
+                            android:maxLines="1"
+                            android:imeOptions="actionDone" />
 
                         <ImageButton
                             android:id="@+id/btnUseCurrentLocation"

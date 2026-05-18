@@ -9,15 +9,14 @@ object Constants {
     const val COLLECTION_TRIPS = "trips"
     const val COLLECTION_USERS = "users"
     
-    // Storage Paths (for local file storage)
+    // Firebase Storage paths
     const val STORAGE_POST_IMAGES = "post_images"
     const val STORAGE_PROFILE_IMAGES = "profile_images"
     const val STORAGE_COMMENT_IMAGES = "comment_images"
-    
-    // API Keys (store in local.properties or BuildConfig)
-    // Open-Meteo doesn't require an API key (free and open source)
-    const val OPENTRIPMAP_API_KEY = "" // TODO: Add to BuildConfig in Step 12
-    const val GOOGLE_PLACES_API_KEY = "" // Will be read from BuildConfig
+
+    // Fallback API key constants — real keys are injected via BuildConfig from local.properties
+    const val OPENTRIPMAP_API_KEY = ""
+    const val GOOGLE_PLACES_API_KEY = ""
     
     // API Base URLs
     const val OPEN_METEO_BASE_URL = "https://api.open-meteo.com/v1/"

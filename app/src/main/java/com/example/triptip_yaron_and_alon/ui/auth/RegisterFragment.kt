@@ -1,16 +1,20 @@
 package com.example.triptip_yaron_and_alon.ui.auth
 
+import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
+import coil.load
+import coil.transform.CircleCropTransformation
 import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.FragmentRegisterBinding
-import com.example.triptip_yaron_and_alon.util.Result
 import com.google.android.material.snackbar.Snackbar
 
 class RegisterFragment : Fragment() {
@@ -19,6 +23,20 @@ class RegisterFragment : Fragment() {
     private val binding get() = _binding!!
     
     private lateinit var viewModel: AuthViewModel
+    private var selectedProfileImageUri: Uri? = null
+
+    private val pickProfileImage = registerForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            selectedProfileImageUri = uri
+            binding.ivFramePlaceholder.visibility = View.GONE
+            binding.ivProfilePicture.load(uri) {
+                crossfade(true)
+                transformations(CircleCropTransformation())
+            }
+        }
+    }
     
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -32,10 +50,16 @@ class RegisterFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
-        viewModel = ViewModelProvider(this)[AuthViewModel::class.java]
+        viewModel = ViewModelProvider(requireActivity())[AuthViewModel::class.java]
         
         setupListeners()
         observeViewModel()
+    }
+    
+    private fun openProfileImagePicker() {
+        pickProfileImage.launch(
+            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+        )
     }
     
     private fun setupListeners() {
@@ -44,16 +68,9 @@ class RegisterFragment : Fragment() {
             requireActivity().onBackPressedDispatcher.onBackPressed()
         }
         
-        // Profile picture upload
-        binding.profilePictureContainer.setOnClickListener {
-            // TODO: Implement profile picture upload
-            Snackbar.make(binding.root, "Profile picture upload coming soon", Snackbar.LENGTH_SHORT).show()
-        }
-        
-        binding.tvUploadPhoto.setOnClickListener {
-            // TODO: Implement profile picture upload
-            Snackbar.make(binding.root, "Profile picture upload coming soon", Snackbar.LENGTH_SHORT).show()
-        }
+        // Profile picture upload (same flow as edit profile: Photo Picker)
+        binding.profilePictureContainer.setOnClickListener { openProfileImagePicker() }
+        binding.tvUploadPhoto.setOnClickListener { openProfileImagePicker() }
         
         // Clear error when user types
         binding.etName.addTextChangedListener {
@@ -95,7 +112,7 @@ class RegisterFragment : Fragment() {
                 return@setOnClickListener
             }
             
-            viewModel.register(email, password, name)
+            viewModel.register(email, password, name, selectedProfileImageUri)
         }
         
         // Login button
@@ -103,18 +120,8 @@ class RegisterFragment : Fragment() {
             findNavController().navigateUp()
         }
         
-        // Social login buttons (placeholder)
-        binding.btnGoogle.setOnClickListener {
-            // TODO: Implement Google sign-in
-            Snackbar.make(binding.root, "Google sign-in coming soon", Snackbar.LENGTH_SHORT).show()
-        }
-        
-        binding.btnApple.setOnClickListener {
-            // TODO: Implement Apple sign-in
-            Snackbar.make(binding.root, "Apple sign-in coming soon", Snackbar.LENGTH_SHORT).show()
-        }
-    }
-    
+
+    }    
     private fun observeViewModel() {
         // Observe loading state
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
@@ -137,22 +144,6 @@ class RegisterFragment : Fragment() {
                 Snackbar.make(binding.root, error, Snackbar.LENGTH_LONG).show()
             } else {
                 binding.tvError.visibility = View.GONE
-            }
-        }
-        
-        // Observe register result
-        viewModel.registerResult.observe(viewLifecycleOwner) { result ->
-            when (result) {
-                is Result.Success -> {
-                    // Navigate to feed
-                    findNavController().navigate(R.id.action_registerFragment_to_feedFragment)
-                }
-                is Result.Error -> {
-                    // Error is handled by error LiveData
-                }
-                is Result.Loading -> {
-                    // Loading is handled by isLoading LiveData
-                }
             }
         }
     }

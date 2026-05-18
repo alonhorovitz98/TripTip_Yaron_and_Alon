@@ -93,15 +93,12 @@
             android:name="postId"
             app:argType="string" />
         <action
-            android:id="@+id/action_postDetailsFragment_to_tripBuilderFragment"
-            app:destination="@id/tripBuilderFragment">
+            android:id="@+id/action_postDetailsFragment_to_createEditTripFragment"
+            app:destination="@id/createEditTripFragment">
             <argument
                 android:name="tripId"
                 app:argType="string"
                 android:defaultValue="new" />
-            <argument
-                android:name="postId"
-                app:argType="string" />
         </action>
     </fragment>
 
@@ -170,72 +167,27 @@
         android:label="My Trips"
         tools:layout="@layout/fragment_trip_list">
         <action
-            android:id="@+id/action_tripListFragment_to_tripBuilderFragment"
-            app:destination="@id/tripBuilderFragment">
+            android:id="@+id/action_tripListFragment_to_createEditTripFragment"
+            app:destination="@id/createEditTripFragment">
             <argument
                 android:name="tripId"
-                app:argType="string" />
-            <argument
-                android:name="postId"
                 app:argType="string"
-                app:nullable="true" />
-        </action>
-        <action
-            android:id="@+id/action_tripListFragment_to_tripDetailsFragment"
-            app:destination="@id/tripDetailsFragment">
-            <argument
-                android:name="tripId"
-                app:argType="string" />
+                android:defaultValue="new" />
         </action>
     </fragment>
 
     <fragment
-        android:id="@+id/tripDetailsFragment"
-        android:name="com.example.triptip_yaron_and_alon.ui.trip.TripDetailsFragment"
-        android:label="Trip Details"
-        tools:layout="@layout/fragment_trip_details">
-        <argument
-            android:name="tripId"
-            app:argType="string" />
-        <action
-            android:id="@+id/action_tripDetailsFragment_to_tripDayEditorFragment"
-            app:destination="@id/tripDayEditorFragment">
-            <argument
-                android:name="tripId"
-                app:argType="string" />
-            <argument
-                android:name="dayId"
-                app:argType="string" />
-        </action>
-        <action
-            android:id="@+id/action_tripDetailsFragment_to_tripBuilderFragment"
-            app:destination="@id/tripBuilderFragment">
-            <argument
-                android:name="tripId"
-                app:argType="string" />
-            <argument
-                android:name="postId"
-                app:argType="string"
-                app:nullable="true" />
-        </action>
-    </fragment>
-
-    <fragment
-        android:id="@+id/tripBuilderFragment"
-        android:name="com.example.triptip_yaron_and_alon.ui.trip.TripBuilderFragment"
-        android:label="Trip Builder"
-        tools:layout="@layout/fragment_trip_builder">
+        android:id="@+id/createEditTripFragment"
+        android:name="com.example.triptip_yaron_and_alon.ui.trip.CreateEditTripFragment"
+        android:label="Trip"
+        tools:layout="@layout/fragment_create_edit_trip">
         <argument
             android:name="tripId"
             app:argType="string"
             android:defaultValue="new" />
-        <argument
-            android:name="postId"
-            app:argType="string"
-            app:nullable="true" />
         <action
-            android:id="@+id/action_tripBuilderFragment_to_tripDayEditorFragment"
-            app:destination="@id/tripDayEditorFragment">
+            android:id="@+id/action_createEditTripFragment_to_dayEditorFragment"
+            app:destination="@id/dayEditorFragment">
             <argument
                 android:name="tripId"
                 app:argType="string" />
@@ -246,10 +198,10 @@
     </fragment>
 
     <fragment
-        android:id="@+id/tripDayEditorFragment"
-        android:name="com.example.triptip_yaron_and_alon.ui.trip.TripDayEditorFragment"
+        android:id="@+id/dayEditorFragment"
+        android:name="com.example.triptip_yaron_and_alon.ui.trip.DayEditorFragment"
         android:label="Edit Day"
-        tools:layout="@layout/fragment_trip_day_editor">
+        tools:layout="@layout/fragment_day_editor">
         <argument
             android:name="tripId"
             app:argType="string" />
@@ -304,4 +256,3 @@
     </fragment>
 
 </navigation>
-

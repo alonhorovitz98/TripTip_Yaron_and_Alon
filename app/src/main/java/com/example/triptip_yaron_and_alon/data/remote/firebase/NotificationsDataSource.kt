@@ -3,7 +3,7 @@ package com.example.triptip_yaron_and_alon.data.remote.firebase
 import android.util.Log
 import com.example.triptip_yaron_and_alon.util.Result
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.FirebaseFirestoreException
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -29,16 +29,18 @@ class NotificationsDataSource(
         if (recipientUserId == actorUserId) return Result.Success(Unit) // Don't notify self
         return try {
             val id = UUID.randomUUID().toString()
-            val data = hashMapOf(
+            val data = hashMapOf<String, Any>(
                 "userId" to recipientUserId,
                 "type" to type,
                 "actorUserId" to actorUserId,
                 "actorUserName" to actorUserName,
-                "targetPostId" to targetPostId,
                 "message" to message,
                 "isRead" to false,
                 "createdAt" to System.currentTimeMillis()
             )
+            if (targetPostId != null) {
+                data["targetPostId"] = targetPostId
+            }
             collection.document(id).set(data).await()
             Log.d(TAG, "createNotification OK: recipient=$recipientUserId type=$type actor=$actorUserId post=$targetPostId")
             Result.Success(Unit)
@@ -49,6 +51,8 @@ class NotificationsDataSource(
     }
 
     fun getNotificationsForUser(userId: String): Flow<List<NotificationDoc>> = callbackFlow {
+        // No orderBy here — combining whereEqualTo + orderBy on different fields requires a
+        // Firestore composite index. We sort client-side instead to avoid the crash.
         val listener = collection
             .whereEqualTo("userId", userId)
             .addSnapshotListener { snapshot, error ->
@@ -71,7 +75,7 @@ class NotificationsDataSource(
                             isRead = doc.getBoolean("isRead") ?: false,
                             createdAt = doc.getLong("createdAt") ?: 0L
                         )
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                         null
                     }
                 } ?: emptyList()
@@ -85,6 +89,22 @@ class NotificationsDataSource(
     suspend fun markAsRead(notificationId: String): Result<Unit> {
         return try {
             collection.document(notificationId).update("isRead", true).await()
+            Result.Success(Unit)
+        } catch (e: Exception) {
+            Result.Error(e, e.message)
+        }
+    }
+
+    suspend fun markAllAsRead(userId: String): Result<Unit> {
+        return try {
+            // Single whereEqualTo — no composite index needed. Filter unread client-side.
+            val docs = collection.whereEqualTo("userId", userId).get().await()
+            val unreadDocs = docs.documents.filter { it.getBoolean("isRead") != true }
+            if (unreadDocs.isNotEmpty()) {
+                val batch = firestore.batch()
+                unreadDocs.forEach { batch.update(it.reference, "isRead", true) }
+                batch.commit().await()
+            }
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error(e, e.message)

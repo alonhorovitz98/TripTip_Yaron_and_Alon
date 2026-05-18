@@ -11,6 +11,7 @@ import coil.load
 import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.ItemPostBinding
 import com.example.triptip_yaron_and_alon.domain.model.Post
+import com.example.triptip_yaron_and_alon.util.loadProfileImage
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -62,7 +63,7 @@ class PostAdapter(
                 tvPostText.text = post.text
                 
                 // Username and profile image from post (set at create from current user)
-                tvUsername.text = post.userName.ifBlank { "User ${post.userId.take(8)}" }
+                tvUsername.text = post.userName.ifBlank { "Traveler (${post.userId.take(8)})" }
                 
                 // Timestamp
                 tvTimestamp.text = formatTimestamp(post.createdAt)
@@ -98,18 +99,7 @@ class PostAdapter(
                     locationTag.visibility = View.GONE
                 }
                 
-                // User profile image (from post or placeholder)
-                if (!post.userImageUrl.isNullOrBlank()) {
-                    ivUserProfile.load(post.userImageUrl) {
-                        placeholder(R.drawable.ic_profile_frame)
-                        error(R.drawable.ic_profile_frame)
-                    }
-                } else {
-                    ivUserProfile.load(R.drawable.ic_profile_frame) {
-                        placeholder(R.drawable.ic_profile_frame)
-                        error(R.drawable.ic_profile_frame)
-                    }
-                }
+                ivUserProfile.loadProfileImage(post.userImageUrl)
                 
                 // Like count (real data from DB)
                 tvLikeCount.text = when (val n = post.likes) {

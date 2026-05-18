@@ -7,12 +7,11 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
-import coil.load
 import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.FragmentProfileBinding
+import com.example.triptip_yaron_and_alon.util.loadProfileImage
 import com.example.triptip_yaron_and_alon.util.Result
 import com.google.android.material.snackbar.Snackbar
-import java.io.File
 
 class ProfileFragment : Fragment() {
     
@@ -59,7 +58,7 @@ class ProfileFragment : Fragment() {
     private fun observeViewModel() {
         viewModel.user.observe(viewLifecycleOwner) { user ->
             if (user != null) {
-                binding.tvUsername.text = user.name
+                binding.tvUsername.text = user.name.ifBlank { user.email.substringBefore("@") }
                 binding.tvEmail.text = user.email
                 
                 // Profile image - Coil handles file errors gracefully

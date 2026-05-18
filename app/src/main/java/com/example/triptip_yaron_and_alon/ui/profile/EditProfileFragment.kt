@@ -22,6 +22,7 @@ import java.util.Date
 import java.util.Locale
 import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.FragmentEditProfileBinding
+import com.example.triptip_yaron_and_alon.util.loadProfileImage
 import com.example.triptip_yaron_and_alon.util.Result
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar

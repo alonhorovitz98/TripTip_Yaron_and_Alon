@@ -1,20 +1,27 @@
 package com.example.triptip_yaron_and_alon.data.remote.firebase
 
+import com.example.triptip_yaron_and_alon.domain.model.DayItem
+import com.example.triptip_yaron_and_alon.domain.model.DayItemType
 import com.example.triptip_yaron_and_alon.domain.model.Post
 import com.example.triptip_yaron_and_alon.domain.model.Trip
 import com.example.triptip_yaron_and_alon.domain.model.TripDay
-import com.example.triptip_yaron_and_alon.domain.model.TripItem
 import com.example.triptip_yaron_and_alon.domain.model.User
 import com.example.triptip_yaron_and_alon.util.Constants
 import com.example.triptip_yaron_and_alon.util.Result
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Query
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import java.util.UUID
 
 /**
@@ -36,7 +43,14 @@ class FirestoreDataSource(
             .orderBy("createdAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    // Close gracefully on permission errors so the listener is removed
+                    // immediately and the Firestore SDK stops its internal retry loop.
+                    if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED ||
+                        error.code == FirebaseFirestoreException.Code.UNAUTHENTICATED) {
+                        close()
+                    } else {
+                        close(error)
+                    }
                     return@addSnapshotListener
                 }
                 
@@ -53,6 +67,25 @@ class FirestoreDataSource(
     }
     
     /**
+     * Get posts by a specific user from Firestore.
+     * No orderBy to avoid requiring a composite index; sorted client-side.
+     */
+    fun getPostsByUser(userId: String): Flow<List<Post>> = callbackFlow {
+        val listenerRegistration = firestore.collection(Constants.COLLECTION_POSTS)
+            .whereEqualTo("userId", userId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    trySend(emptyList())
+                    return@addSnapshotListener
+                }
+                val posts = (snapshot?.documents?.mapNotNull { it.toPost() } ?: emptyList())
+                    .sortedByDescending { it.createdAt }
+                trySend(posts)
+            }
+        awaitClose { listenerRegistration.remove() }
+    }
+
+    /**
      * Get a single post by ID.
      * Returns Flow<Post?> that emits updates when the post changes.
      */
@@ -61,7 +94,12 @@ class FirestoreDataSource(
             .document(postId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED ||
+                        error.code == FirebaseFirestoreException.Code.UNAUTHENTICATED) {
+                        close()
+                    } else {
+                        close(error)
+                    }
                     return@addSnapshotListener
                 }
                 
@@ -74,31 +112,6 @@ class FirestoreDataSource(
         }
     }
     
-    /**
-     * Get posts by a specific user ID.
-     * Returns Flow<List<Post>> that emits updates when posts change.
-     */
-    fun getUserPosts(userId: String): Flow<List<Post>> = callbackFlow {
-        val listenerRegistration = firestore.collection(Constants.COLLECTION_POSTS)
-            .whereEqualTo("userId", userId)
-            .orderBy("createdAt", Query.Direction.DESCENDING)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    close(error)
-                    return@addSnapshotListener
-                }
-                
-                val posts = snapshot?.documents?.mapNotNull { doc ->
-                    doc.toPost()
-                } ?: emptyList()
-                
-                trySend(posts)
-            }
-        
-        awaitClose {
-            listenerRegistration.remove()
-        }
-    }
     
     /**
      * Create a new post in Firestore.
@@ -194,294 +207,265 @@ class FirestoreDataSource(
         }
     }
     
-    // ==================== TRIPS ====================
-    
+    // ==================== TRIPS (Firestore — source of truth) ====================
+
+    private fun FirebaseFirestore.trips() =
+        collection(Constants.COLLECTION_TRIPS)
+
+    private suspend fun touchTrip(tripId: String) = withContext(Dispatchers.IO) {
+        firestore.trips().document(tripId)
+            .update("updatedAt", System.currentTimeMillis())
+            .await()
+    }
+
     /**
-     * Get all trips for a specific user.
-     * Returns Flow<List<Trip>> that emits updates when trips change.
-     * Note: Trips are loaded without nested days/items for performance.
-     * Use loadTripWithNestedData() to get full trip with days and items.
+     * List trips (metadata + [firestoreDayCount] from parent doc; subcollections not loaded).
      */
     fun getTrips(userId: String): Flow<List<Trip>> = callbackFlow {
-        val listenerRegistration = firestore.collection(Constants.COLLECTION_TRIPS)
+        val reg = firestore.trips()
             .whereEqualTo("userId", userId)
-            .orderBy("createdAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED ||
+                        error.code == FirebaseFirestoreException.Code.UNAUTHENTICATED) {
+                        close()
+                    } else {
+                        trySend(emptyList())
+                    }
                     return@addSnapshotListener
                 }
-                
-                val trips = snapshot?.documents?.mapNotNull { doc ->
-                    doc.toTripBasic()
-                } ?: emptyList()
-                
-                trySend(trips)
+                val list = (snapshot?.documents?.mapNotNull { doc ->
+                    if (!doc.exists()) return@mapNotNull null
+                    Trip(
+                        id = doc.id,
+                        userId = doc.getString("userId") ?: return@mapNotNull null,
+                        name = doc.getString("name") ?: return@mapNotNull null,
+                        createdAt = doc.getLong("createdAt") ?: System.currentTimeMillis(),
+                        startDateMillis = if (doc.contains("startDateMillis")) doc.getLong("startDateMillis") else null,
+                        endDateMillis = if (doc.contains("endDateMillis")) doc.getLong("endDateMillis") else null,
+                        days = emptyList(),
+                        firestoreDayCount = (doc.getLong("dayCount") ?: 0L).toInt()
+                    )
+                } ?: emptyList()).sortedByDescending { it.createdAt }
+                trySend(list)
             }
-        
-        awaitClose {
-            listenerRegistration.remove()
-        }
+        awaitClose { reg.remove() }
     }
-    
+
     /**
-     * Get a single trip by ID (without nested days/items).
-     * Returns Flow<Trip?> that emits updates when the trip changes.
-     * Use loadTripWithNestedData() to get full trip with days and items.
+     * Live updates when the trip document changes (and when [touchTrip] runs after any day/item change).
      */
-    fun getTripById(tripId: String): Flow<Trip?> = callbackFlow {
-        val listenerRegistration = firestore.collection(Constants.COLLECTION_TRIPS)
-            .document(tripId)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    close(error)
+    fun observeTrip(tripId: String): Flow<Trip?> = callbackFlow {
+        val job = SupervisorJob()
+        val scope = CoroutineScope(job + Dispatchers.IO)
+        val reg = firestore.trips().document(tripId)
+            .addSnapshotListener { _, e ->
+                if (e != null) {
+                    trySend(null)
                     return@addSnapshotListener
                 }
-                
-                val trip = snapshot?.toTripBasic()
-                trySend(trip)
+                scope.launch {
+                    val t = loadFullTrip(tripId)
+                    trySend(t)
+                }
             }
-        
         awaitClose {
-            listenerRegistration.remove()
+            reg.remove()
+            job.cancel("observeTrip closed")
         }
     }
-    
-    /**
-     * Load a trip with all nested days and items.
-     * This is a suspend function that loads the complete trip structure.
-     */
-    suspend fun loadTripWithNestedData(tripId: String): Result<Trip> {
-        return try {
-            val tripDoc = firestore.collection(Constants.COLLECTION_TRIPS)
-                .document(tripId)
-                .get()
-                .await()
-            
-            val trip = tripDoc.toTrip() ?: return Result.Error(
-                IllegalStateException("Trip not found"),
-                "Trip with ID $tripId not found"
-            )
-            
-            Result.Success(trip)
-        } catch (e: Exception) {
-            Result.Error(e, e.message)
-        }
-    }
-    
-    /**
-     * Create a new trip in Firestore.
-     * Returns Result<Trip> with the created trip (including generated ID).
-     */
-    suspend fun createTrip(trip: Trip): Result<Trip> {
-        return try {
-            val tripId = trip.id.ifEmpty { UUID.randomUUID().toString() }
-            val tripWithId = trip.copy(id = tripId)
-            
-            firestore.collection(Constants.COLLECTION_TRIPS)
-                .document(tripId)
-                .set(tripWithId.toMap())
-                .await()
-            
-            // Save trip days as subcollection
-            tripWithId.days.forEach { day ->
-                saveTripDay(tripId, day)
-            }
-            
-            Result.Success(tripWithId)
-        } catch (e: Exception) {
-            Result.Error(e, e.message)
-        }
-    }
-    
-    /**
-     * Update an existing trip in Firestore.
-     * Returns Result<Trip> with the updated trip.
-     */
-    suspend fun updateTrip(trip: Trip): Result<Trip> {
-        return try {
-            firestore.collection(Constants.COLLECTION_TRIPS)
-                .document(trip.id)
-                .set(trip.toMap())
-                .await()
-            
-            // Update trip days
-            trip.days.forEach { day ->
-                saveTripDay(trip.id, day)
-            }
-            
-            Result.Success(trip)
-        } catch (e: Exception) {
-            Result.Error(e, e.message)
-        }
-    }
-    
-    /**
-     * Delete a trip from Firestore.
-     * Returns Result<Unit> indicating success or failure.
-     */
-    suspend fun deleteTrip(tripId: String): Result<Unit> {
-        return try {
-            // Delete trip days subcollection first
-            val daysSnapshot = firestore.collection(Constants.COLLECTION_TRIPS)
-                .document(tripId)
-                .collection("days")
-                .get()
-                .await()
-            
-            daysSnapshot.documents.forEach { dayDoc ->
-                dayDoc.reference.delete().await()
-            }
-            
-            // Delete the trip
-            firestore.collection(Constants.COLLECTION_TRIPS)
-                .document(tripId)
-                .delete()
-                .await()
-            
-            Result.Success(Unit)
-        } catch (e: Exception) {
-            Result.Error(e, e.message)
-        }
-    }
-    
-    /**
-     * Save a trip day as a subcollection under the trip.
-     */
-    private suspend fun saveTripDay(tripId: String, day: TripDay) {
-        val dayId = day.id.ifEmpty { UUID.randomUUID().toString() }
-        val dayWithId = day.copy(id = dayId, tripId = tripId)
-        
-        firestore.collection(Constants.COLLECTION_TRIPS)
-            .document(tripId)
-            .collection("days")
-            .document(dayId)
-            .set(dayWithId.toMap())
-            .await()
-        
-        // Save trip items as subcollection under the day
-        dayWithId.items.forEach { item ->
-            saveTripItem(tripId, dayId, item)
-        }
-    }
-    
-    /**
-     * Save a trip item as a subcollection under the trip day.
-     */
-    private suspend fun saveTripItem(tripId: String, dayId: String, item: TripItem) {
-        val itemId = item.id.ifEmpty { UUID.randomUUID().toString() }
-        val itemWithId = item.copy(id = itemId, dayId = dayId)
-        
-        firestore.collection(Constants.COLLECTION_TRIPS)
-            .document(tripId)
-            .collection("days")
-            .document(dayId)
-            .collection("items")
-            .document(itemId)
-            .set(itemWithId.toMap())
-            .await()
-    }
-    
-    /**
-     * Convert Firestore document to Trip (basic, without nested data).
-     */
-    private fun com.google.firebase.firestore.DocumentSnapshot.toTripBasic(): Trip? {
-        return try {
-            Trip(
-                id = id,
-                userId = getString("userId") ?: return null,
-                title = getString("title") ?: return null,
-                description = getString("description"),
-                createdAt = getLong("createdAt") ?: System.currentTimeMillis(),
-                startDate = getLong("startDate"),
-                endDate = getLong("endDate"),
-                days = emptyList() // Nested data loaded separately
-            )
-        } catch (e: Exception) {
-            null
-        }
-    }
-    
-    /**
-     * Load trip with all nested days and items.
-     */
-    private suspend fun com.google.firebase.firestore.DocumentSnapshot.toTrip(): Trip? {
-        return try {
-            val tripId = id
-            val userId = getString("userId") ?: return null
-            val title = getString("title") ?: return null
-            val description = getString("description")
-            val createdAt = getLong("createdAt") ?: System.currentTimeMillis()
-            val startDate = getLong("startDate")
-            val endDate = getLong("endDate")
-            
-            // Load days
-            val daysSnapshot = reference.collection("days").get().await()
-            val days = daysSnapshot.documents.mapNotNull { dayDoc ->
-                dayDoc.toTripDay(tripId)
-            }
-            
-            Trip(
-                id = tripId,
-                userId = userId,
-                title = title,
-                description = description,
-                createdAt = createdAt,
-                startDate = startDate,
-                endDate = endDate,
-                days = days.sortedBy { it.dayNumber }
-            )
-        } catch (e: Exception) {
-            null
-        }
-    }
-    
-    /**
-     * Convert a Firestore document to TripDay.
-     */
-    private suspend fun com.google.firebase.firestore.DocumentSnapshot.toTripDay(tripId: String): TripDay? {
-        return try {
-            val dayId = id
-            val dayNumber = getLong("dayNumber")?.toInt() ?: return null
-            val date = getLong("date")
-            
-            // Load items
-            val itemsSnapshot = reference.collection("items").get().await()
-            val items = itemsSnapshot.documents.mapNotNull { itemDoc ->
-                itemDoc.toTripItem(dayId)
-            }
-            
+
+    suspend fun loadFullTrip(tripId: String): Trip? = withContext(Dispatchers.IO) {
+        val doc = firestore.trips().document(tripId).get().await()
+        if (!doc.exists()) return@withContext null
+        val userId = doc.getString("userId") ?: return@withContext null
+        val name = doc.getString("name") ?: return@withContext null
+        val createdAt = doc.getLong("createdAt") ?: System.currentTimeMillis()
+        val dayDocs = doc.reference.collection("days").get().await()
+            .documents
+            .sortedBy { it.getLong("dayOrder") ?: 0L }
+        val days = dayDocs.map { d ->
+            val dayId = d.id
+            val itemsSnap = d.reference.collection("items").get().await()
+            val items = itemsSnap.documents
+                .sortedBy { it.getLong("sortOrder") ?: 0L }
+                .map { itemDoc ->
+                    DayItem(
+                        id = itemDoc.id,
+                        dayId = dayId,
+                        type = itemDoc.getString("type") ?: DayItemType.PLACE,
+                        value = itemDoc.getString("value") ?: "",
+                        sortOrder = (itemDoc.getLong("sortOrder") ?: 0L).toInt()
+                    )
+                }
             TripDay(
                 id = dayId,
                 tripId = tripId,
-                dayNumber = dayNumber,
-                date = date,
-                items = items.sortedBy { it.order }
+                dayOrder = (d.getLong("dayOrder") ?: 1L).toInt(),
+                dateMillis = if (d.contains("dateMillis")) d.getLong("dateMillis") else null,
+                items = items
             )
-        } catch (e: Exception) {
-            null
         }
+        Trip(
+            id = tripId,
+            userId = userId,
+            name = name,
+            createdAt = createdAt,
+            startDateMillis = if (doc.contains("startDateMillis")) doc.getLong("startDateMillis") else null,
+            endDateMillis = if (doc.contains("endDateMillis")) doc.getLong("endDateMillis") else null,
+            days = days,
+            firestoreDayCount = days.size
+        )
     }
-    
-    /**
-     * Convert a Firestore document to TripItem.
-     */
-    private fun com.google.firebase.firestore.DocumentSnapshot.toTripItem(dayId: String): TripItem? {
-        return try {
-            val postId = getString("postId")
-            val placeId = getString("placeId")
-            if (postId == null && placeId == null) return null
-            TripItem(
-                id = id,
-                dayId = dayId,
-                postId = postId,
-                placeId = placeId,
-                order = getLong("order")?.toInt() ?: 0,
-                notes = getString("notes")
+
+    suspend fun loadDay(tripId: String, dayId: String): TripDay? = withContext(Dispatchers.IO) {
+        val d = firestore.trips().document(tripId).collection("days").document(dayId).get().await()
+        if (!d.exists()) return@withContext null
+        if (d.getString("tripId") != tripId) return@withContext null
+        val id = d.id
+        val itemsSnap = d.reference.collection("items").get().await()
+        val items = itemsSnap.documents
+            .sortedBy { it.getLong("sortOrder") ?: 0L }
+            .map { itemDoc ->
+                DayItem(
+                    id = itemDoc.id,
+                    dayId = id,
+                    type = itemDoc.getString("type") ?: DayItemType.PLACE,
+                    value = itemDoc.getString("value") ?: "",
+                    sortOrder = (itemDoc.getLong("sortOrder") ?: 0L).toInt()
+                )
+            }
+        TripDay(
+            id = id,
+            tripId = tripId,
+            dayOrder = (d.getLong("dayOrder") ?: 1L).toInt(),
+            dateMillis = if (d.contains("dateMillis")) d.getLong("dateMillis") else null,
+            items = items
+        )
+    }
+
+    suspend fun createTrip(
+        userId: String,
+        name: String,
+        startDateMillis: Long? = null,
+        endDateMillis: Long? = null
+    ): String = withContext(Dispatchers.IO) {
+        val id = UUID.randomUUID().toString()
+        val now = System.currentTimeMillis()
+        val data = hashMapOf<String, Any>(
+            "userId" to userId,
+            "name" to name.trim(),
+            "createdAt" to now,
+            "dayCount" to 0L,
+            "updatedAt" to now
+        )
+        if (startDateMillis != null) data["startDateMillis"] = startDateMillis
+        if (endDateMillis != null) data["endDateMillis"] = endDateMillis
+        firestore.trips().document(id)
+            .set(data)
+            .await()
+        id
+    }
+
+    suspend fun updateTrip(
+        tripId: String,
+        name: String,
+        startDateMillis: Long? = null,
+        endDateMillis: Long? = null
+    ) = withContext(Dispatchers.IO) {
+        val updates = hashMapOf<String, Any>(
+            "name" to name.trim(),
+            "updatedAt" to System.currentTimeMillis()
+        )
+        updates["startDateMillis"] = startDateMillis ?: FieldValue.delete()
+        updates["endDateMillis"] = endDateMillis ?: FieldValue.delete()
+        firestore.trips().document(tripId).update(updates).await()
+    }
+
+    suspend fun addDay(tripId: String, dateMillis: Long? = null): String = withContext(Dispatchers.IO) {
+        val tripRef = firestore.trips().document(tripId)
+        val daysCol = tripRef.collection("days")
+        val all = daysCol.get().await()
+        val next = (all.documents.map { it.getLong("dayOrder") ?: 0L }.maxOrNull() ?: 0L) + 1L
+        val dayId = UUID.randomUUID().toString()
+        val dayData = hashMapOf<String, Any>("tripId" to tripId, "dayOrder" to next)
+        if (dateMillis != null) dayData["dateMillis"] = dateMillis
+        val batch = firestore.batch()
+        batch.set(daysCol.document(dayId), dayData)
+        batch.update(
+            tripRef,
+            mapOf(
+                "dayCount" to FieldValue.increment(1),
+                "updatedAt" to System.currentTimeMillis()
             )
-        } catch (e: Exception) {
-            null
+        )
+        batch.commit().await()
+        dayId
+    }
+
+    suspend fun setDayDate(tripId: String, dayId: String, dateMillis: Long?) = withContext(Dispatchers.IO) {
+        val dayRef = firestore.trips().document(tripId).collection("days").document(dayId)
+        if (dateMillis == null) {
+            dayRef.update("dateMillis", FieldValue.delete()).await()
+        } else {
+            dayRef.update("dateMillis", dateMillis).await()
         }
+        touchTrip(tripId)
+    }
+
+    suspend fun addDayItem(tripId: String, dayId: String, type: String, value: String) = withContext(Dispatchers.IO) {
+        val items = firestore.trips().document(tripId).collection("days").document(dayId).collection("items")
+        val list = items.get().await()
+        val next = (list.documents.map { it.getLong("sortOrder") ?: 0L }.maxOrNull() ?: -1L) + 1L
+        val id = UUID.randomUUID().toString()
+        items.document(id)
+            .set(
+                mapOf(
+                    "type" to type,
+                    "value" to value,
+                    "sortOrder" to next,
+                    "dayId" to dayId
+                )
+            )
+            .await()
+        touchTrip(tripId)
+    }
+
+    suspend fun deleteDayItem(tripId: String, dayId: String, itemId: String) = withContext(Dispatchers.IO) {
+        firestore.trips().document(tripId).collection("days").document(dayId).collection("items").document(itemId)
+            .delete()
+            .await()
+        touchTrip(tripId)
+    }
+
+    suspend fun removeDay(tripId: String, dayId: String) = withContext(Dispatchers.IO) {
+        val dayRef = firestore.trips().document(tripId).collection("days").document(dayId)
+        val itemSnap = dayRef.collection("items").get().await()
+        for (d in itemSnap.documents) {
+            d.reference.delete().await()
+        }
+        dayRef.delete().await()
+        firestore.trips().document(tripId)
+            .update(
+                mapOf(
+                    "dayCount" to FieldValue.increment(-1),
+                    "updatedAt" to System.currentTimeMillis()
+                )
+            )
+            .await()
+    }
+
+    suspend fun deleteTrip(tripId: String) = withContext(Dispatchers.IO) {
+        val tripRef = firestore.trips().document(tripId)
+        val days = tripRef.collection("days").get().await()
+        for (day in days.documents) {
+            val isnap = day.reference.collection("items").get().await()
+            for (idoc in isnap.documents) {
+                idoc.reference.delete().await()
+            }
+            day.reference.delete().await()
+        }
+        tripRef.delete().await()
     }
     
     // ==================== USERS ====================
@@ -495,7 +479,12 @@ class FirestoreDataSource(
             .document(userId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED ||
+                        error.code == FirebaseFirestoreException.Code.UNAUTHENTICATED) {
+                        close()
+                    } else {
+                        close(error)
+                    }
                     return@addSnapshotListener
                 }
                 
@@ -592,44 +581,6 @@ class FirestoreDataSource(
             "likes" to likes,
             "likedBy" to likedBy,
             "commentCount" to commentCount
-        )
-    }
-    
-    /**
-     * Convert Trip domain model to Firestore map.
-     */
-    private fun Trip.toMap(): Map<String, Any?> {
-        return mapOf(
-            "userId" to userId,
-            "title" to title,
-            "description" to description,
-            "createdAt" to createdAt,
-            "startDate" to startDate,
-            "endDate" to endDate
-        )
-    }
-    
-    /**
-     * Convert TripDay domain model to Firestore map.
-     */
-    private fun TripDay.toMap(): Map<String, Any?> {
-        return mapOf(
-            "tripId" to tripId,
-            "dayNumber" to dayNumber,
-            "date" to date
-        )
-    }
-    
-    /**
-     * Convert TripItem domain model to Firestore map.
-     */
-    private fun TripItem.toMap(): Map<String, Any?> {
-        return mapOf(
-            "dayId" to dayId,
-            "postId" to postId,
-            "placeId" to placeId,
-            "order" to order,
-            "notes" to notes
         )
     }
     

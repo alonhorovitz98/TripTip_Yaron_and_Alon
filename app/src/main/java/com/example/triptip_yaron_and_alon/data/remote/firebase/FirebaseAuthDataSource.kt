@@ -10,7 +10,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
-import java.io.File
 
 /**
  * Data source for Firebase Authentication operations.
@@ -103,9 +102,9 @@ class FirebaseAuthDataSource(
                 profileUpdates.displayName = name
             }
             if (imageUri != null) {
-                // Note: Firebase Auth doesn't directly support profile image URL updates
-                // The imageUri should be uploaded to Storage first, then the URL passed here
-                // For now, we'll handle this in the repository layer
+                runCatching {
+                    profileUpdates.photoUri = android.net.Uri.parse(imageUri)
+                }
             }
             
             user.updateProfile(profileUpdates.build()).await()

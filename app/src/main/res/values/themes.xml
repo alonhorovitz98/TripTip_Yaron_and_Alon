@@ -2,6 +2,8 @@
 <resources>
     <!-- Base application theme using Material Design 3 -->
     <style name="Theme.TripTip_Yaron_and_Alon" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- First frame before content draws (avoids black flash on activity start) -->
+        <item name="android:windowBackground">@color/background_beige</item>
         <!-- Primary Colors -->
         <item name="colorPrimary">@color/orange_primary</item>
         <item name="colorPrimaryVariant">@color/orange_dark</item>
@@ -30,6 +32,16 @@
         <item name="android:navigationBarColor">@color/background_white</item>
     </style>
     
+    <!-- Dedicated splash screen theme: orange from the very first frame,
+         before setContentView paints, so no beige flash is visible. -->
+    <style name="Theme.TripTip.Splash" parent="Theme.TripTip_Yaron_and_Alon">
+        <item name="android:windowBackground">@color/orange_primary</item>
+        <item name="android:statusBarColor">@color/orange_primary</item>
+        <item name="android:navigationBarColor">@color/orange_primary</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+
     <!-- Button and Card styles moved to styles.xml to avoid duplicates -->
     
 </resources>

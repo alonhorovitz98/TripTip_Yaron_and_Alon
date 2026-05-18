@@ -10,7 +10,6 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
-import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.viewpager2.adapter.FragmentStateAdapter
@@ -112,11 +111,8 @@ class GooglePlaceDetailsFragment : Fragment() {
     }
     
     private fun setupListeners() {
-        // Back button
-        binding.btnBack.setOnClickListener {
-            findNavController().popBackStack()
-        }
-        
+        // Back: use activity toolbar / system back (overlay removed from layout)
+
         // Add to Trip button
         binding.btnAddToTrip.setOnClickListener {
             // TODO: Navigate to trip selection or add directly to a trip
@@ -255,9 +251,6 @@ class GooglePlaceDetailsFragment : Fragment() {
     }
     
     private fun updateTabFragments(details: com.example.triptip_yaron_and_alon.data.remote.api.dto.PlaceDetailsResultDto) {
-        android.util.Log.d("PlaceDetails", "Updating tab fragments. Reviews count: ${details.reviews?.size ?: 0}")
-        
-        // Update adapter which will update existing fragments and store for future fragments
         tabsAdapter.updatePlaceDetails(details)
         
         // Also update directly if fragments exist

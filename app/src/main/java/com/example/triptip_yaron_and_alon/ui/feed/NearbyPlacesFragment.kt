@@ -18,6 +18,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.FragmentNearbyPlacesBinding
 import com.example.triptip_yaron_and_alon.domain.model.PlaceInfo
+import com.example.triptip_yaron_and_alon.util.showError
+import com.example.triptip_yaron_and_alon.util.showSuccess
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
@@ -102,7 +104,6 @@ class NearbyPlacesFragment : Fragment() {
                         && viewModel.hasMorePages()
                         && viewModel.isLoadingMore.value != true
                     ) {
-                        android.util.Log.d("NearbyPlaces", "Loading more places...")
                         viewModel.loadMorePlaces()
                     }
                 }
@@ -166,7 +167,7 @@ class NearbyPlacesFragment : Fragment() {
             if (error != null) {
                 binding.tvError.text = error
                 binding.tvError.visibility = View.VISIBLE
-                Snackbar.make(binding.root, error, Snackbar.LENGTH_LONG).show()
+                showError(error)
             } else {
                 binding.tvError.visibility = View.GONE
             }
@@ -219,22 +220,11 @@ class NearbyPlacesFragment : Fragment() {
             null // no cancellation token
         ).addOnSuccessListener { location: Location? ->
             if (location != null) {
-                android.util.Log.d(
-                    "NearbyPlaces",
-                    "Current location: lat=${location.latitude}, lon=${location.longitude}"
-                )
                 viewModel.loadNearbyPlaces(location.latitude, location.longitude)
             } else {
-                android.util.Log.d(
-                    "NearbyPlaces",
-                    "Current location unavailable, falling back to last known location"
-                )
-                // Fallback to last known location if current location is not available
                 loadFromLastKnownLocation()
             }
         }.addOnFailureListener { e ->
-            android.util.Log.e("NearbyPlaces", "Failed to get current location: ${e.message}")
-            // Fallback to last known location on failure
             loadFromLastKnownLocation(errorMessage = e.message)
         }
     }
@@ -254,10 +244,6 @@ class NearbyPlacesFragment : Fragment() {
 
         fusedLocationClient.lastLocation.addOnSuccessListener { lastLocation: Location? ->
             if (lastLocation != null) {
-                android.util.Log.d(
-                    "NearbyPlaces",
-                    "Using last known location: lat=${lastLocation.latitude}, lon=${lastLocation.longitude}"
-                )
                 viewModel.loadNearbyPlaces(lastLocation.latitude, lastLocation.longitude)
             } else {
                 binding.tvError.text = errorMessage?.let {
@@ -278,11 +264,7 @@ class NearbyPlacesFragment : Fragment() {
     private fun onAddToTripClick(place: PlaceInfo) {
         // Navigate to trip list or show trip selection dialog
         // For now, show a snackbar
-        Snackbar.make(
-            binding.root,
-            "Adding ${place.name} to trip...",
-            Snackbar.LENGTH_SHORT
-        ).show()
+        showSuccess("Adding ${place.name} to trip...")
         
         // TODO: Implement navigation to trip selection or add directly to a trip
         // This will be integrated with TripViewModel in Phase 4

@@ -6,7 +6,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 @Entity(
-    tableName = "trip_items",
+    tableName = "simple_items",
     foreignKeys = [
         ForeignKey(
             entity = TripDayEntity::class,
@@ -15,20 +15,13 @@ import androidx.room.PrimaryKey
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [
-        Index(value = ["dayId"]),
-        Index(value = ["postId"]),
-        Index(value = ["placeId"])
-    ]
+    indices = [Index(value = ["dayId"])]
 )
-data class TripItemEntity(
+data class DayItemEntity(
     @PrimaryKey
     val id: String,
     val dayId: String,
-    val postId: String? = null, // Optional - for posts
-    val placeId: String? = null, // Optional - for places (OpenTripMap xid)
-    val order: Int,
-    val notes: String? = null,
-    val cachedAt: Long = System.currentTimeMillis()
+    val type: String,
+    val value: String,
+    val sortOrder: Int
 )
-

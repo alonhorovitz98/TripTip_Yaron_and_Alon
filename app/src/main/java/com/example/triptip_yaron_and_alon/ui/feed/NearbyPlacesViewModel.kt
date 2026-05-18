@@ -57,21 +57,17 @@ class NearbyPlacesViewModel(application: Application) : AndroidViewModel(applica
         currentLatitude = latitude
         currentLongitude = longitude
         
-        android.util.Log.d("NearbyPlacesVM", "Loading places for lat=$latitude, lon=$longitude, radius=$radius")
-        
         loadPlacesJob = viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
-            _places.value = emptyList() // Clear previous results
+            _places.value = emptyList()
             
             placeInfoRepository.getGoogleNearbyPlaces(latitude, longitude, radius, null)
                 .catch { e ->
-                    android.util.Log.e("NearbyPlacesVM", "Error loading places: ${e.message}", e)
                     _error.value = "Failed to load nearby places: ${e.message}"
                     _isLoading.value = false
                 }
                 .collect { result ->
-                    android.util.Log.d("NearbyPlacesVM", "Loaded ${result.places.size} places, hasNextPage: ${result.nextPageToken != null}")
                     _places.value = result.places
                     nextPageToken = result.nextPageToken
                     _isLoading.value = false
@@ -87,29 +83,18 @@ class NearbyPlacesViewModel(application: Application) : AndroidViewModel(applica
         val lat = currentLatitude
         val lon = currentLongitude
         
-        if (token == null || lat == null || lon == null) {
-            android.util.Log.d("NearbyPlacesVM", "No more pages to load")
-            return
-        }
-        
-        if (loadMoreJob?.isActive == true) {
-            android.util.Log.d("NearbyPlacesVM", "Already loading more places")
-            return
-        }
-        
-        android.util.Log.d("NearbyPlacesVM", "Loading more places with token: ${token.take(20)}...")
+        if (token == null || lat == null || lon == null) return
+        if (loadMoreJob?.isActive == true) return
         
         loadMoreJob = viewModelScope.launch {
             _isLoadingMore.value = true
             
             placeInfoRepository.getGoogleNearbyPlaces(lat, lon, 5000, token)
                 .catch { e ->
-                    android.util.Log.e("NearbyPlacesVM", "Error loading more places: ${e.message}", e)
                     _error.value = "Failed to load more places: ${e.message}"
                     _isLoadingMore.value = false
                 }
                 .collect { result ->
-                    android.util.Log.d("NearbyPlacesVM", "Loaded ${result.places.size} more places, hasNextPage: ${result.nextPageToken != null}")
                     val currentPlaces = _places.value ?: emptyList()
                     _places.value = currentPlaces + result.places
                     nextPageToken = result.nextPageToken

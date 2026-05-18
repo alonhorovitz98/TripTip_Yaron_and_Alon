@@ -12,6 +12,7 @@ import com.example.triptip_yaron_and_alon.data.remote.firebase.FirebaseStorageDa
 import com.example.triptip_yaron_and_alon.data.remote.firebase.FirestoreDataSource
 import com.example.triptip_yaron_and_alon.data.remote.firebase.NotificationsDataSource
 import com.example.triptip_yaron_and_alon.data.repository.PostRepository
+import com.example.triptip_yaron_and_alon.data.repository.UserRepository
 import com.example.triptip_yaron_and_alon.domain.model.Post
 import com.example.triptip_yaron_and_alon.util.Result
 import kotlinx.coroutines.Job
@@ -37,11 +38,23 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
             storageDataSource
         )
     }
+    private val userRepository by lazy {
+        UserRepository(
+            database.userDao(),
+            authDataSource,
+            firestoreDataSource,
+            storageDataSource
+        )
+    }
     
     // LiveData for posts
     private val _posts = MutableLiveData<List<Post>>()
     val posts: LiveData<List<Post>> = _posts
-    
+
+    // LiveData for current user's own posts
+    private val _myPosts = MutableLiveData<List<Post>>()
+    val myPosts: LiveData<List<Post>> = _myPosts
+
     // Current user id for like state and actions
     private val _currentUserId = MutableLiveData<String?>(null)
     val currentUserId: LiveData<String?> = _currentUserId
@@ -61,9 +74,28 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
     
     // Job tracking to prevent multiple collectors
     private var loadPostsJob: Job? = null
-    
+    private var loadMyPostsJob: Job? = null
+
     // Removed init block - loadPosts() should be called explicitly from Fragment
-    
+
+    /**
+     * Load current user's posts (cache-first, filtered).
+     */
+    fun loadMyPosts() {
+        if (loadMyPostsJob?.isActive == true) return
+        loadMyPostsJob = viewModelScope.launch {
+            val userId = _currentUserId.value
+                ?: authDataSource.getCurrentUser().firstOrNull()?.id
+                ?: return@launch
+            _currentUserId.value = userId
+            var first = true
+            postRepository.getMyPosts(userId).collect { list ->
+                _myPosts.value = list
+                if (first) { first = false }
+            }
+        }
+    }
+
     /**
      * Load posts (cache-first strategy)
      * Prevents multiple collectors by tracking the job

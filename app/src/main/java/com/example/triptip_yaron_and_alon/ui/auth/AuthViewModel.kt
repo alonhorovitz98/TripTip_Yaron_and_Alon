@@ -12,8 +12,12 @@ import com.example.triptip_yaron_and_alon.data.remote.firebase.FirestoreDataSour
 import com.example.triptip_yaron_and_alon.data.repository.AuthRepository
 import com.example.triptip_yaron_and_alon.domain.model.User
 import com.example.triptip_yaron_and_alon.util.Result
+import android.net.Uri
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * ViewModel for authentication operations
@@ -57,13 +61,14 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     // LiveData for logged in state
     private val _isLoggedIn = MutableLiveData<Boolean>()
     val isLoggedIn: LiveData<Boolean> = _isLoggedIn
-    
-    // Removed init block - checkLoginStatus() should be called explicitly from Fragment
-    
+
+    private val authStateCollectionStarted = AtomicBoolean(false)
+
     /**
-     * Check if user is currently logged in (continuously observes)
+     * Observe Firebase auth state once per ViewModel. Safe to call from multiple sites.
      */
     fun checkLoginStatus() {
+        if (!authStateCollectionStarted.compareAndSet(false, true)) return
         viewModelScope.launch {
             authRepository.isUserLoggedIn().collect { loggedIn ->
                 _isLoggedIn.value = loggedIn
@@ -72,12 +77,15 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     }
     
     /**
-     * Check if user is currently logged in (one-time check, returns immediately)
+     * Check if user is currently logged in (one-time check, returns immediately).
+     * Safe to call from a background dispatcher (e.g. IO for Room init); LiveData is updated on Main.
      */
     suspend fun checkLoginStatusSync(): Boolean {
-        return authRepository.isUserLoggedIn().first().also { loggedIn ->
+        val loggedIn = authRepository.isUserLoggedIn().first()
+        withContext(Dispatchers.Main.immediate) {
             _isLoggedIn.value = loggedIn
         }
+        return loggedIn
     }
     
     /**
@@ -119,9 +127,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     }
     
     /**
-     * Register a new user
+     * Register a new user. Optional [profileImageUri] is uploaded after account creation.
      */
-    fun register(email: String, password: String, name: String) {
+    fun register(email: String, password: String, name: String, profileImageUri: Uri? = null) {
         // Validate input
         if (email.isBlank() || password.isBlank() || name.isBlank()) {
             _error.value = "All fields are required"
@@ -139,7 +147,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
         
         viewModelScope.launch {
-            authRepository.signUp(email, password, name).collect { result ->
+            authRepository.signUp(email, password, name, profileImageUri).collect { result ->
                 when (result) {
                     is Result.Loading -> {
                         _isLoading.value = true

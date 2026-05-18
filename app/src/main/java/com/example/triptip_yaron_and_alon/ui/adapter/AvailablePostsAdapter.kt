@@ -44,19 +44,25 @@ class AvailablePostsAdapter(
             binding.apply {
                 tvPostText.text = post.text
                 
-                // Post image - Coil handles file errors gracefully
-                if (post.imageUrl != null) {
+                // Post image: Firebase/HTTPS URLs and local file paths
+                if (!post.imageUrl.isNullOrBlank()) {
                     ivPostImage.visibility = View.VISIBLE
-                    try {
-                        val imageFile = File(post.imageUrl)
-                        ivPostImage.load(imageFile) {
+                    val url = post.imageUrl!!
+                    if (url.startsWith("http", ignoreCase = true) || url.startsWith("https", ignoreCase = true)) {
+                        ivPostImage.load(url) {
                             placeholder(R.drawable.ic_launcher_background)
                             error(R.drawable.ic_launcher_background)
-                            // Coil will handle missing files automatically
                         }
-                    } catch (e: Exception) {
-                        // If file path is invalid, hide image view
-                        ivPostImage.visibility = View.GONE
+                    } else {
+                        try {
+                            val imageFile = File(url)
+                            ivPostImage.load(imageFile) {
+                                placeholder(R.drawable.ic_launcher_background)
+                                error(R.drawable.ic_launcher_background)
+                            }
+                        } catch (_: Exception) {
+                            ivPostImage.visibility = View.GONE
+                        }
                     }
                 } else {
                     ivPostImage.visibility = View.GONE

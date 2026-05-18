@@ -11,7 +11,6 @@ import androidx.navigation.fragment.findNavController
 import com.example.triptip_yaron_and_alon.BuildConfig
 import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.FragmentLoginBinding
-import com.example.triptip_yaron_and_alon.util.Result
 import com.google.android.material.snackbar.Snackbar
 
 class LoginFragment : Fragment() {
@@ -33,13 +32,10 @@ class LoginFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
-        viewModel = ViewModelProvider(this)[AuthViewModel::class.java]
+        viewModel = ViewModelProvider(requireActivity())[AuthViewModel::class.java]
         
         setupListeners()
         observeViewModel()
-        
-        // Explicitly check login status after view is ready
-        viewModel.checkLoginStatus()
     }
     
     private fun setupListeners() {
@@ -83,16 +79,7 @@ class LoginFragment : Fragment() {
             Snackbar.make(binding.root, "Forgot password feature coming soon", Snackbar.LENGTH_SHORT).show()
         }
         
-        // Social login buttons (placeholder)
-        binding.btnGoogle.setOnClickListener {
-            // TODO: Implement Google sign-in
-            Snackbar.make(binding.root, "Google sign-in coming soon", Snackbar.LENGTH_SHORT).show()
-        }
-        
-        binding.btnApple.setOnClickListener {
-            // TODO: Implement Apple sign-in
-            Snackbar.make(binding.root, "Apple sign-in coming soon", Snackbar.LENGTH_SHORT).show()
-        }
+
     }
     
     private fun observeViewModel() {
@@ -117,22 +104,6 @@ class LoginFragment : Fragment() {
                 Snackbar.make(binding.root, error, Snackbar.LENGTH_LONG).show()
             } else {
                 binding.tvError.visibility = View.GONE
-            }
-        }
-        
-        // Observe login result
-        viewModel.loginResult.observe(viewLifecycleOwner) { result ->
-            when (result) {
-                is Result.Success -> {
-                    // Navigate to feed
-                    findNavController().navigate(R.id.action_loginFragment_to_feedFragment)
-                }
-                is Result.Error -> {
-                    // Error is handled by error LiveData
-                }
-                is Result.Loading -> {
-                    // Loading is handled by isLoading LiveData
-                }
             }
         }
     }

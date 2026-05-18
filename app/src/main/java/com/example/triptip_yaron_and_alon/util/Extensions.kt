@@ -10,23 +10,32 @@ import com.google.android.material.snackbar.Snackbar
  */
 
 /**
+ * Snackbar needs a view attached to a window. Tab / ViewPager fragments often fire
+ * observers during [Fragment.performStart] before the view is attached — use activity content as fallback.
+ */
+fun Fragment.resolveSnackbarAnchor(): View? {
+    if (!isAdded) return null
+    val v = view
+    if (v != null && v.isAttachedToWindow) return v
+    return activity?.findViewById(android.R.id.content)
+}
+
+/**
  * Shows a Snackbar with error message
  */
 fun Fragment.showError(message: String, duration: Int = Snackbar.LENGTH_LONG) {
-    view?.let {
-        Snackbar.make(it, message, duration)
-            .setAction("Dismiss") { }
-            .show()
-    }
+    val anchor = resolveSnackbarAnchor() ?: return
+    Snackbar.make(anchor, message, duration)
+        .setAction("Dismiss") { }
+        .show()
 }
 
 /**
  * Shows a Snackbar with success message
  */
 fun Fragment.showSuccess(message: String, duration: Int = Snackbar.LENGTH_SHORT) {
-    view?.let {
-        Snackbar.make(it, message, duration).show()
-    }
+    val anchor = resolveSnackbarAnchor() ?: return
+    Snackbar.make(anchor, message, duration).show()
 }
 
 /**

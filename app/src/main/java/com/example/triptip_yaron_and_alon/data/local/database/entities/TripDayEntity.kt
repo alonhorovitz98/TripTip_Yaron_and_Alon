@@ -6,7 +6,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 @Entity(
-    tableName = "trip_days",
+    tableName = "simple_days",
     foreignKeys = [
         ForeignKey(
             entity = TripEntity::class,
@@ -21,8 +21,6 @@ data class TripDayEntity(
     @PrimaryKey
     val id: String,
     val tripId: String,
-    val dayNumber: Int,
-    val date: Long? = null,
-    val cachedAt: Long = System.currentTimeMillis()
+    val dayOrder: Int,
+    val dateMillis: Long? = null
 )
-

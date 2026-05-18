@@ -9,123 +9,90 @@ import androidx.recyclerview.widget.RecyclerView
 import coil.load
 import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.ItemTripItemBinding
-import com.example.triptip_yaron_and_alon.domain.model.TripItem
+import com.example.triptip_yaron_and_alon.domain.model.DayItem
+import com.example.triptip_yaron_and_alon.domain.model.DayItemType
 import java.io.File
 
 class TripItemsAdapter(
-    private val onNotesChanged: (TripItem, String?) -> Unit,
-    private val onDelete: (TripItem) -> Unit,
-    private val onMoveUp: (TripItem) -> Unit,
-    private val onMoveDown: (TripItem) -> Unit
-) : ListAdapter<TripItem, TripItemsAdapter.ItemViewHolder>(ItemDiffCallback()) {
-    
+    private val onDelete: (DayItem) -> Unit
+) : ListAdapter<DayItem, TripItemsAdapter.ItemViewHolder>(ItemDiffCallback()) {
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ItemViewHolder {
         val binding = ItemTripItemBinding.inflate(
             LayoutInflater.from(parent.context),
             parent,
             false
         )
-        return ItemViewHolder(binding, onNotesChanged, onDelete, onMoveUp, onMoveDown)
+        return ItemViewHolder(binding, onDelete)
     }
-    
+
     override fun onBindViewHolder(holder: ItemViewHolder, position: Int) {
-        holder.bind(getItem(position), position, itemCount)
+        holder.bind(getItem(position))
     }
-    
+
     class ItemViewHolder(
         private val binding: ItemTripItemBinding,
-        private val onNotesChanged: (TripItem, String?) -> Unit,
-        private val onDelete: (TripItem) -> Unit,
-        private val onMoveUp: (TripItem) -> Unit,
-        private val onMoveDown: (TripItem) -> Unit
+        private val onDelete: (DayItem) -> Unit
     ) : RecyclerView.ViewHolder(binding.root) {
-        
-        fun bind(item: TripItem, position: Int, totalItems: Int) {
+
+        fun bind(item: DayItem) {
             binding.apply {
-                // Check if this is a post or a place
-                if (item.postId != null && item.post != null) {
-                    // Display as post
-                    tvPostText.text = item.post.text
-                    
-                    // Post image - Coil handles file errors gracefully
-                    val imageUrl = item.post.imageUrl
-                    if (imageUrl != null) {
-                        ivPostImage.visibility = View.VISIBLE
-                        try {
-                            val imageFile = File(imageUrl)
-                            ivPostImage.load(imageFile) {
-                                placeholder(R.drawable.ic_launcher_background)
-                                error(R.drawable.ic_launcher_background)
-                                // Coil will handle missing files automatically
+                tilNotes.visibility = View.GONE
+                llReorder.visibility = View.GONE
+
+                when (item.type) {
+                    DayItemType.POST -> {
+                        val p = item.post
+                        if (p != null) {
+                            tvPostText.text = p.text
+                            val imageUrl = p.imageUrl
+                            if (imageUrl != null) {
+                                ivPostImage.visibility = View.VISIBLE
+                                if (imageUrl.startsWith("http", ignoreCase = true)) {
+                                    ivPostImage.load(imageUrl) {
+                                        placeholder(R.drawable.ic_launcher_background)
+                                        error(R.drawable.ic_launcher_background)
+                                    }
+                                } else {
+                                    try {
+                                        ivPostImage.load(File(imageUrl)) {
+                                            placeholder(R.drawable.ic_launcher_background)
+                                            error(R.drawable.ic_launcher_background)
+                                        }
+                                    } catch (_: Exception) {
+                                        ivPostImage.visibility = View.GONE
+                                    }
+                                }
+                            } else {
+                                ivPostImage.visibility = View.GONE
                             }
-                        } catch (e: Exception) {
-                            // If file path is invalid, hide image view
+                        } else {
+                            tvPostText.text = "Post (loading…)"
                             ivPostImage.visibility = View.GONE
                         }
-                    } else {
+                    }
+                    DayItemType.PLACE -> {
+                        tvPostText.text = item.value
                         ivPostImage.visibility = View.GONE
                     }
-                } else if (item.placeId != null && item.place != null) {
-                    // Display as place
-                    val place = item.place
-                    tvPostText.text = place.name
-                    
-                    // Place image
-                    val imageUrl = place.imageUrl
-                    if (imageUrl != null) {
-                        ivPostImage.visibility = View.VISIBLE
-                        ivPostImage.load(imageUrl) {
-                            placeholder(R.drawable.ic_launcher_background)
-                            error(R.drawable.ic_launcher_background)
-                        }
-                    } else {
+                    else -> {
+                        tvPostText.text = item.value
                         ivPostImage.visibility = View.GONE
                     }
-                } else {
-                    // Fallback state: show identifier so the added item is visible even before enrichment.
-                    tvPostText.text = when {
-                        !item.placeId.isNullOrBlank() -> "Place added"
-                        !item.postId.isNullOrBlank() -> "Post added"
-                        else -> "Loading..."
-                    }
-                    ivPostImage.visibility = View.GONE
                 }
-                
-                // Notes
-                etNotes.setText(item.notes)
-                etNotes.setOnFocusChangeListener { _, hasFocus ->
-                    if (!hasFocus) {
-                        onNotesChanged(item, etNotes.text.toString().trim().takeIf { it.isNotBlank() })
-                    }
-                }
-                
-                // Delete button
-                btnDelete.setOnClickListener {
-                    onDelete(item)
-                }
-                
-                // Reorder buttons
-                btnMoveUp.visibility = if (position > 0) View.VISIBLE else View.GONE
-                btnMoveUp.setOnClickListener {
-                    onMoveUp(item)
-                }
-                
-                btnMoveDown.visibility = if (position < totalItems - 1) View.VISIBLE else View.GONE
-                btnMoveDown.setOnClickListener {
-                    onMoveDown(item)
-                }
+
+                btnDelete.setOnClickListener { onDelete(item) }
             }
         }
     }
-    
-    class ItemDiffCallback : DiffUtil.ItemCallback<TripItem>() {
-        override fun areItemsTheSame(oldItem: TripItem, newItem: TripItem): Boolean {
+
+    class ItemDiffCallback : DiffUtil.ItemCallback<DayItem>() {
+        override fun areItemsTheSame(oldItem: DayItem, newItem: DayItem): Boolean {
             return oldItem.id == newItem.id
         }
-        
-        override fun areContentsTheSame(oldItem: TripItem, newItem: TripItem): Boolean {
+
+        override fun areContentsTheSame(oldItem: DayItem, newItem: DayItem): Boolean {
             return oldItem == newItem
         }
     }
 }
-
