@@ -39,6 +39,11 @@
     
     <!-- Feed -->
     <string name="notifications">Notifications</string>
+    <string name="feed_empty_state">No posts yet.\nWhen anyone posts, it appears here for all TripTip users.</string>
+    <string name="feed_sync_error">Can\'t sync with TripTip cloud. Pull to refresh or check SETUP.md.</string>
+    <string name="tab_feed">Feed</string>
+    <string name="tab_my_posts">My Posts</string>
+    <string name="tab_nearby">Nearby</string>
     <string name="messages">Messages</string>
     <string name="like">Like</string>
     <string name="share">Share</string>

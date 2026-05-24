@@ -1,6 +1,7 @@
 package com.example.triptip_yaron_and_alon.data.remote.firebase
 
 import com.example.triptip_yaron_and_alon.domain.model.Comment
+import com.example.triptip_yaron_and_alon.util.Constants
 import com.example.triptip_yaron_and_alon.util.Result
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -18,7 +19,7 @@ class CommentsDataSource {
     
     private val firestore = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
-    private val commentsCollection = firestore.collection("comments")
+    private val commentsCollection = firestore.collection(Constants.COLLECTION_COMMENTS)
     
     /**
      * Get all comments for a specific post.

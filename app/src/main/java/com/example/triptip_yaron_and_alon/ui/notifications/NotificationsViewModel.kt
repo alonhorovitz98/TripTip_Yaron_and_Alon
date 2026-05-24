@@ -27,9 +27,6 @@ class NotificationsViewModel(application: Application) : AndroidViewModel(applic
     private val _isLoading = MutableLiveData(true)
     val isLoading: LiveData<Boolean> = _isLoading
 
-    private val _unreadCount = MutableLiveData<Int>(0)
-    val unreadCount: LiveData<Int> = _unreadCount
-
     private var listenJob: Job? = null
 
     fun loadNotifications() {
@@ -45,12 +42,10 @@ class NotificationsViewModel(application: Application) : AndroidViewModel(applic
             try {
                 notificationsDataSource.getNotificationsForUser(userId).collect { list ->
                     _notifications.value = list
-                    _unreadCount.value = list.count { !it.isRead }
                     _isLoading.value = false
                 }
             } catch (e: Exception) {
                 _notifications.value = emptyList()
-                _unreadCount.value = 0
                 _isLoading.value = false
             }
         }
@@ -74,8 +69,8 @@ class NotificationsViewModel(application: Application) : AndroidViewModel(applic
      * Called when the notifications screen is opened.
      */
     fun markAllAsRead() {
-        val userId = currentUserId ?: return
         viewModelScope.launch {
+            val userId = authDataSource.getCurrentUser().firstOrNull()?.id ?: return@launch
             notificationsDataSource.markAllAsRead(userId)
             _notifications.value = _notifications.value?.map { it.copy(isRead = true) }
         }

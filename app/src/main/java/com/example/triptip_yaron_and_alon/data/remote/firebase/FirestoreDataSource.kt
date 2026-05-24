@@ -43,14 +43,7 @@ class FirestoreDataSource(
             .orderBy("createdAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    // Close gracefully on permission errors so the listener is removed
-                    // immediately and the Firestore SDK stops its internal retry loop.
-                    if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED ||
-                        error.code == FirebaseFirestoreException.Code.UNAUTHENTICATED) {
-                        close()
-                    } else {
-                        close(error)
-                    }
+                    close(error)
                     return@addSnapshotListener
                 }
                 
@@ -75,7 +68,7 @@ class FirestoreDataSource(
             .whereEqualTo("userId", userId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    trySend(emptyList())
+                    close(error)
                     return@addSnapshotListener
                 }
                 val posts = (snapshot?.documents?.mapNotNull { it.toPost() } ?: emptyList())
@@ -94,15 +87,9 @@ class FirestoreDataSource(
             .document(postId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED ||
-                        error.code == FirebaseFirestoreException.Code.UNAUTHENTICATED) {
-                        close()
-                    } else {
-                        close(error)
-                    }
+                    close(error)
                     return@addSnapshotListener
                 }
-                
                 val post = snapshot?.toPost()
                 trySend(post)
             }
@@ -528,6 +515,71 @@ class FirestoreDataSource(
             Result.Success(user)
         } catch (e: Exception) {
             Result.Error(e, e.message)
+        }
+    }
+
+    /**
+     * Re-writes denormalized [Post.userName] / [Post.userImageUrl] for every post authored by [userId].
+     * Posts store author display at publish time; without this, profile edits never reach the feed on other devices.
+     */
+    suspend fun propagateUserProfileToPosts(userId: String, userName: String, userImageUrl: String?) {
+        withContext(Dispatchers.IO) {
+            var lastDoc: com.google.firebase.firestore.DocumentSnapshot? = null
+            while (true) {
+                var query = firestore.collection(Constants.COLLECTION_POSTS)
+                    .whereEqualTo("userId", userId)
+                    .limit(500)
+                if (lastDoc != null) {
+                    query = query.startAfter(lastDoc!!)
+                }
+                val snapshot = query.get().await()
+                if (snapshot.size() == 0) break
+                val batch = firestore.batch()
+                for (doc in snapshot.documents) {
+                    batch.update(
+                        doc.reference,
+                        mapOf(
+                            "userName" to userName,
+                            "userImageUrl" to userImageUrl
+                        )
+                    )
+                }
+                batch.commit().await()
+                if (snapshot.size() < 500) break
+                lastDoc = snapshot.documents.last()
+            }
+        }
+    }
+
+    /**
+     * Same as [propagateUserProfileToPosts] for the flat `comments` collection ([Comment.userName] / userAvatarUrl).
+     */
+    suspend fun propagateUserProfileToComments(userId: String, userName: String, userAvatarUrl: String?) {
+        withContext(Dispatchers.IO) {
+            var lastDoc: com.google.firebase.firestore.DocumentSnapshot? = null
+            while (true) {
+                var query = firestore.collection(Constants.COLLECTION_COMMENTS)
+                    .whereEqualTo("userId", userId)
+                    .limit(500)
+                if (lastDoc != null) {
+                    query = query.startAfter(lastDoc!!)
+                }
+                val snapshot = query.get().await()
+                if (snapshot.size() == 0) break
+                val batch = firestore.batch()
+                for (doc in snapshot.documents) {
+                    batch.update(
+                        doc.reference,
+                        mapOf(
+                            "userName" to userName,
+                            "userAvatarUrl" to userAvatarUrl
+                        )
+                    )
+                }
+                batch.commit().await()
+                if (snapshot.size() < 500) break
+                lastDoc = snapshot.documents.last()
+            }
         }
     }
     

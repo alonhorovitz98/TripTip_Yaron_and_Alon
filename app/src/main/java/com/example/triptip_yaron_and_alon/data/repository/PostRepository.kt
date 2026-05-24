@@ -11,6 +11,7 @@ import com.example.triptip_yaron_and_alon.util.Result
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.withContext
 
 /**
@@ -32,61 +34,88 @@ class PostRepository(
 ) {
     
     /**
-     * Get all posts with cache-first strategy.
-     * Emits cached posts immediately, then fetches from Firestore and updates cache.
+     * Feed: emit Room cache once, then stream Firestore snapshots continuously.
+     * Room is updated on each snapshot but does **not** drive this Flow (avoids flatMapLatest
+     * cancelling the listener whenever the local cache writes — that broke cross-device sync).
      */
-    fun getPosts(): Flow<List<Post>> = postDao.getAllPosts()
-        .map { entities -> PostMapper.toDomainList(entities) }
-        .catch { emit(emptyList()) }
-        .flowOn(Dispatchers.IO)
-        .flatMapLatest { cachedPosts ->
-            // Emit cached posts immediately
-            flow {
-                emit(cachedPosts)
-                
-                // Then fetch from Firestore in background and update cache
-                try {
-                    firestoreDataSource.getPosts()
-                        .catch { /* Ignore errors, keep using cache */ }
-                        .collect { remotePosts ->
-                            // Update cache in background
-                            withContext(Dispatchers.IO) {
-                                postDao.insertAll(PostMapper.toEntityList(remotePosts))
-                            }
-                            // Emit updated list from Firestore (already domain models)
-                            emit(remotePosts)
-                        }
-                } catch (e: Exception) {
-                    // If Firestore fails, keep emitting cached data
-                    emit(cachedPosts)
-                }
-            }
+    fun getPosts(): Flow<PostsFeedSnapshot> = channelFlow {
+        var latest = withContext(Dispatchers.IO) {
+            runCatching { PostMapper.toDomainList(postDao.getAllPosts().first()) }.getOrDefault(emptyList())
         }
+        send(PostsFeedSnapshot(latest))
+        try {
+            firestoreDataSource.getPosts()
+                .onEach { remotePosts ->
+                    latest = remotePosts
+                    withContext(Dispatchers.IO) {
+                        runCatching { postDao.insertAll(PostMapper.toEntityList(remotePosts)) }
+                    }
+                }
+                .collect { send(PostsFeedSnapshot(it)) }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            send(PostsFeedSnapshot(latest, syncError = feedSyncErrorMessage(e)))
+        }
+    }.flowOn(Dispatchers.IO)
     
     /**
-     * Get posts for a specific user (cache-first, filtered by userId).
+     * My posts: same pattern as [getPosts] but filtered by [userId].
      */
-    fun getMyPosts(userId: String): Flow<List<Post>> = postDao.getPostsByUser(userId)
-        .map { entities -> PostMapper.toDomainList(entities) }
-        .catch { emit(emptyList()) }
-        .flowOn(Dispatchers.IO)
-        .flatMapLatest { cached ->
-            flow {
-                emit(cached)
-                try {
-                    firestoreDataSource.getPostsByUser(userId)
-                        .catch { /* keep cache */ }
-                        .collect { remote ->
-                            withContext(Dispatchers.IO) {
-                                postDao.insertAll(PostMapper.toEntityList(remote))
-                            }
-                            emit(remote)
-                        }
-                } catch (_: Exception) {
-                    emit(cached)
-                }
-            }
+    fun getMyPosts(userId: String): Flow<PostsFeedSnapshot> = channelFlow {
+        var latest = withContext(Dispatchers.IO) {
+            runCatching { PostMapper.toDomainList(postDao.getPostsByUser(userId).first()) }.getOrDefault(emptyList())
         }
+        send(PostsFeedSnapshot(latest))
+        try {
+            firestoreDataSource.getPostsByUser(userId)
+                .onEach { remote ->
+                    latest = remote
+                    withContext(Dispatchers.IO) {
+                        runCatching { postDao.insertAll(PostMapper.toEntityList(remote)) }
+                    }
+                }
+                .collect { send(PostsFeedSnapshot(it)) }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            send(PostsFeedSnapshot(latest, syncError = feedSyncErrorMessage(e)))
+        }
+    }.flowOn(Dispatchers.IO)
+
+    /** Wipe cached posts when switching accounts so the next user does not see stale data. */
+    suspend fun clearLocalCache() {
+        withContext(Dispatchers.IO) {
+            postDao.deleteAll()
+        }
+    }
+
+    private fun feedSyncErrorMessage(e: Exception): String {
+        val msg = e.message.orEmpty()
+        return when {
+            msg.contains("PERMISSION_DENIED", ignoreCase = true) ->
+                "Can't load posts from the cloud. Make sure you're logged in and Firestore rules are deployed (see SETUP.md)."
+            msg.contains("UNAUTHENTICATED", ignoreCase = true) ->
+                "Sign in to see posts from everyone on TripTip."
+            msg.contains("UNAVAILABLE", ignoreCase = true) ||
+                msg.contains("network", ignoreCase = true) ->
+                "No connection to TripTip cloud. Showing cached posts only."
+            else -> "Can't sync posts from the cloud: ${e.message ?: "unknown error"}"
+        }
+    }
+
+    /**
+     * After profile edit, push new display name / photo into denormalized fields on posts and comments
+     * so all devices see the same author line on existing content.
+     */
+    suspend fun propagateAuthorDisplayToPublishedContent(
+        userId: String,
+        userName: String,
+        profileImageUrl: String?
+    ) {
+        firestoreDataSource.propagateUserProfileToPosts(userId, userName, profileImageUrl)
+        firestoreDataSource.propagateUserProfileToComments(userId, userName, profileImageUrl)
+    }
 
     /**
      * Get posts with pagination (lazy loading).

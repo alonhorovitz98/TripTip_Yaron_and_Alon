@@ -184,11 +184,12 @@ class NearbyPlacesFragment : Fragment() {
                 requestLocationAndLoadPlaces()
             }
             else -> {
-                // No location access granted.
-                binding.tvError.text = "Location permission is required to show nearby places."
-                binding.tvError.visibility = View.VISIBLE
-                binding.progressBar.visibility = View.GONE
-                binding.swipeRefresh.isRefreshing = false
+                _binding?.let { b ->
+                    b.tvError.text = "Location permission is required to show nearby places."
+                    b.tvError.visibility = View.VISIBLE
+                    b.progressBar.visibility = View.GONE
+                    b.swipeRefresh.isRefreshing = false
+                }
             }
         }
     }
@@ -219,12 +220,14 @@ class NearbyPlacesFragment : Fragment() {
             Priority.PRIORITY_HIGH_ACCURACY,
             null // no cancellation token
         ).addOnSuccessListener { location: Location? ->
+            if (view == null) return@addOnSuccessListener
             if (location != null) {
                 viewModel.loadNearbyPlaces(location.latitude, location.longitude)
             } else {
                 loadFromLastKnownLocation()
             }
         }.addOnFailureListener { e ->
+            if (view == null) return@addOnFailureListener
             loadFromLastKnownLocation(errorMessage = e.message)
         }
     }
@@ -243,21 +246,27 @@ class NearbyPlacesFragment : Fragment() {
         }
 
         fusedLocationClient.lastLocation.addOnSuccessListener { lastLocation: Location? ->
+            if (view == null) return@addOnSuccessListener
             if (lastLocation != null) {
                 viewModel.loadNearbyPlaces(lastLocation.latitude, lastLocation.longitude)
             } else {
-                binding.tvError.text = errorMessage?.let {
-                    "Failed to get location: $it"
-                } ?: "Location not available. Please enable location services and try again."
-                binding.tvError.visibility = View.VISIBLE
-                binding.progressBar.visibility = View.GONE
-                binding.swipeRefresh.isRefreshing = false
+                _binding?.let { b ->
+                    b.tvError.text = errorMessage?.let {
+                        "Failed to get location: $it"
+                    } ?: "Location not available. Please enable location services and try again."
+                    b.tvError.visibility = View.VISIBLE
+                    b.progressBar.visibility = View.GONE
+                    b.swipeRefresh.isRefreshing = false
+                }
             }
         }.addOnFailureListener { e ->
-            binding.tvError.text = "Failed to get location: ${e.message}"
-            binding.tvError.visibility = View.VISIBLE
-            binding.progressBar.visibility = View.GONE
-            binding.swipeRefresh.isRefreshing = false
+            if (view == null) return@addOnFailureListener
+            _binding?.let { b ->
+                b.tvError.text = "Failed to get location: ${e.message}"
+                b.tvError.visibility = View.VISIBLE
+                b.progressBar.visibility = View.GONE
+                b.swipeRefresh.isRefreshing = false
+            }
         }
     }
     

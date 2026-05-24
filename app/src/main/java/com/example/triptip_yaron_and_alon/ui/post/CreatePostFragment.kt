@@ -79,11 +79,13 @@ class CreatePostFragment : Fragment() {
         if (granted) {
             autoFillCurrentLocation()
         } else {
-            Snackbar.make(
-                binding.root,
-                "Location permission denied. You can still type location manually.",
-                Snackbar.LENGTH_LONG
-            ).show()
+            _binding?.root?.let { root ->
+                Snackbar.make(
+                    root,
+                    "Location permission denied. You can still type location manually.",
+                    Snackbar.LENGTH_LONG
+                ).show()
+            }
         }
     }
     
@@ -367,21 +369,25 @@ class CreatePostFragment : Fragment() {
             Priority.PRIORITY_HIGH_ACCURACY,
             null
         ).addOnSuccessListener { location: Location? ->
+            if (view == null) return@addOnSuccessListener
+
             if (location == null) {
-                Snackbar.make(
-                    binding.root,
-                    "Could not get current location",
-                    Snackbar.LENGTH_SHORT
-                ).show()
+                _binding?.root?.let { root ->
+                    Snackbar.make(
+                        root,
+                        "Could not get current location",
+                        Snackbar.LENGTH_SHORT
+                    ).show()
+                }
                 return@addOnSuccessListener
             }
-            
+
             selectedLatitude = location.latitude
             selectedLongitude = location.longitude
             selectedGooglePlaceId = null
-            
+
             // Resolve coordinates to human-readable place name.
-            // scope tied to view lifecycle — avoids NPE if fragment view is destroyed while geolocation/geocoder runs
+            // Guard view lifecycle — user may navigate away before GPS/geocoder returns.
             viewLifecycleOwner.lifecycleScope.launch {
                 val locationText = withContext(Dispatchers.IO) {
                     try {
@@ -406,11 +412,13 @@ class CreatePostFragment : Fragment() {
                 }
             }
         }.addOnFailureListener {
-            Snackbar.make(
-                binding.root,
-                "Could not get current location",
-                Snackbar.LENGTH_SHORT
-            ).show()
+            _binding?.root?.let { root ->
+                Snackbar.make(
+                    root,
+                    "Could not get current location",
+                    Snackbar.LENGTH_SHORT
+                ).show()
+            }
         }
     }
     

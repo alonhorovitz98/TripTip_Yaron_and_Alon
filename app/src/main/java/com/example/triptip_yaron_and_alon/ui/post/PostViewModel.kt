@@ -224,14 +224,19 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
                         val ownerId = _post.value?.userId
                         if (ownerId != null && ownerId != user.id) {
                             val label = user.name
-                            notificationsDataSource.createNotification(
-                                recipientUserId = ownerId,
-                                type = NotificationsDataSource.TYPE_COMMENT,
-                                actorUserId = user.id,
-                                actorUserName = label,
-                                targetPostId = postId,
-                                message = "$label commented on your post"
-                            )
+                            when (
+                                val notifyResult = notificationsDataSource.createNotification(
+                                    recipientUserId = ownerId,
+                                    type = NotificationsDataSource.TYPE_COMMENT,
+                                    actorUserId = user.id,
+                                    actorUserName = label,
+                                    targetPostId = postId,
+                                    message = "$label commented on your post"
+                                )
+                            ) {
+                                is Result.Error -> Log.w("PostViewModel", "comment notification: ${notifyResult.message}")
+                                else -> { }
+                            }
                         }
                     }
                     is Result.Error -> _error.value = result.message
@@ -246,8 +251,8 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
             _isLoading.value = true
             _error.value = null
             var isFirstEmission = true
-            postRepository.getMyPosts(userId).collect { posts ->
-                _userPosts.value = posts
+            postRepository.getMyPosts(userId).collect { snapshot ->
+                _userPosts.value = snapshot.posts
                 if (isFirstEmission) {
                     _isLoading.value = false
                     isFirstEmission = false

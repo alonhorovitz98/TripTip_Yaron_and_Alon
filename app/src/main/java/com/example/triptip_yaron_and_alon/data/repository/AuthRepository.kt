@@ -2,6 +2,7 @@ package com.example.triptip_yaron_and_alon.data.repository
 
 import android.net.Uri
 import com.example.triptip_yaron_and_alon.data.local.database.TripTipDatabase
+import com.example.triptip_yaron_and_alon.data.local.database.dao.PostDao
 import com.example.triptip_yaron_and_alon.data.local.database.dao.UserDao
 import com.example.triptip_yaron_and_alon.data.remote.firebase.FirebaseAuthDataSource
 import com.example.triptip_yaron_and_alon.data.remote.firebase.FirebaseStorageDataSource
@@ -29,7 +30,8 @@ class AuthRepository(
     private val authDataSource: FirebaseAuthDataSource,
     private val firestoreDataSource: FirestoreDataSource,
     private val storageDataSource: FirebaseStorageDataSource,
-    private val userDao: UserDao
+    private val userDao: UserDao,
+    private val postDao: PostDao
 ) {
     
     /**
@@ -127,8 +129,10 @@ class AuthRepository(
     suspend fun signOut(): Result<Unit> {
         return try {
             val result = authDataSource.signOut()
-            // Clear user cache (optional - you might want to keep it for offline access)
-            // userDao.deleteAll()
+            withContext(Dispatchers.IO) {
+                userDao.deleteAll()
+                postDao.deleteAll()
+            }
             result
         } catch (e: Exception) {
             Result.Error(e, e.message)

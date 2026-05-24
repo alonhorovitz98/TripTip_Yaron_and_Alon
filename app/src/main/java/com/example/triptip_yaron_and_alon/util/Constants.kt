@@ -6,6 +6,7 @@ package com.example.triptip_yaron_and_alon.util
 object Constants {
     // Firebase Collections
     const val COLLECTION_POSTS = "posts"
+    const val COLLECTION_COMMENTS = "comments"
     const val COLLECTION_TRIPS = "trips"
     const val COLLECTION_USERS = "users"
     

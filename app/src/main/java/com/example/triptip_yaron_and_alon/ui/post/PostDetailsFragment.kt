@@ -225,7 +225,7 @@ class PostDetailsFragment : Fragment() {
         }
         
         viewModel.isLikedByCurrentUser.observe(viewLifecycleOwner) { liked ->
-            binding.btnLike.setIconResource(
+            binding.btnLike.setImageResource(
                 if (liked) com.example.triptip_yaron_and_alon.R.drawable.ic_heart_filled
                 else com.example.triptip_yaron_and_alon.R.drawable.ic_heart
             )
