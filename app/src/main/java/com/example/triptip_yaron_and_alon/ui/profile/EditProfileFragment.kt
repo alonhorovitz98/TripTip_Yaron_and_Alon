@@ -102,7 +102,7 @@ class EditProfileFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        viewModel = ViewModelProvider(this)[ProfileViewModel::class.java]
+        viewModel = ViewModelProvider(requireActivity())[ProfileViewModel::class.java]
         hasPrefilledForm = false
 
         setupListeners()
@@ -179,10 +179,11 @@ class EditProfileFragment : Fragment() {
 
     private fun displayImagePreview(uri: Uri) {
         binding.ivProfileImage.load(uri) {
-            placeholder(R.drawable.ic_launcher_foreground)
-            error(R.drawable.ic_launcher_foreground)
+            placeholder(R.drawable.ic_profile_frame)
+            error(R.drawable.ic_profile_frame)
             size(240)
             crossfade(true)
+            transformations(coil.transform.CircleCropTransformation())
             memoryCachePolicy(coil.request.CachePolicy.DISABLED)
             diskCachePolicy(coil.request.CachePolicy.DISABLED)
         }
@@ -206,20 +207,8 @@ class EditProfileFragment : Fragment() {
                 binding.etEmail.setText(user.email)
                 hasPrefilledForm = true
 
-                if (user.profileImageUrl != null && selectedImageUri == null) {
-                    try {
-                        val imageFile = File(user.profileImageUrl)
-                        if (imageFile.exists()) {
-                            binding.ivProfileImage.load(imageFile) {
-                                placeholder(R.drawable.ic_launcher_foreground)
-                                error(R.drawable.ic_launcher_foreground)
-                                size(240)
-                                crossfade(true)
-                                // Key includes mtime so updates always re-decode
-                                memoryCacheKey("${imageFile.absolutePath}_${imageFile.lastModified()}")
-                            }
-                        }
-                    } catch (_: Exception) { /* Coil shows error placeholder */ }
+                if (selectedImageUri == null) {
+                    binding.ivProfileImage.loadProfileImage(user.profileImageUrl)
                 }
             }
         }

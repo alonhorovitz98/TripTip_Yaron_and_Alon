@@ -22,6 +22,9 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import java.time.Instant
+import java.time.ZoneOffset
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 /**
@@ -205,6 +208,20 @@ class FirestoreDataSource(
             .await()
     }
 
+    private fun daysBetweenInclusive(startMillis: Long, endMillis: Long): Int {
+        val zone = ZoneOffset.UTC
+        val start = Instant.ofEpochMilli(startMillis).atZone(zone).toLocalDate()
+        val end = Instant.ofEpochMilli(endMillis).atZone(zone).toLocalDate()
+        if (end.isBefore(start)) return 0
+        return ChronoUnit.DAYS.between(start, end).toInt() + 1
+    }
+
+    private fun dateMillisForDayIndex(startMillis: Long, index: Int): Long {
+        val zone = ZoneOffset.UTC
+        val start = Instant.ofEpochMilli(startMillis).atZone(zone).toLocalDate()
+        return start.plusDays(index.toLong()).atStartOfDay(zone).toInstant().toEpochMilli()
+    }
+
     /**
      * List trips (metadata + [firestoreDayCount] from parent doc; subcollections not loaded).
      */
@@ -246,14 +263,21 @@ class FirestoreDataSource(
         val job = SupervisorJob()
         val scope = CoroutineScope(job + Dispatchers.IO)
         val reg = firestore.trips().document(tripId)
-            .addSnapshotListener { _, e ->
+            .addSnapshotListener { snap, e ->
                 if (e != null) {
+                    close(e)
+                    return@addSnapshotListener
+                }
+                if (snap == null || !snap.exists()) {
                     trySend(null)
                     return@addSnapshotListener
                 }
                 scope.launch {
-                    val t = loadFullTrip(tripId)
-                    trySend(t)
+                    try {
+                        trySend(loadFullTrip(tripId))
+                    } catch (ex: Exception) {
+                        close(ex)
+                    }
                 }
             }
         awaitClose {
@@ -367,6 +391,41 @@ class FirestoreDataSource(
         updates["startDateMillis"] = startDateMillis ?: FieldValue.delete()
         updates["endDateMillis"] = endDateMillis ?: FieldValue.delete()
         firestore.trips().document(tripId).update(updates).await()
+    }
+
+    /**
+     * Ensures the trip has one day per calendar day in [startDateMillis, endDateMillis] (inclusive).
+     * Adds missing days with dates, trims extra days, and aligns day dates with the range.
+     */
+    suspend fun syncDaysForDateRange(
+        tripId: String,
+        startDateMillis: Long,
+        endDateMillis: Long
+    ) = withContext(Dispatchers.IO) {
+        if (endDateMillis < startDateMillis) return@withContext
+        val desiredCount = daysBetweenInclusive(startDateMillis, endDateMillis)
+        if (desiredCount <= 0) return@withContext
+
+        var trip = loadFullTrip(tripId) ?: return@withContext
+        while (trip.days.size < desiredCount) {
+            val index = trip.days.size
+            addDay(tripId, dateMillisForDayIndex(startDateMillis, index))
+            trip = loadFullTrip(tripId) ?: return@withContext
+        }
+
+        val sorted = trip.days.sortedBy { it.dayOrder }
+        if (sorted.size > desiredCount) {
+            sorted.drop(desiredCount).forEach { removeDay(tripId, it.id) }
+            trip = loadFullTrip(tripId) ?: return@withContext
+        }
+
+        trip.days.sortedBy { it.dayOrder }.forEachIndexed { index, day ->
+            if (index >= desiredCount) return@forEachIndexed
+            val expected = dateMillisForDayIndex(startDateMillis, index)
+            if (day.dateMillis != expected) {
+                setDayDate(tripId, day.id, expected)
+            }
+        }
     }
 
     suspend fun addDay(tripId: String, dateMillis: Long? = null): String = withContext(Dispatchers.IO) {
@@ -509,9 +568,9 @@ class FirestoreDataSource(
         return try {
             firestore.collection(Constants.COLLECTION_USERS)
                 .document(user.id)
-                .update(user.toMap())
+                .set(user.toMap(), com.google.firebase.firestore.SetOptions.merge())
                 .await()
-            
+
             Result.Success(user)
         } catch (e: Exception) {
             Result.Error(e, e.message)

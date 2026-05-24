@@ -333,6 +333,18 @@
                     app:layout_constraintStart_toStartOf="@id/locationCard"
                     app:layout_constraintEnd_toEndOf="@id/locationCard" />
 
+                <TextView
+                    android:id="@+id/tvLocationSearchStatus"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_secondary"
+                    android:visibility="gone"
+                    app:layout_constraintTop_toBottomOf="@id/rvLocationSuggestions"
+                    app:layout_constraintStart_toStartOf="@id/locationCard"
+                    app:layout_constraintEnd_toEndOf="@id/locationCard" />
+
             </androidx.constraintlayout.widget.ConstraintLayout>
         </ScrollView>
 

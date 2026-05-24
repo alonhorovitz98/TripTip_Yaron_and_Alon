@@ -1,29 +1,33 @@
 package com.example.triptip_yaron_and_alon.util
 
 import android.net.Uri
+import android.view.View
 import android.widget.ImageView
 import coil.load
-import coil.transform.CircleCropTransformation
 import com.example.triptip_yaron_and_alon.R
 import java.io.File
 
 /**
- * Loads a profile photo from Firebase Storage (https), content URI, or local file path.
- * Shows [placeholder] only when no photo URL/path is available or loading fails.
+ * Loads a post image from Firebase Storage (https), content URI, or local file path.
+ * Used in feed and post details so images work across devices.
  */
-fun ImageView.loadProfileImage(urlOrPath: String?, placeholder: Int = R.drawable.ic_profile_frame) {
+fun ImageView.loadPostImage(
+    urlOrPath: String?,
+    placeholder: Int = R.drawable.ic_launcher_background,
+    hideWhenEmpty: Boolean = true
+) {
     val s = urlOrPath?.trim().orEmpty()
     if (s.isEmpty()) {
-        setImageResource(placeholder)
+        if (hideWhenEmpty) visibility = View.GONE
         return
     }
+    visibility = View.VISIBLE
     when {
         s.startsWith("http", ignoreCase = true) -> {
             load(s) {
                 placeholder(placeholder)
                 error(placeholder)
                 crossfade(true)
-                transformations(CircleCropTransformation())
             }
         }
         s.startsWith("content:", ignoreCase = true) -> {
@@ -31,7 +35,6 @@ fun ImageView.loadProfileImage(urlOrPath: String?, placeholder: Int = R.drawable
                 placeholder(placeholder)
                 error(placeholder)
                 crossfade(true)
-                transformations(CircleCropTransformation())
             }
         }
         else -> {
@@ -41,11 +44,18 @@ fun ImageView.loadProfileImage(urlOrPath: String?, placeholder: Int = R.drawable
                     placeholder(placeholder)
                     error(placeholder)
                     crossfade(true)
-                    transformations(CircleCropTransformation())
                 }
             } else {
+                // Legacy local path from another device — show placeholder, keep image area visible
                 setImageResource(placeholder)
             }
         }
     }
+}
+
+/** Strip Google Places pipe suffix from stored location strings for display. */
+fun displayLocationName(location: String?): String? {
+    val raw = location?.trim().orEmpty()
+    if (raw.isEmpty()) return null
+    return raw.substringBefore("|").trim().ifEmpty { null }
 }

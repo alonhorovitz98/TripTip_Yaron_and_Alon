@@ -6,11 +6,11 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import coil.load
-import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.ItemMyPostBinding
 import com.example.triptip_yaron_and_alon.domain.model.Post
-import java.io.File
+import com.example.triptip_yaron_and_alon.util.displayLocationName
+import com.example.triptip_yaron_and_alon.util.loadPostImage
+import com.example.triptip_yaron_and_alon.util.loadProfileImage
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -47,39 +47,24 @@ class MyPostsAdapter(
                 tvPostText.text = post.text
                 
                 // Username
-                tvUsername.text = "User ${post.userId.take(8)}"
+                tvUsername.text = post.userName.ifBlank { "User ${post.userId.take(8)}" }
                 
                 // Timestamp
                 tvTimestamp.text = formatTimestamp(post.createdAt)
                 
-                // Post image - Coil handles file errors gracefully
-                if (post.imageUrl != null) {
-                    ivPostImage.visibility = View.VISIBLE
-                    try {
-                        val imageFile = File(post.imageUrl)
-                        ivPostImage.load(imageFile) {
-                            placeholder(R.drawable.ic_launcher_background)
-                            error(R.drawable.ic_launcher_background)
-                            // Coil will handle missing files automatically
-                        }
-                    } catch (e: Exception) {
-                        // If file path is invalid, hide image view
-                        ivPostImage.visibility = View.GONE
-                    }
-                } else {
-                    ivPostImage.visibility = View.GONE
-                }
+                // Post image — https from Firebase Storage or local path
+                ivPostImage.loadPostImage(post.imageUrl)
                 
                 // Location
-                if (post.location != null) {
+                val locationLabel = displayLocationName(post.location)
+                if (locationLabel != null) {
                     tvLocation.visibility = View.VISIBLE
-                    tvLocation.text = post.location
+                    tvLocation.text = locationLabel
                 } else {
                     tvLocation.visibility = View.GONE
                 }
                 
-                // User profile image (placeholder for now)
-                ivUserProfile.load(R.drawable.ic_launcher_foreground)
+                ivUserProfile.loadProfileImage(post.userImageUrl)
                 
                 // Click listeners
                 root.setOnClickListener {

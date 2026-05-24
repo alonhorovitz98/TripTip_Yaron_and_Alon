@@ -57,6 +57,8 @@ class CreatePostFragment : Fragment() {
     private var selectedLongitude: Double? = null
     private var selectedGooglePlaceId: String? = null
     private var isProgrammaticLocationUpdate: Boolean = false
+    private var lastLocationSearchQuery: String? = null
+    private var lastLocationSearchAtMs: Long = 0
     
     // Image picker launcher — uses the modern Photo Picker (Android 13+) with
     // automatic fallback to the system file picker on older devices.
@@ -178,11 +180,12 @@ class CreatePostFragment : Fragment() {
                 searchRunnable = Runnable {
                     val query = s?.toString()?.trim()
                     if (!query.isNullOrBlank()) {
-                        viewModel.searchLocationSuggestions(query)
+                        requestLocationSuggestions(query)
                     } else {
                         currentLocationSuggestions.clear()
                         locationSuggestionsAdapter.submit(emptyList())
                         binding.rvLocationSuggestions.visibility = View.GONE
+                        binding.tvLocationSearchStatus.visibility = View.GONE
                     }
                 }
                 binding.etLocation.postDelayed(searchRunnable, 350)
@@ -196,7 +199,7 @@ class CreatePostFragment : Fragment() {
                 binding.etLocation.selectAll()
                 val query = binding.etLocation.text?.toString()?.trim()
                 if (!query.isNullOrBlank()) {
-                    viewModel.searchLocationSuggestions(query)
+                    requestLocationSuggestions(query)
                 }
             } else {
                 // Delay hiding so that a tap on a suggestion item registers before the list disappears
@@ -210,9 +213,19 @@ class CreatePostFragment : Fragment() {
             binding.etLocation.selectAll()
             val query = binding.etLocation.text?.toString()?.trim()
             if (!query.isNullOrBlank()) {
-                viewModel.searchLocationSuggestions(query)
+                requestLocationSuggestions(query)
             }
         }
+    }
+
+    private fun requestLocationSuggestions(query: String) {
+        val now = System.currentTimeMillis()
+        if (query == lastLocationSearchQuery && now - lastLocationSearchAtMs < 500) {
+            return
+        }
+        lastLocationSearchQuery = query
+        lastLocationSearchAtMs = now
+        viewModel.searchLocationSuggestions(query)
     }
     
     private fun setupListeners() {
@@ -470,8 +483,10 @@ class CreatePostFragment : Fragment() {
                         raw.contains("insufficient permissions", ignoreCase = true) ->
                             "Couldn't publish post — Firestore rules are blocking the write. Ask the project owner to deploy the latest firestore.rules."
                         raw.contains("UNAVAILABLE", ignoreCase = true) ||
-                        raw.contains("network", ignoreCase = true) ->
-                            "Couldn't publish — network problem. Check your connection and try again."
+                        raw.contains("UnknownHost", ignoreCase = true) ||
+                        raw.contains("network", ignoreCase = true) ||
+                        raw.contains("internet", ignoreCase = true) ->
+                            "Couldn't publish — no network connection. Check the emulator/device Wi‑Fi and try again."
                         else -> raw
                     }
                     Snackbar.make(binding.root, friendly, Snackbar.LENGTH_LONG).show()
@@ -490,14 +505,26 @@ class CreatePostFragment : Fragment() {
             currentLocationSuggestions.clear()
             currentLocationSuggestions.addAll(suggestions)
             locationSuggestionsAdapter.submit(suggestions)
-            // Show when there are results; hide only when the list is empty.
-            // The focus-loss handler (with its 200 ms delay) takes care of hiding on dismiss.
             binding.rvLocationSuggestions.visibility =
                 if (suggestions.isNotEmpty()) View.VISIBLE else View.GONE
         }
+
+        viewModel.locationSearchError.observe(viewLifecycleOwner) { message ->
+            if (message.isNullOrBlank()) {
+                binding.tvLocationSearchStatus.visibility = View.GONE
+            } else {
+                binding.tvLocationSearchStatus.text = message
+                binding.tvLocationSearchStatus.visibility = View.VISIBLE
+            }
+        }
         
         viewModel.locationSuggestionsLoading.observe(viewLifecycleOwner) { isLoading ->
-            // Could show a loading indicator here if needed
+            if (isLoading) {
+                binding.tvLocationSearchStatus.text = "Searching locations…"
+                binding.tvLocationSearchStatus.visibility = View.VISIBLE
+            } else if (viewModel.locationSearchError.value.isNullOrBlank()) {
+                binding.tvLocationSearchStatus.visibility = View.GONE
+            }
         }
     }
     
@@ -523,7 +550,9 @@ class CreatePostFragment : Fragment() {
         binding.etLocation.setSelection(binding.etLocation.text?.length ?: 0)
         isProgrammaticLocationUpdate = false
         binding.rvLocationSuggestions.visibility = View.GONE
+        binding.tvLocationSearchStatus.visibility = View.GONE
         binding.etLocation.clearFocus()
+        lastLocationSearchQuery = selected.displayName
     }
 
     private inner class LocationSuggestionsAdapter(

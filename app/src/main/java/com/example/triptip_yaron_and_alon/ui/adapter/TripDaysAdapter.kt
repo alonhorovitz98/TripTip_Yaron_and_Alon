@@ -6,8 +6,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import coil.load
-import com.example.triptip_yaron_and_alon.R
+import com.example.triptip_yaron_and_alon.util.loadPostImage
 import com.example.triptip_yaron_and_alon.databinding.ItemTripDayBinding
 import com.example.triptip_yaron_and_alon.domain.model.DayItemType
 import com.example.triptip_yaron_and_alon.domain.model.TripDay
@@ -66,10 +65,7 @@ class TripDaysAdapter(
                 val firstItemImage = day.items.firstOrNull { it.type == DayItemType.POST }?.post?.imageUrl
                 if (!firstItemImage.isNullOrBlank()) {
                     ivDayThumbnail.visibility = View.VISIBLE
-                    ivDayThumbnail.load(firstItemImage) {
-                        placeholder(R.drawable.ic_placeholder_image)
-                        error(R.drawable.ic_placeholder_image)
-                    }
+                    ivDayThumbnail.loadPostImage(firstItemImage, hideWhenEmpty = false)
                 } else {
                     ivDayThumbnail.visibility = View.GONE
                 }

@@ -9,6 +9,7 @@ import com.example.triptip_yaron_and_alon.domain.model.TripDay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
 /**
@@ -23,23 +24,15 @@ class TripsRepository(
         firestore.getTrips(userId)
 
     fun observeTrip(tripId: String): Flow<Trip?> =
-        firestore.observeTrip(tripId)
+        firestore.observeTrip(tripId).map { trip ->
+            withContext(Dispatchers.IO) {
+                trip?.let { hydrateTrip(it) }
+            }
+        }
 
     suspend fun getDayForEditor(tripId: String, dayId: String): TripDay? = withContext(Dispatchers.IO) {
         val day = firestore.loadDay(tripId, dayId) ?: return@withContext null
-        val items: List<DayItem> = day.items.map { e ->
-            if (e.type == DayItemType.POST) {
-                val post = runCatching { postRepository.getPostById(e.value).first() }.getOrNull()
-                DayItem(e.id, e.dayId, e.type, e.value, e.sortOrder, post)
-            } else e
-        }
-        TripDay(
-            id = day.id,
-            tripId = day.tripId,
-            dayOrder = day.dayOrder,
-            dateMillis = day.dateMillis,
-            items = items
-        )
+        hydrateDay(day)
     }
 
     suspend fun createTrip(
@@ -55,6 +48,16 @@ class TripsRepository(
         startDateMillis: Long? = null,
         endDateMillis: Long? = null
     ) = firestore.updateTrip(tripId, name, startDateMillis, endDateMillis)
+
+    suspend fun getTrip(tripId: String): Trip? = withContext(Dispatchers.IO) {
+        firestore.loadFullTrip(tripId)?.let { hydrateTrip(it) }
+    }
+
+    suspend fun syncDaysForDateRange(
+        tripId: String,
+        startDateMillis: Long,
+        endDateMillis: Long
+    ) = firestore.syncDaysForDateRange(tripId, startDateMillis, endDateMillis)
 
     suspend fun addDay(tripId: String, dateMillis: Long? = null): String =
         firestore.addDay(tripId, dateMillis)
@@ -73,4 +76,19 @@ class TripsRepository(
 
     suspend fun deleteTrip(tripId: String) =
         firestore.deleteTrip(tripId)
+
+    private suspend fun hydrateTrip(trip: Trip): Trip =
+        trip.copy(days = trip.days.map { hydrateDay(it) })
+
+    private suspend fun hydrateDay(day: TripDay): TripDay {
+        val items = day.items.map { item ->
+            if (item.type == DayItemType.POST) {
+                val post = runCatching { postRepository.getPostById(item.value).first() }.getOrNull()
+                item.copy(post = post)
+            } else {
+                item
+            }
+        }
+        return day.copy(items = items)
+    }
 }

@@ -28,6 +28,10 @@ object Constants {
     // Default Values
     const val NEARBY_PLACES_RADIUS = 5000 // meters
     const val DEFAULT_PAGINATION_SIZE = 20
+
+    /** Ashdod Marina — default nearby-search anchor when the device reports emulator GPS. */
+    const val ASHDOD_MARINA_LAT = 31.804384
+    const val ASHDOD_MARINA_LNG = 34.655383
     
     // Date/Time Formats
     const val DATE_FORMAT = "yyyy-MM-dd"

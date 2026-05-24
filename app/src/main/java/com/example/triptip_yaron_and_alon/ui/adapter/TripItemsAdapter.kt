@@ -6,12 +6,10 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import coil.load
-import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.ItemTripItemBinding
 import com.example.triptip_yaron_and_alon.domain.model.DayItem
 import com.example.triptip_yaron_and_alon.domain.model.DayItemType
-import java.io.File
+import com.example.triptip_yaron_and_alon.util.loadPostImage
 
 class TripItemsAdapter(
     private val onDelete: (DayItem) -> Unit
@@ -45,27 +43,7 @@ class TripItemsAdapter(
                         val p = item.post
                         if (p != null) {
                             tvPostText.text = p.text
-                            val imageUrl = p.imageUrl
-                            if (imageUrl != null) {
-                                ivPostImage.visibility = View.VISIBLE
-                                if (imageUrl.startsWith("http", ignoreCase = true)) {
-                                    ivPostImage.load(imageUrl) {
-                                        placeholder(R.drawable.ic_launcher_background)
-                                        error(R.drawable.ic_launcher_background)
-                                    }
-                                } else {
-                                    try {
-                                        ivPostImage.load(File(imageUrl)) {
-                                            placeholder(R.drawable.ic_launcher_background)
-                                            error(R.drawable.ic_launcher_background)
-                                        }
-                                    } catch (_: Exception) {
-                                        ivPostImage.visibility = View.GONE
-                                    }
-                                }
-                            } else {
-                                ivPostImage.visibility = View.GONE
-                            }
+                            ivPostImage.loadPostImage(p.imageUrl, hideWhenEmpty = true)
                         } else {
                             tvPostText.text = "Post (loading…)"
                             ivPostImage.visibility = View.GONE

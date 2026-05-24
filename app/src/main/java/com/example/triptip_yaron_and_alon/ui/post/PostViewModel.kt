@@ -23,11 +23,14 @@ import com.example.triptip_yaron_and_alon.domain.model.Comment
 import com.example.triptip_yaron_and_alon.domain.model.Post
 import com.example.triptip_yaron_and_alon.domain.model.WeatherInfo
 import com.example.triptip_yaron_and_alon.util.Constants
+import com.example.triptip_yaron_and_alon.util.NetworkUtils
 import com.example.triptip_yaron_and_alon.util.Result
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.TimeoutCancellationException
 
 class PostViewModel(application: Application) : AndroidViewModel(application) {
     
@@ -113,6 +116,10 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
     
     private val _locationSuggestionsLoading = MutableLiveData<Boolean>()
     val locationSuggestionsLoading: LiveData<Boolean> = _locationSuggestionsLoading
+
+    private val _locationSearchError = MutableLiveData<String?>()
+    val locationSearchError: LiveData<String?> = _locationSearchError
+
     private var locationSearchJob: Job? = null
     private var latestLocationQuery: String = ""
     
@@ -271,25 +278,42 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
             locationSearchJob?.cancel()
             _locationSuggestions.value = emptyList()
             _locationSuggestionsLoading.value = false
+            _locationSearchError.value = null
             return
         }
 
         latestLocationQuery = query
         locationSearchJob?.cancel()
         locationSearchJob = viewModelScope.launch {
+            _locationSearchError.value = null
+
+            if (!NetworkUtils.isNetworkAvailable(getApplication())) {
+                _locationSuggestions.value = emptyList()
+                _locationSearchError.value = "No internet connection. Connect to Wi‑Fi to search locations."
+                _locationSuggestionsLoading.value = false
+                return@launch
+            }
+
             _locationSuggestionsLoading.value = true
-            placeInfoRepository.searchLocationSuggestions(query)
-                .catch { e ->
-                    _locationSuggestionsLoading.value = false
-                    _error.value = "Failed to search locations: ${e.message}"
-                }
-                .collect { suggestions ->
-                    // Ignore stale responses that return after a newer query was fired.
+            try {
+                placeInfoRepository.searchLocationSuggestions(query).collect { suggestions ->
                     if (query == latestLocationQuery) {
                         _locationSuggestions.value = suggestions
+                        _locationSearchError.value = if (suggestions.isEmpty()) {
+                            "No places found. Check spelling or try a nearby city."
+                        } else {
+                            null
+                        }
                     }
                     _locationSuggestionsLoading.value = false
                 }
+            } catch (e: Exception) {
+                if (query == latestLocationQuery) {
+                    _locationSuggestions.value = emptyList()
+                    _locationSearchError.value = "Couldn't load suggestions. Check your connection and try again."
+                }
+                _locationSuggestionsLoading.value = false
+            }
         }
     }
     
@@ -322,10 +346,23 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
     }
     
     fun createPost(text: String, imageUri: Uri?, location: String?, latitude: Double?, longitude: Double?) {
+        if (text.isBlank() && imageUri == null) {
+            _error.value = "Add a caption or photo before publishing"
+            return
+        }
+
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
-            
+
+            if (!NetworkUtils.isNetworkAvailable(getApplication())) {
+                _isLoading.value = false
+                val message = "No internet connection. Connect to Wi‑Fi or mobile data to publish."
+                _error.value = message
+                _operationResult.value = Result.Error(Exception("UNAVAILABLE"), message)
+                return@launch
+            }
+
             val user = userRepository.getCurrentUserSnapshot() ?: run {
                 _isLoading.value = false
                 _error.value = "User not authenticated"
@@ -338,44 +375,49 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
             var finalLatitude = latitude
             var finalLongitude = longitude
             var priceLevel: Int? = null
+            val displayLocation = location?.substringBefore("|")?.trim()?.takeIf { it.isNotBlank() }
             
             if (location != null && location.isNotBlank() && (latitude == null || longitude == null)) {
                 try {
-                    // Check if location contains a Google Places place_id (format: "place_name|place_id")
-                    val parts = location.split("|")
-                    if (parts.size == 2 && parts[1].isNotBlank()) {
-                        // This is a Google Places place_id, fetch details (coords + price_level)
-                        val placeDetails = placeInfoRepository.getGooglePlaceDetails(parts[1])
-                            .firstOrNull()
-                        val fullDetails = placeInfoRepository.getFullPlaceDetails(parts[1]).firstOrNull()
-                        priceLevel = fullDetails?.priceLevel?.coerceIn(0, 4)
-                        
-                        if (placeDetails != null && placeDetails.latitude != 0.0 && placeDetails.longitude != 0.0) {
-                            finalLatitude = placeDetails.latitude
-                            finalLongitude = placeDetails.longitude
+                    withTimeout(8_000) {
+                        // Check if location contains a Google Places place_id (format: "place_name|place_id")
+                        val parts = location.split("|")
+                        if (parts.size == 2 && parts[1].isNotBlank()) {
+                            // This is a Google Places place_id, fetch details (coords + price_level)
+                            val placeDetails = placeInfoRepository.getGooglePlaceDetails(parts[1])
+                                .firstOrNull()
+                            val fullDetails = placeInfoRepository.getFullPlaceDetails(parts[1]).firstOrNull()
+                            priceLevel = fullDetails?.priceLevel?.coerceIn(0, 4)
+                            
+                            if (placeDetails != null && placeDetails.latitude != 0.0 && placeDetails.longitude != 0.0) {
+                                finalLatitude = placeDetails.latitude
+                                finalLongitude = placeDetails.longitude
+                            } else {
+                                // Fallback to Nominatim geocoding
+                                val coordinates = placeInfoRepository.geocodeLocation(parts[0])
+                                    .firstOrNull()
+                                
+                                if (coordinates != null) {
+                                    finalLatitude = coordinates.first
+                                    finalLongitude = coordinates.second
+                                }
+                            }
                         } else {
-                            // Fallback to Nominatim geocoding
-                            val coordinates = placeInfoRepository.geocodeLocation(parts[0])
+                            // Regular location name, use Nominatim geocoding
+                            val coordinates = placeInfoRepository.geocodeLocation(location)
                                 .firstOrNull()
                             
                             if (coordinates != null) {
                                 finalLatitude = coordinates.first
                                 finalLongitude = coordinates.second
+                            } else {
+                                // Location not found, but continue with location name only
+                                _error.value = "Location not found, but post will be created with location name"
                             }
                         }
-                    } else {
-                        // Regular location name, use Nominatim geocoding
-                        val coordinates = placeInfoRepository.geocodeLocation(location)
-                            .firstOrNull()
-                        
-                        if (coordinates != null) {
-                            finalLatitude = coordinates.first
-                            finalLongitude = coordinates.second
-                        } else {
-                            // Location not found, but continue with location name only
-                            _error.value = "Location not found, but post will be created with location name"
-                        }
                     }
+                } catch (e: TimeoutCancellationException) {
+                    _error.value = "Location lookup timed out. Post will be saved with the name only."
                 } catch (e: Exception) {
                     // Geocoding failed, but continue with location name only
                     _error.value = "Could not get coordinates for location, but post will be created"
@@ -391,7 +433,7 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
                 text = text,
                 imageUrl = null, // Will be set after image upload
                 createdAt = System.currentTimeMillis(),
-                location = location,
+                location = displayLocation,
                 latitude = finalLatitude,
                 longitude = finalLongitude,
                 placeXid = null,

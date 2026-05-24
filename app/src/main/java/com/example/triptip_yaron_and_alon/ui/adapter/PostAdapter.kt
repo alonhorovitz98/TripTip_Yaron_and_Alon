@@ -7,12 +7,12 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import coil.load
 import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.ItemPostBinding
 import com.example.triptip_yaron_and_alon.domain.model.Post
+import com.example.triptip_yaron_and_alon.util.displayLocationName
+import com.example.triptip_yaron_and_alon.util.loadPostImage
 import com.example.triptip_yaron_and_alon.util.loadProfileImage
-import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -68,33 +68,14 @@ class PostAdapter(
                 // Timestamp
                 tvTimestamp.text = formatTimestamp(post.createdAt)
                 
-                // Post image (URL or local file path)
-                if (!post.imageUrl.isNullOrBlank()) {
-                    ivPostImage.visibility = View.VISIBLE
-                    val isUrl = post.imageUrl.startsWith("http", ignoreCase = true)
-                    if (isUrl) {
-                        ivPostImage.load(post.imageUrl) {
-                            placeholder(R.drawable.ic_launcher_background)
-                            error(R.drawable.ic_launcher_background)
-                        }
-                    } else {
-                        try {
-                            ivPostImage.load(File(post.imageUrl)) {
-                                placeholder(R.drawable.ic_launcher_background)
-                                error(R.drawable.ic_launcher_background)
-                            }
-                        } catch (e: Exception) {
-                            ivPostImage.visibility = View.GONE
-                        }
-                    }
-                } else {
-                    ivPostImage.visibility = View.GONE
-                }
+                // Post image (Firebase https URL or legacy local path)
+                ivPostImage.loadPostImage(post.imageUrl)
                 
                 // Location tag overlay (on image)
-                if (post.location != null && post.imageUrl != null) {
+                val locationLabel = displayLocationName(post.location)
+                if (locationLabel != null && !post.imageUrl.isNullOrBlank()) {
                     locationTag.visibility = View.VISIBLE
-                    tvLocation.text = post.location
+                    tvLocation.text = locationLabel
                 } else {
                     locationTag.visibility = View.GONE
                 }

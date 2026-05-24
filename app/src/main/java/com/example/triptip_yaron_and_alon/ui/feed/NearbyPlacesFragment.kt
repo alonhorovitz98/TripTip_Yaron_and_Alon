@@ -18,6 +18,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.FragmentNearbyPlacesBinding
 import com.example.triptip_yaron_and_alon.domain.model.PlaceInfo
+import com.example.triptip_yaron_and_alon.util.LocationUtils
 import com.example.triptip_yaron_and_alon.util.showError
 import com.example.triptip_yaron_and_alon.util.showSuccess
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -222,17 +223,17 @@ class NearbyPlacesFragment : Fragment() {
         ).addOnSuccessListener { location: Location? ->
             if (view == null) return@addOnSuccessListener
             if (location != null) {
-                viewModel.loadNearbyPlaces(location.latitude, location.longitude)
+                loadNearbyPlacesAt(location.latitude, location.longitude)
             } else {
                 loadFromLastKnownLocation()
             }
         }.addOnFailureListener { e ->
             if (view == null) return@addOnFailureListener
-            loadFromLastKnownLocation(errorMessage = e.message)
+            loadFromLastKnownLocation()
         }
     }
 
-    private fun loadFromLastKnownLocation(errorMessage: String? = null) {
+    private fun loadFromLastKnownLocation() {
         if (ActivityCompat.checkSelfPermission(
                 requireContext(),
                 Manifest.permission.ACCESS_FINE_LOCATION
@@ -248,28 +249,23 @@ class NearbyPlacesFragment : Fragment() {
         fusedLocationClient.lastLocation.addOnSuccessListener { lastLocation: Location? ->
             if (view == null) return@addOnSuccessListener
             if (lastLocation != null) {
-                viewModel.loadNearbyPlaces(lastLocation.latitude, lastLocation.longitude)
+                loadNearbyPlacesAt(lastLocation.latitude, lastLocation.longitude)
             } else {
-                _binding?.let { b ->
-                    b.tvError.text = errorMessage?.let {
-                        "Failed to get location: $it"
-                    } ?: "Location not available. Please enable location services and try again."
-                    b.tvError.visibility = View.VISIBLE
-                    b.progressBar.visibility = View.GONE
-                    b.swipeRefresh.isRefreshing = false
-                }
+                val fallback = LocationUtils.defaultNearbySearchLocation()
+                loadNearbyPlacesAt(fallback.latitude, fallback.longitude)
             }
-        }.addOnFailureListener { e ->
+        }.addOnFailureListener {
             if (view == null) return@addOnFailureListener
-            _binding?.let { b ->
-                b.tvError.text = "Failed to get location: ${e.message}"
-                b.tvError.visibility = View.VISIBLE
-                b.progressBar.visibility = View.GONE
-                b.swipeRefresh.isRefreshing = false
-            }
+            val fallback = LocationUtils.defaultNearbySearchLocation()
+            loadNearbyPlacesAt(fallback.latitude, fallback.longitude)
         }
     }
     
+    private fun loadNearbyPlacesAt(latitude: Double, longitude: Double) {
+        val resolved = LocationUtils.resolveNearbySearchLocation(latitude, longitude)
+        viewModel.loadNearbyPlaces(resolved.latitude, resolved.longitude)
+    }
+
     private fun onAddToTripClick(place: PlaceInfo) {
         // Navigate to trip list or show trip selection dialog
         // For now, show a snackbar

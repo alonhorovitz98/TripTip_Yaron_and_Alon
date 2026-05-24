@@ -17,13 +17,13 @@ import com.example.triptip_yaron_and_alon.databinding.FragmentPostDetailsBinding
 import com.example.triptip_yaron_and_alon.ui.adapter.NearbyPlaceAdapter
 import com.example.triptip_yaron_and_alon.ui.post.CommentAdapter
 import com.example.triptip_yaron_and_alon.ui.util.WrapContentLinearLayoutManager
+import com.example.triptip_yaron_and_alon.util.loadPostImage
 import com.example.triptip_yaron_and_alon.util.loadProfileImage
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.MapView
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.snackbar.Snackbar
-import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -277,27 +277,7 @@ class PostDetailsFragment : Fragment() {
         // Post text (description)
         binding.tvPostText.text = post.text
         
-        // Post image - Coil handles file errors gracefully (URL or file path)
-        if (!post.imageUrl.isNullOrBlank()) {
-            binding.ivPostImage.visibility = View.VISIBLE
-            if (post.imageUrl.startsWith("http", ignoreCase = true)) {
-                binding.ivPostImage.load(post.imageUrl) {
-                    placeholder(R.drawable.ic_launcher_background)
-                    error(R.drawable.ic_launcher_background)
-                }
-            } else {
-                try {
-                    binding.ivPostImage.load(File(post.imageUrl)) {
-                        placeholder(R.drawable.ic_launcher_background)
-                        error(R.drawable.ic_launcher_background)
-                    }
-                } catch (e: Exception) {
-                    binding.ivPostImage.visibility = View.GONE
-                }
-            }
-        } else {
-            binding.ivPostImage.visibility = View.GONE
-        }
+        binding.ivPostImage.loadPostImage(post.imageUrl)
         
         // Price level (Google 0-4): only show when we have real data
         val level = post.priceLevel?.coerceIn(0, 4)

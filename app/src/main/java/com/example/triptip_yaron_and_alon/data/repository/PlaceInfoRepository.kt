@@ -178,19 +178,20 @@ class PlaceInfoRepository(
         }
         
         // Fallback to Nominatim (slower, but free)
-        // Respect Nominatim rate limit (1 request per second)
-        delay(1100) // Slightly more than 1 second to be safe
-        
-        val response = geocodingApiService.searchLocations(
-            query = query,
-            limit = 10
-        )
-        
-        val suggestions = ApiMapper.toLocationSuggestionList(response)
-        emit(suggestions)
-    }.catch { e ->
-        // Re-throw with more context
-        throw Exception("Failed to search locations: ${e.message}", e)
+        try {
+            // Respect Nominatim rate limit (1 request per second)
+            delay(1100)
+            
+            val response = geocodingApiService.searchLocations(
+                query = query,
+                limit = 10
+            )
+            
+            val suggestions = ApiMapper.toLocationSuggestionList(response)
+            emit(suggestions)
+        } catch (e: Exception) {
+            emit(emptyList())
+        }
     }.flowOn(Dispatchers.IO)
     
     /**

@@ -32,13 +32,22 @@ class ProfileFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
-        viewModel = ViewModelProvider(this)[ProfileViewModel::class.java]
+        viewModel = ViewModelProvider(requireActivity())[ProfileViewModel::class.java]
         
         setupListeners()
         observeViewModel()
         
         // Explicitly load profile after view is ready
         viewModel.loadProfile()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        _binding?.let { b ->
+            viewModel.user.value?.let { user ->
+                b.ivProfileImage.loadProfileImage(user.profileImageUrl)
+            }
+        }
     }
     
     private fun setupListeners() {
@@ -72,8 +81,8 @@ class ProfileFragment : Fragment() {
         viewModel.logoutResult.observe(viewLifecycleOwner) { result ->
             when (result) {
                 is Result.Success -> {
-                    // Navigate back to login
-                    findNavController().navigate(R.id.action_profileFragment_to_loginFragment)
+                    // MainActivity observes auth state and navigates to login — do not navigate here
+                    // or NavController crashes when the destination is already loginFragment.
                 }
                 is Result.Error -> {
                     val errorMessage = result.message ?: "An error occurred"
