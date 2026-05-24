@@ -56,8 +56,8 @@ captures/
 .externalNativeBuild
 .cxx
 
-# Google Services (e.g. APIs or Firebase)
-google-services.json
+# Google Services — committed so all clones share Firebase project triptip-97085 (see SETUP.md).
+# google-services.json
 
 # Freeline
 freeline.py
@@ -98,3 +98,4 @@ Thumbs.db
 
 # Markdown files
 *.md
+!SETUP.md

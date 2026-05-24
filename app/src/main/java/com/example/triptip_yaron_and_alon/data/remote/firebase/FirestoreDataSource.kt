@@ -43,14 +43,7 @@ class FirestoreDataSource(
             .orderBy("createdAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    // Close gracefully on permission errors so the listener is removed
-                    // immediately and the Firestore SDK stops its internal retry loop.
-                    if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED ||
-                        error.code == FirebaseFirestoreException.Code.UNAUTHENTICATED) {
-                        close()
-                    } else {
-                        close(error)
-                    }
+                    close(error)
                     return@addSnapshotListener
                 }
                 
@@ -75,7 +68,7 @@ class FirestoreDataSource(
             .whereEqualTo("userId", userId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    trySend(emptyList())
+                    close(error)
                     return@addSnapshotListener
                 }
                 val posts = (snapshot?.documents?.mapNotNull { it.toPost() } ?: emptyList())
@@ -94,15 +87,9 @@ class FirestoreDataSource(
             .document(postId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED ||
-                        error.code == FirebaseFirestoreException.Code.UNAUTHENTICATED) {
-                        close()
-                    } else {
-                        close(error)
-                    }
+                    close(error)
                     return@addSnapshotListener
                 }
-                
                 val post = snapshot?.toPost()
                 trySend(post)
             }

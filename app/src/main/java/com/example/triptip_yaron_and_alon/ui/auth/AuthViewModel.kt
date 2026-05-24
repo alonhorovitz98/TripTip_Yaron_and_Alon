@@ -34,7 +34,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             authDataSource,
             firestoreDataSource,
             storageDataSource,
-            database.userDao()
+            database.userDao(),
+            database.postDao()
         )
     }
     

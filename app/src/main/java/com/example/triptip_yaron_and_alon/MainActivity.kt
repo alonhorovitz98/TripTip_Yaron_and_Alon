@@ -241,9 +241,8 @@ class MainActivity : AppCompatActivity() {
             R.id.postsMapFragment,
             R.id.editPostFragment,
             R.id.editProfileFragment,
-            R.id.tripBuilderFragment,
-            R.id.tripDayEditorFragment,
-            R.id.tripDetailsFragment
+            R.id.createEditTripFragment,
+            R.id.dayEditorFragment
         )
         val currentId = navController.currentDestination?.id
         val visible = currentId !in hideMenuOn

@@ -73,8 +73,8 @@ class DayEditorViewModel(application: Application) : AndroidViewModel(applicatio
                 .catch { e ->
                     _error.value = e.message ?: "Failed to load posts"
                 }
-                .collect { posts ->
-                    _availablePosts.value = posts
+                .collect { snapshot ->
+                    _availablePosts.value = snapshot.posts
                 }
         }
     }

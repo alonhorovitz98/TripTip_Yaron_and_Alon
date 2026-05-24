@@ -38,47 +38,71 @@ class PostRepository(
      * Room is updated on each snapshot but does **not** drive this Flow (avoids flatMapLatest
      * cancelling the listener whenever the local cache writes — that broke cross-device sync).
      */
-    fun getPosts(): Flow<List<Post>> = channelFlow {
-        val initial = withContext(Dispatchers.IO) {
+    fun getPosts(): Flow<PostsFeedSnapshot> = channelFlow {
+        var latest = withContext(Dispatchers.IO) {
             runCatching { PostMapper.toDomainList(postDao.getAllPosts().first()) }.getOrDefault(emptyList())
         }
-        send(initial)
+        send(PostsFeedSnapshot(latest))
         try {
             firestoreDataSource.getPosts()
                 .onEach { remotePosts ->
+                    latest = remotePosts
                     withContext(Dispatchers.IO) {
                         runCatching { postDao.insertAll(PostMapper.toEntityList(remotePosts)) }
                     }
                 }
-                .collect { send(it) }
+                .collect { send(PostsFeedSnapshot(it)) }
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
-        } catch (_: Exception) {
-            // Permission/network: keep last good list until collector is cancelled
+        } catch (e: Exception) {
+            send(PostsFeedSnapshot(latest, syncError = feedSyncErrorMessage(e)))
         }
     }.flowOn(Dispatchers.IO)
     
     /**
      * My posts: same pattern as [getPosts] but filtered by [userId].
      */
-    fun getMyPosts(userId: String): Flow<List<Post>> = channelFlow {
-        val initial = withContext(Dispatchers.IO) {
+    fun getMyPosts(userId: String): Flow<PostsFeedSnapshot> = channelFlow {
+        var latest = withContext(Dispatchers.IO) {
             runCatching { PostMapper.toDomainList(postDao.getPostsByUser(userId).first()) }.getOrDefault(emptyList())
         }
-        send(initial)
+        send(PostsFeedSnapshot(latest))
         try {
             firestoreDataSource.getPostsByUser(userId)
                 .onEach { remote ->
+                    latest = remote
                     withContext(Dispatchers.IO) {
                         runCatching { postDao.insertAll(PostMapper.toEntityList(remote)) }
                     }
                 }
-                .collect { send(it) }
+                .collect { send(PostsFeedSnapshot(it)) }
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            send(PostsFeedSnapshot(latest, syncError = feedSyncErrorMessage(e)))
         }
     }.flowOn(Dispatchers.IO)
+
+    /** Wipe cached posts when switching accounts so the next user does not see stale data. */
+    suspend fun clearLocalCache() {
+        withContext(Dispatchers.IO) {
+            postDao.deleteAll()
+        }
+    }
+
+    private fun feedSyncErrorMessage(e: Exception): String {
+        val msg = e.message.orEmpty()
+        return when {
+            msg.contains("PERMISSION_DENIED", ignoreCase = true) ->
+                "Can't load posts from the cloud. Make sure you're logged in and Firestore rules are deployed (see SETUP.md)."
+            msg.contains("UNAUTHENTICATED", ignoreCase = true) ->
+                "Sign in to see posts from everyone on TripTip."
+            msg.contains("UNAVAILABLE", ignoreCase = true) ||
+                msg.contains("network", ignoreCase = true) ->
+                "No connection to TripTip cloud. Showing cached posts only."
+            else -> "Can't sync posts from the cloud: ${e.message ?: "unknown error"}"
+        }
+    }
 
     /**
      * After profile edit, push new display name / photo into denormalized fields on posts and comments

@@ -225,7 +225,7 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
                         if (ownerId != null && ownerId != user.id) {
                             val label = user.name
                             when (
-                                notificationsDataSource.createNotification(
+                                val notifyResult = notificationsDataSource.createNotification(
                                     recipientUserId = ownerId,
                                     type = NotificationsDataSource.TYPE_COMMENT,
                                     actorUserId = user.id,
@@ -234,7 +234,7 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
                                     message = "$label commented on your post"
                                 )
                             ) {
-                                is Result.Error -> Log.w("PostViewModel", "comment notification: ${it.message}")
+                                is Result.Error -> Log.w("PostViewModel", "comment notification: ${notifyResult.message}")
                                 else -> { }
                             }
                         }
@@ -251,8 +251,8 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
             _isLoading.value = true
             _error.value = null
             var isFirstEmission = true
-            postRepository.getMyPosts(userId).collect { posts ->
-                _userPosts.value = posts
+            postRepository.getMyPosts(userId).collect { snapshot ->
+                _userPosts.value = snapshot.posts
                 if (isFirstEmission) {
                     _isLoading.value = false
                     isFirstEmission = false

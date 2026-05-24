@@ -39,7 +39,8 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
             authDataSource,
             firestoreDataSource,
             storageDataSource,
-            database.userDao()
+            database.userDao(),
+            database.postDao()
         )
     }
     private val postRepository by lazy {

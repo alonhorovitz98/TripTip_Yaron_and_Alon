@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "914942868395",
+    "project_id": "triptip-97085",
+    "storage_bucket": "triptip-97085.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:914942868395:android:da8cd4243dcf404b5230ee",
+        "android_client_info": {
+          "package_name": "com.example.triptip_yaron_and_alon"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBIYwAYFGUCqNrn5-9uKW-dCnpLbdnIGjw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

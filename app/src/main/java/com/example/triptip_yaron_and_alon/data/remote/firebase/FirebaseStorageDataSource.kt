@@ -14,9 +14,9 @@ class FirebaseStorageDataSource(
     private val context: Context
 ) {
 
-    // Explicitly reference the storage bucket to avoid SDK auto-detection issues
-    // with the newer .firebasestorage.app domain.
-    private val storage = FirebaseStorage.getInstance("gs://triptip-97085.firebasestorage.app")
+    // Uses the bucket from app/google-services.json so every clone of the repo
+    // talks to the same Firebase project as the owner configured.
+    private val storage = FirebaseStorage.getInstance()
 
     /**
      * Upload an image to Firebase Storage.

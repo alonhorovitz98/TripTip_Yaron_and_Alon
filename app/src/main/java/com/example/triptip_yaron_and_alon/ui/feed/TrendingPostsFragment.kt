@@ -14,7 +14,7 @@ import com.example.triptip_yaron_and_alon.ui.adapter.PostAdapter
 import com.example.triptip_yaron_and_alon.util.showError
 
 /**
- * Trending Posts Fragment - Shows popular posts from all users
+ * Feed tab — all users' posts from the shared TripTip cloud (Instagram-style home feed).
  */
 class TrendingPostsFragment : Fragment() {
     
@@ -138,6 +138,15 @@ class TrendingPostsFragment : Fragment() {
                 showError(error)
             } else {
                 binding.tvError.visibility = View.GONE
+            }
+        }
+
+        viewModel.syncError.observe(viewLifecycleOwner) { syncError ->
+            if (!syncError.isNullOrBlank()) {
+                binding.tvSyncWarning.text = syncError
+                binding.tvSyncWarning.visibility = View.VISIBLE
+            } else {
+                binding.tvSyncWarning.visibility = View.GONE
             }
         }
     }

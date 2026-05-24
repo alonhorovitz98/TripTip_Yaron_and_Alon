@@ -16,7 +16,7 @@ import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 
 /**
- * Social Feed Fragment with three tabs: Trending, Following, and Nearby
+ * Social Feed Fragment — Feed (all users), My Posts, and Nearby tabs.
  */
 class SocialFeedFragment : Fragment() {
 
@@ -64,9 +64,9 @@ class SocialFeedFragment : Fragment() {
         // Connect TabLayout with ViewPager2
         TabLayoutMediator(binding.tabLayout, binding.viewPager) { tab, position ->
             tab.text = when (position) {
-                0 -> "Trending"
-                1 -> "My Posts"
-                2 -> "Nearby"
+                0 -> getString(R.string.tab_feed)
+                1 -> getString(R.string.tab_my_posts)
+                2 -> getString(R.string.tab_nearby)
                 else -> ""
             }
         }.attach()

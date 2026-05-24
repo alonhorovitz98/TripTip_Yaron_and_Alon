@@ -66,26 +66,6 @@ class NotificationsAdapter(
             binding.cardRoot.setCardBackgroundColor(bgColor)
 
             binding.root.setOnClickListener { onNotificationClick(notification) }
-
-            // Icon by type
-            binding.ivNotificationIcon.setImageResource(
-                when (notification.type) {
-                    NotificationsDataSource.TYPE_COMMENT -> R.drawable.ic_comment
-                    else -> R.drawable.ic_heart          // LIKE and anything else
-                }
-            )
-
-            // Unread dot
-            binding.viewUnreadDot.visibility =
-                if (notification.isRead) View.GONE else View.VISIBLE
-
-            // Card background: soft orange tint for unread, white for read
-            val bgColor = if (notification.isRead) {
-                ContextCompat.getColor(binding.root.context, R.color.background_white)
-            } else {
-                ContextCompat.getColor(binding.root.context, R.color.orange_light)
-            }
-            binding.cardNotification.setCardBackgroundColor(bgColor)
         }
 
         private fun formatTime(timestamp: Long): String {

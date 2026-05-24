@@ -66,6 +66,10 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
     // Error state
     private val _error = MutableLiveData<String?>()
     val error: LiveData<String?> = _error
+
+    /** Shown when Firestore sync fails but cached posts are still visible. */
+    private val _syncError = MutableLiveData<String?>()
+    val syncError: LiveData<String?> = _syncError
     
     // Pagination
     private var currentPage = 0
@@ -89,8 +93,9 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
                 ?: return@launch
             _currentUserId.value = userId
             var first = true
-            postRepository.getMyPosts(userId).collect { list ->
-                _myPosts.value = list
+            postRepository.getMyPosts(userId).collect { snapshot ->
+                _myPosts.value = snapshot.posts
+                _syncError.value = snapshot.syncError
                 if (first) { first = false }
             }
         }
@@ -109,11 +114,13 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
         loadPostsJob = viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
+            _syncError.value = null
             _currentUserId.value = authDataSource.getCurrentUser().firstOrNull()?.id
             
             var isFirstEmission = true
-            postRepository.getPosts().collect { postsList ->
-                _posts.value = postsList
+            postRepository.getPosts().collect { snapshot ->
+                _posts.value = snapshot.posts
+                _syncError.value = snapshot.syncError
                 if (isFirstEmission) {
                     _isLoading.value = false
                     isFirstEmission = false
@@ -220,6 +227,10 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun clearError() {
         _error.value = null
+    }
+
+    fun clearSyncError() {
+        _syncError.value = null
     }
 
     companion object {
