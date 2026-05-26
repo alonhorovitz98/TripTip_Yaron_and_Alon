@@ -8,6 +8,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.FragmentNotificationsBinding
 
 class NotificationsFragment : Fragment() {
@@ -30,11 +31,20 @@ class NotificationsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         viewModel = ViewModelProvider(requireActivity())[NotificationsViewModel::class.java]
+        setupHeader()
         setupRecyclerView()
         observeViewModel()
         viewModel.loadNotifications()
         // Mark everything read as soon as the screen is opened
         viewModel.markAllAsRead()
+    }
+
+    private fun setupHeader() {
+        binding.btnBack.setOnClickListener {
+            if (!findNavController().navigateUp()) {
+                findNavController().navigate(R.id.action_notificationsFragment_to_feedFragment)
+            }
+        }
     }
 
     private fun setupRecyclerView() {

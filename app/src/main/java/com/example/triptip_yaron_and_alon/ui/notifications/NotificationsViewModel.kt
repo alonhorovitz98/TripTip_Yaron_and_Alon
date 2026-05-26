@@ -28,27 +28,50 @@ class NotificationsViewModel(application: Application) : AndroidViewModel(applic
     val isLoading: LiveData<Boolean> = _isLoading
 
     private var listenJob: Job? = null
+    private var listeningUserId: String? = null
 
+    /**
+     * Starts (or restarts) the Firestore listener for the current user's notifications.
+     * Restarts automatically when the signed-in user changes (e.g. logout → login as another account).
+     */
     fun loadNotifications() {
-        if (listenJob?.isActive == true) return
-        listenJob = viewModelScope.launch {
-            _isLoading.value = true
+        viewModelScope.launch {
             val userId = authDataSource.getCurrentUser().firstOrNull()?.id
             if (userId == null) {
+                stopListening()
                 _notifications.value = emptyList()
                 _isLoading.value = false
                 return@launch
             }
-            try {
-                notificationsDataSource.getNotificationsForUser(userId).collect { list ->
-                    _notifications.value = list
+            if (listenJob?.isActive == true && listeningUserId == userId) return@launch
+
+            stopListening()
+            listeningUserId = userId
+            _isLoading.value = true
+            listenJob = viewModelScope.launch {
+                try {
+                    notificationsDataSource.getNotificationsForUser(userId).collect { list ->
+                        _notifications.value = list
+                        _isLoading.value = false
+                    }
+                } catch (e: Exception) {
+                    _notifications.value = emptyList()
                     _isLoading.value = false
                 }
-            } catch (e: Exception) {
-                _notifications.value = emptyList()
-                _isLoading.value = false
             }
         }
+    }
+
+    /** Cancel the active listener (e.g. on logout). */
+    fun stopListening() {
+        listenJob?.cancel()
+        listenJob = null
+        listeningUserId = null
+    }
+
+    override fun onCleared() {
+        stopListening()
+        super.onCleared()
     }
 
     /**

@@ -6,11 +6,10 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import coil.load
-import com.example.triptip_yaron_and_alon.R
 import com.example.triptip_yaron_and_alon.databinding.ItemAvailablePostBinding
 import com.example.triptip_yaron_and_alon.domain.model.Post
-import java.io.File
+import com.example.triptip_yaron_and_alon.util.displayLocationName
+import com.example.triptip_yaron_and_alon.util.loadPostImage
 
 class AvailablePostsAdapter(
     private val onAddClick: (Post) -> Unit,
@@ -44,32 +43,11 @@ class AvailablePostsAdapter(
             binding.apply {
                 tvPostText.text = post.text
                 
-                // Post image: Firebase/HTTPS URLs and local file paths
-                if (!post.imageUrl.isNullOrBlank()) {
-                    ivPostImage.visibility = View.VISIBLE
-                    val url = post.imageUrl!!
-                    if (url.startsWith("http", ignoreCase = true) || url.startsWith("https", ignoreCase = true)) {
-                        ivPostImage.load(url) {
-                            placeholder(R.drawable.ic_launcher_background)
-                            error(R.drawable.ic_launcher_background)
-                        }
-                    } else {
-                        try {
-                            val imageFile = File(url)
-                            ivPostImage.load(imageFile) {
-                                placeholder(R.drawable.ic_launcher_background)
-                                error(R.drawable.ic_launcher_background)
-                            }
-                        } catch (_: Exception) {
-                            ivPostImage.visibility = View.GONE
-                        }
-                    }
-                } else {
-                    ivPostImage.visibility = View.GONE
-                }
+                ivPostImage.loadPostImage(post.imageUrl)
                 
-                if (post.location != null) {
-                    tvLocation.text = "📍 ${post.location}"
+                val locationLabel = displayLocationName(post.location)
+                if (locationLabel != null) {
+                    tvLocation.text = "📍 $locationLabel"
                     tvLocation.visibility = View.VISIBLE
                 } else {
                     tvLocation.visibility = View.GONE

@@ -182,7 +182,11 @@ class CreateEditTripFragment : Fragment() {
             val sortedDays = trip.days.sortedBy { it.dayOrder }
             if (sortedDays.isEmpty()) {
                 binding.tvNoDays.text = if (isSaved) {
-                    "No days yet. Tap \"+ Add Day\" to build your itinerary."
+                    if (trip.startDateMillis != null && trip.endDateMillis != null) {
+                        "No days yet. Save again after setting dates, or tap \"+ Add Day\"."
+                    } else {
+                        "Set trip dates and save to auto-create days, or tap \"+ Add Day\"."
+                    }
                 } else {
                     "Save the trip first, then add days."
                 }
@@ -197,10 +201,14 @@ class CreateEditTripFragment : Fragment() {
 
         viewModel.saveResult.observe(viewLifecycleOwner) { trip ->
             if (trip != null) {
-                val msg = if (isNewTrip) {
-                    "Trip saved! Tap '+ Add Day' to add days."
-                } else {
-                    "Trip saved."
+                val hasDates = trip.startDateMillis != null && trip.endDateMillis != null
+                val msg = when {
+                    hasDates && trip.days.isNotEmpty() ->
+                        "Trip saved with ${trip.days.size} day(s). Tap a day to add places and posts."
+                    isNewTrip ->
+                        "Trip saved! Set start and end dates to auto-create days, or tap '+ Add Day'."
+                    else ->
+                        "Trip saved."
                 }
                 Snackbar.make(binding.root, msg, Snackbar.LENGTH_LONG).show()
                 isNewTrip = false

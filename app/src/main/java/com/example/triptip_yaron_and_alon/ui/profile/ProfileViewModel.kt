@@ -76,12 +76,12 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     
     // Removed init block - loadProfile() should be called explicitly from Fragment
     
-    fun loadProfile() {
-        // Cancel existing job if active to prevent duplicate collectors
-        if (loadProfileJob?.isActive == true) {
+    fun loadProfile(force: Boolean = false) {
+        if (!force && loadProfileJob?.isActive == true) {
             return
         }
-        
+        loadProfileJob?.cancel()
+
         loadProfileJob = viewModelScope.launch {
             _isLoading.value = true
             _error.value = null

@@ -15,9 +15,11 @@ import com.example.triptip_yaron_and_alon.domain.model.Trip
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.ZoneOffset
+import java.time.temporal.ChronoUnit
 
 class CreateEditTripViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -103,12 +105,11 @@ class CreateEditTripViewModel(application: Application) : AndroidViewModel(appli
                 }
             try {
                 val id = trips.createTrip(userId, name, startDateMillis, endDateMillis)
-                val trip = trips.observeTrip(id).first()
-                _currentTrip.value = trip
-                _saveResult.value = trip
+                syncDaysIfNeeded(id, startDateMillis, endDateMillis)
+                loadTrip(id)
+                _saveResult.value = trips.getTrip(id)
             } catch (e: Exception) {
                 _error.value = e.message ?: "Failed to create trip"
-            } finally {
                 _isLoading.value = false
             }
         }
@@ -124,12 +125,11 @@ class CreateEditTripViewModel(application: Application) : AndroidViewModel(appli
             _isLoading.value = true
             try {
                 trips.updateTrip(tripId, name, startDateMillis, endDateMillis)
-                val trip = trips.observeTrip(tripId).first()
-                _currentTrip.value = trip
-                _saveResult.value = trip
+                syncDaysIfNeeded(tripId, startDateMillis, endDateMillis)
+                loadTrip(tripId)
+                _saveResult.value = trips.getTrip(tripId)
             } catch (e: Exception) {
                 _error.value = e.message ?: "Failed to update trip"
-            } finally {
                 _isLoading.value = false
             }
         }
@@ -139,10 +139,9 @@ class CreateEditTripViewModel(application: Application) : AndroidViewModel(appli
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                trips.addDay(tripId, dateMillis)
-                val t = trips.observeTrip(tripId).first()
-                _currentTrip.value = t
-                _dayAdded.value = t?.days?.size
+                val resolvedDate = dateMillis ?: computeNextDayDate(_currentTrip.value)
+                trips.addDay(tripId, resolvedDate)
+                _dayAdded.value = trips.getTrip(tripId)?.days?.size
             } catch (e: Exception) {
                 _error.value = e.message ?: "Failed to add day"
             } finally {
@@ -156,7 +155,6 @@ class CreateEditTripViewModel(application: Application) : AndroidViewModel(appli
             _isLoading.value = true
             try {
                 trips.removeDay(tripId, dayId)
-                _currentTrip.value = trips.observeTrip(tripId).first()
             } catch (e: Exception) {
                 _error.value = e.message ?: "Failed to remove day"
             } finally {
@@ -175,5 +173,39 @@ class CreateEditTripViewModel(application: Application) : AndroidViewModel(appli
 
     fun clearDayAdded() {
         _dayAdded.value = null
+    }
+
+    private suspend fun syncDaysIfNeeded(
+        tripId: String,
+        startDateMillis: Long?,
+        endDateMillis: Long?
+    ) {
+        if (startDateMillis != null && endDateMillis != null && endDateMillis >= startDateMillis) {
+            trips.syncDaysForDateRange(tripId, startDateMillis, endDateMillis)
+        }
+    }
+
+    private fun computeNextDayDate(trip: Trip?): Long? {
+        if (trip == null) return null
+        val start = trip.startDateMillis ?: return null
+        val end = trip.endDateMillis ?: return null
+        val index = trip.days.size
+        val count = daysBetweenInclusive(start, end)
+        if (index >= count) return null
+        return dateMillisForDayIndex(start, index)
+    }
+
+    private fun daysBetweenInclusive(startMillis: Long, endMillis: Long): Int {
+        val zone = ZoneOffset.UTC
+        val start = Instant.ofEpochMilli(startMillis).atZone(zone).toLocalDate()
+        val end = Instant.ofEpochMilli(endMillis).atZone(zone).toLocalDate()
+        if (end.isBefore(start)) return 0
+        return ChronoUnit.DAYS.between(start, end).toInt() + 1
+    }
+
+    private fun dateMillisForDayIndex(startMillis: Long, index: Int): Long {
+        val zone = ZoneOffset.UTC
+        val start = Instant.ofEpochMilli(startMillis).atZone(zone).toLocalDate()
+        return start.plusDays(index.toLong()).atStartOfDay(zone).toInstant().toEpochMilli()
     }
 }

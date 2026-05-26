@@ -11,6 +11,7 @@ import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.setupActionBarWithNavController
 import com.example.triptip_yaron_and_alon.ui.auth.AuthViewModel
+import com.example.triptip_yaron_and_alon.ui.notifications.NotificationsViewModel
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import kotlinx.coroutines.Dispatchers
@@ -72,7 +73,8 @@ class MainActivity : AppCompatActivity() {
                 // User logged in - navigate to feed if on login/register screen
                 navigateToFeedFromAuthScreen(navController)
             } else {
-                // User logged out - navigate to login if on protected screens
+                // User logged out - stop notification listener and navigate to login
+                ViewModelProvider(this@MainActivity)[NotificationsViewModel::class.java].stopListening()
                 val currentDestination = navController.currentDestination?.id
                 val protectedScreens = setOf(
                     R.id.feedFragment,
@@ -238,7 +240,6 @@ class MainActivity : AppCompatActivity() {
         val hideMenuOn = setOf(
             R.id.notificationsFragment,
             R.id.postDetailsFragment,
-            R.id.postsMapFragment,
             R.id.editPostFragment,
             R.id.editProfileFragment,
             R.id.createEditTripFragment,

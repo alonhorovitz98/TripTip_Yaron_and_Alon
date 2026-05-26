@@ -18,6 +18,14 @@ object ApiClient {
         .readTimeout(30, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)
         .build()
+
+    // Shorter timeouts for location APIs so offline users get feedback quickly.
+    private val locationOkHttpClient = OkHttpClient.Builder()
+        .addInterceptor(loggingInterceptor)
+        .connectTimeout(8, TimeUnit.SECONDS)
+        .readTimeout(10, TimeUnit.SECONDS)
+        .writeTimeout(10, TimeUnit.SECONDS)
+        .build()
     
     private val weatherRetrofit = Retrofit.Builder()
         .baseUrl(Constants.OPEN_METEO_BASE_URL)
@@ -40,9 +48,9 @@ object ApiClient {
             chain.proceed(request)
         }
         .addInterceptor(loggingInterceptor)
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
+        .connectTimeout(8, TimeUnit.SECONDS)
+        .readTimeout(10, TimeUnit.SECONDS)
+        .writeTimeout(10, TimeUnit.SECONDS)
         .build()
     
     private val geocodingRetrofit = Retrofit.Builder()
@@ -54,7 +62,7 @@ object ApiClient {
     // Google Places API client
     private val googlePlacesRetrofit = Retrofit.Builder()
         .baseUrl(Constants.GOOGLE_PLACES_BASE_URL)
-        .client(okHttpClient)
+        .client(locationOkHttpClient)
         .addConverterFactory(GsonConverterFactory.create())
         .build()
     

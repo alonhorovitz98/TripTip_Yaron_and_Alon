@@ -38,11 +38,16 @@ class SocialFeedFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         notificationsViewModel = ViewModelProvider(requireActivity())[NotificationsViewModel::class.java]
-        notificationsViewModel.loadNotifications()
 
         setupViewPager()
         setupListeners()
         observeUnreadCount()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Restart listener when returning after login / account switch (activity-scoped ViewModel).
+        notificationsViewModel.loadNotifications()
     }
 
     private fun observeUnreadCount() {
@@ -78,10 +83,6 @@ class SocialFeedFragment : Fragment() {
     private fun setupListeners() {
         binding.btnNotifications.setOnClickListener {
             findNavController().navigate(R.id.action_feedFragment_to_notificationsFragment)
-        }
-
-        binding.btnShowMap.setOnClickListener {
-            findNavController().navigate(R.id.action_feedFragment_to_postsMapFragment)
         }
 
         binding.fabCreatePost.setOnClickListener {
